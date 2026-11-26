@@ -68,7 +68,7 @@ try {
         });
         if (!fontsReady) throw new Error('Local screenshot fonts failed to load');
         let ready = await waitForVisualReady(page);
-        if (!ready) console.warn(`${code} (${lang}, ${device}): loading did not finish; screenshot marked loading`);
+        if (!ready) throw new Error(`${code} (${lang}, ${device}): loading did not finish; refusing incomplete screenshot`);
         const current = new URL(page.url());
         if (current.pathname === '/login' || current.pathname === '/welcome') throw new Error(`${code}: redirected to ${current.pathname}; demo session unavailable`);
         // Audit screenshot stays in the viewport: full-page resize remounts Settings.
@@ -102,11 +102,12 @@ try {
           // intended tab before interacting so the dialog belongs to that page.
           await page.goto(BASE + path, { waitUntil: 'networkidle2', timeout: 60000 });
           const dialogReady = await waitForVisualReady(page);
-          if (!dialogReady) console.warn(`${code}-${dialog}: page still loading before dialog`);
+          if (!dialogReady) throw new Error(`${code}-${dialog}: page still loading before dialog`);
           await page.waitForSelector(selector, { timeout: 15000 });
           await page.click(selector);
           await page.waitForSelector('[role="dialog"]', { timeout: 10000 });
           const modalReady = dialogReady && await waitForVisualReady(page);
+          if (!modalReady) throw new Error(`${code}-${dialog}: dialog loading did not finish`);
           const modalFile = `${code}-${dialog}--${lang}--${device}--light${modalReady ? '' : '--loading'}.png`;
           await page.screenshot({ path: `${OUT}/${modalFile}` });
           manifest.push(`- **${code}-${dialog}** — ${lang}, ${device}: [${modalFile}](${modalFile})${modalReady ? '' : ' — loading did not finish'}`);

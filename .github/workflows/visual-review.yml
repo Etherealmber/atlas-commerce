@@ -38,6 +38,7 @@ jobs:
           node scripts/settings-load-smoke.mjs
           node scripts/capture-visual-review.mjs
       - name: Upload screenshot artifact
+        id: screenshots
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -45,3 +46,15 @@ jobs:
           path: artifacts/visual-review/
           if-no-files-found: warn
           retention-days: 14
+      - name: Link screenshots in job summary
+        if: always() && steps.screenshots.outputs.artifact-url != ''
+        env:
+          ARTIFACT_URL: ${{ steps.screenshots.outputs.artifact-url }}
+        run: |
+          echo '## Visual review — isolated test/test demo' >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download screenshots and page-code manifest]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Screenshots are private workflow artifacts, not committed files. GitHub requires downloading the artifact to view its individual images.' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f artifacts/visual-review/README.md ]; then
+            echo '### Captured page codes' >> "$GITHUB_STEP_SUMMARY"
+            sed -n '/^- \*\*/p' artifacts/visual-review/README.md | sed -E 's/\[([^]]+)\]\([^)]+\)/``/' >> "$GITHUB_STEP_SUMMARY"
+          fi

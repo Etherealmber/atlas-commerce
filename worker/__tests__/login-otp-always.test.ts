@@ -529,3 +529,20 @@ describe('controlled two-account shared-egress regression (local, not staging)',
 });
 
 /* eslint-enable no-await-in-loop */
+
+describe('OTP delivery failures', () => {
+  it('does not bypass OTP or report success when production has no email transport', async () => {
+    env.ENVIRONMENT = 'production';
+    delete env.EMAIL;
+    const result = await login({ username: 'admin', password: 'OwnerPass123!', fingerprint: 'missing-email' });
+    expect(result.status).not.toBe(200);
+    expect(result.body.token).toBeUndefined();
+  });
+  it('does not report a code was sent when the email provider fails', async () => {
+    env.ENVIRONMENT = 'production';
+    sendSpy.mockRejectedValue(new Error('delivery failed'));
+    const result = await login({ username: 'admin', password: 'OwnerPass123!', fingerprint: 'failed-email' });
+    expect(result.body.token).toBeUndefined();
+    expect(result.body.emailed).not.toBe(true);
+  });
+});

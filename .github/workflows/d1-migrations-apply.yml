@@ -31,6 +31,7 @@ on:
           - journal-setup
           - journal-check
           - mail-inventory
+          - delete-test-mail
       confirm:
         description: 'Type APPLY for D1 changes, or CREATE-JOURNAL to provision a new private journal bucket'
         required: false
@@ -46,7 +47,7 @@ concurrency:
 
 jobs:
   migrations:
-    if: inputs.action != 'journal-setup' && inputs.action != 'journal-check' && inputs.action != 'mail-inventory'
+    if: inputs.action != 'journal-setup' && inputs.action != 'journal-check' && inputs.action != 'mail-inventory' && inputs.action != 'delete-test-mail'
     name: D1 migrations — ${{ inputs.action }} (production)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -271,3 +272,43 @@ jobs:
           counts=$(jq -ce '.[0].results[0] | {total, older_30d, older_90d, r2_references}' mail-counts.json)
           echo "::notice title=Legacy mail counts::$counts"
           echo "Legacy mail aggregate counts: $counts" >> "$GITHUB_STEP_SUMMARY"
+
+  delete-test-mail:
+    if: inputs.action == 'delete-test-mail'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+    steps:
+      - name: Require explicit test-mail confirmation
+        if: inputs.confirm != 'DELETE-129-TEST-MAIL'
+        run: echo '::error::Confirmation required; no data changed.' && exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Delete only the previously inventoried test rows
+        run: |
+          set -euo pipefail
+          id="${CLOUDFLARE_ACCOUNT_ID:-}"
+          if [ -z "$id" ] && [ -n "$CF_ZONE_ID" ]; then
+            id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID" | jq -r '.result.account.id // empty' || true)
+          fi
+          if [ -z "$id" ]; then
+            id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" 'https://api.cloudflare.com/client/v4/accounts?per_page=5' | jq -r '.result[0].id // empty' || true)
+          fi
+          test -n "$id"
+          echo "::add-mask::$id"
+          export CLOUDFLARE_ACCOUNT_ID="$id"
+          # Atomic guard: do not touch newer or changed inventories. R2 objects are
+          # intentionally not deleted because references may be shared.
+          npx wrangler d1 execute DB --remote --config wrangler.jsonc --json --command "DELETE FROM mail_messages WHERE created_at < datetime('now','-30 days') AND (SELECT COUNT(*) FROM mail_messages)=129 AND (SELECT COUNT(*) FROM mail_messages WHERE created_at < datetime('now','-30 days'))=129 AND (SELECT COUNT(*) FROM mail_messages WHERE r2_key != '')=128" > result.json
+          changes=$(jq -er '.[0].meta.changes | numbers' result.json)
+          if [ "$changes" != 129 ]; then echo "::error::Inventory changed or deletion incomplete: deleted $changes rows. Review before retry."; exit 1; fi
+          echo '::notice::Deleted 129 inventoried test mail rows; no R2 objects were deleted.'
+          echo 'Deleted 129 inventoried test mail rows; referenced R2 objects were not deleted.' >> "$GITHUB_STEP_SUMMARY"

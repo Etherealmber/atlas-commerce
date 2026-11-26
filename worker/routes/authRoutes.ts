@@ -303,7 +303,7 @@ app.post('/api/auth/login', async (c) => {
     `Appareil : ${ua.slice(0, 160)}`;
 
   // Free tier: no Queues (paid). Background email via waitUntil only — do not block the response.
-  if (!c.env.EMAIL?.send) {
+  if (!c.env.EMAIL?.send && !(c.env as any).RESEND_API_KEY && String((c.env as any).ENVIRONMENT || '').toLowerCase() !== 'production' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(c.req.url).hostname)) {
     // Local development without an e-mail binding: the OTP could never
     // arrive, so trust this device and continue. Production ALWAYS binds
     // EMAIL, therefore the e-mail OTP remains enforced everywhere else.
@@ -323,22 +323,18 @@ app.post('/api/auth/login', async (c) => {
       message: 'Environnement local sans service e-mail — appareil approuvé automatiquement.',
     });
   }
-  // OTPs are never written to logs, including on development/preview hosts.
-  const sendTask = sendOtpMail(c.env, {
+  // Do not report delivery success before a provider accepted the message.
+  // A missing or failed transport must never bypass OTP in production.
+  const delivered = await sendOtpMail(c.env, {
     to: toAddr,
     from: fromAddr,
     subject: `${otp} — Code de connexion ${companyName}`,
     html: emailHtml,
     text: emailText,
-  }).then((ok: any) => {
-    if (!ok) console.error('otp_email_failed_all_transports', username);
   });
-  try {
-    const ec = (c as any).executionCtx;
-    if (ec?.waitUntil) ec.waitUntil(sendTask);
-    else void sendTask;
-  } catch {
-    void sendTask;
+  if (!delivered) {
+    console.error('otp_email_failed_all_transports');
+    return c.json({ success: false, code: 'OTP_DELIVERY_FAILED', error: 'Impossible d’envoyer le code de connexion. Réessayez ou contactez l’administrateur.' }, 503);
   }
 
   const masked = toAddr.replace(/^(.{2})[^@]*(@.*)$/, '$1•••$2');
