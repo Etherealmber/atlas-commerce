@@ -195,6 +195,8 @@ async function runInSandbox(app: AppFetch, env: Env, ctx: ExecutionContext, clai
   if (!db) return json({ success: false, code: 'DEMO_UNAVAILABLE', error: 'Le mode démo est indisponible sur ce déploiement.' }, 503);
   const sandboxKey = `${claims.fp}:${claims.gen}`;
   const demoEnv = await buildDemoEnv(env, db as unknown as D1Database, sandboxKey);
+  const aiGate = await configureDemoAi(env, demoEnv, sandboxKey, req);
+  if (aiGate) return aiGate;
   const res = withSandboxStub(env, claims, () => runInDataScope(`demo:${sandboxKey}`, async () => {
     try {
       return await app(req, demoEnv, ctx);
@@ -205,6 +207,33 @@ async function runInSandbox(app: AppFetch, env: Env, ctx: ExecutionContext, clai
   }));
   if (!res) return json({ success: false, code: 'DEMO_UNAVAILABLE', error: 'Le mode démo est indisponible.' }, 503);
   return rewrapTokens(env, claims, await res);
+}
+
+/** Inject only the dedicated demo credential on assistant routes, with a
+ * fail-closed request budget before invoking the provider. */
+export async function configureDemoAi(env: Env, demoEnv: Env, sandboxKey: string, req: Request): Promise<Response | null> {
+  const path = new URL(req.url).pathname;
+  const demoGroq = String(env.DEMO_GROQ_API_KEY || '').trim();
+  const chat = req.method === 'POST' && (path === '/api/assist/chat' || path === '/api/assist/chat/stream');
+  const status = req.method === 'GET' && (path === '/api/assist/status' || path === '/api/settings/assist-provider');
+  if (demoGroq && (chat || status)) {
+    if (chat) {
+      // Count requests before any provider call, including failures. Both limits
+      // are shared durable counters; do not rely on the demo owner's unlimited quota.
+      try {
+        for (const [name, max] of [[`demo-ai-session:${sandboxKey}`, 10], ['demo-ai-global', 100]] as const) {
+          const stub = hubStub(env, name);
+          if (!stub || (await callHub(stub, '/ip-quota', { max }))?.ok !== true) {
+            return json({ success: false, code: 'DEMO_AI_QUOTA', error: 'Demo AI limit reached. Please try again later.' }, 429);
+          }
+        }
+      } catch {
+        return json({ success: false, code: 'DEMO_AI_UNAVAILABLE', error: 'Demo AI is temporarily unavailable.' }, 503);
+      }
+    }
+    demoEnv.GROQ_API_KEY = demoGroq;
+  }
+  return null;
 }
 
 /**

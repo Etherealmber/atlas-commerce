@@ -43,6 +43,8 @@ export interface Env {
   GITHUB_WEB_ISSUE_REPO?: string;
   /** Atlas Agent LLM key (Secret). Also used for issue triage unless GROQ_ISSUES_API_KEY is set. */
   GROQ_API_KEY?: string;
+  /** Optional, separate provider credential for the public demo only. */
+  DEMO_GROQ_API_KEY?: string;
   GROQ_MODEL?: string;
   /** Optional dedicated key for issue triage (keeps the Agent quota separate). */
   GROQ_ISSUES_API_KEY?: string;

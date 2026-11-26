@@ -21,7 +21,7 @@ import {
 } from '../lib/demo/policy';
 import { buildDemoModel, buildDemoSeed, buildEmployeeSeed, buildSnapshotSeed, DEMO_COMPANY, seedDemoData } from '../lib/demo/seed';
 import { execScript, runBatch, runStatement, splitSqlStatements, type SqlBackend } from '../lib/demo/sqlEngine';
-import { DEMO_TOKEN_PREFIX, demoOffLimitsResponse, isDevMachineHost, relinkTicket, rewrapTokens, unwrapDemoToken, wrapDemoToken } from '../lib/demo/gateway';
+import { DEMO_TOKEN_PREFIX, configureDemoAi, demoOffLimitsResponse, isDevMachineHost, relinkTicket, rewrapTokens, unwrapDemoToken, wrapDemoToken } from '../lib/demo/gateway';
 import { currentDataScope, inDemoScope, runInDataScope, scopedKey } from '../lib/dataScope';
 import { checkRefreshLimit } from '../lib/cache';
 import { schemaOnce } from '../lib/schema';
@@ -412,5 +412,31 @@ describe('demo off-limits actions', () => {
     expect(demoOffLimitsResponse('/api/admin/backups/restore', 'post')?.status).toBe(403);
     expect(demoOffLimitsResponse('/api/admin/backups', 'GET')).toBeNull();
     expect(demoOffLimitsResponse('/api/products', 'POST')).toBeNull();
+  });
+});
+
+
+describe('demo AI isolation', () => {
+  it('uses only a dedicated key on assistant routes and enforces fail-closed budgets', async () => {
+    const calls: string[] = [];
+    const ns = {
+      idFromName: (name: string) => name,
+      get: (name: string) => ({ fetch: async () => { calls.push(name); return Response.json({ ok: true }); } }),
+    };
+    const env = { GROQ_API_KEY: 'production-secret', DEMO_GROQ_API_KEY: 'demo-secret', DEMO_HUB: ns } as any;
+    const sandbox = {} as any;
+    expect(await configureDemoAi(env, sandbox, 'fingerprint:1', new Request('https://example.com/api/assist/chat', { method: 'POST' }))).toBeNull();
+    expect(sandbox.GROQ_API_KEY).toBe('demo-secret');
+    expect(calls).toEqual(['demo-ai-session:fingerprint:1', 'demo-ai-global']);
+    const other = {} as any;
+    await configureDemoAi(env, other, 'x', new Request('https://example.com/api/issues', { method: 'POST' }));
+    expect(other.GROQ_API_KEY).toBeUndefined();
+    const noDemo = {} as any;
+    await configureDemoAi({ GROQ_API_KEY: 'production-secret' } as any, noDemo, 'x', new Request('https://example.com/api/assist/chat', { method: 'POST' }));
+    expect(noDemo.GROQ_API_KEY).toBeUndefined();
+    const unavailable = {} as any;
+    const denied = await configureDemoAi({ DEMO_GROQ_API_KEY: 'demo-secret' } as any, unavailable, 'x', new Request('https://example.com/api/assist/chat', { method: 'POST' }));
+    expect(denied?.status).toBe(429);
+    expect(unavailable.GROQ_API_KEY).toBeUndefined();
   });
 });

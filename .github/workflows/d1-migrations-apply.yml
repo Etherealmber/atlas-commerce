@@ -183,7 +183,10 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || { echo '::error::Cloudflare token missing'; exit 1; }
           id="${CLOUDFLARE_ACCOUNT_ID:-}"
           if [ -z "$id" ] && [ -n "$CF_ZONE_ID" ]; then
-            id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID" | jq -r '.result.account.id // empty')
+            id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID" | jq -r '.result.account.id // empty' || true)
+          fi
+          if [ -z "$id" ]; then
+            id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts?per_page=5" | jq -r ' .result[0].id // empty' || true)
           fi
           test -n "$id" || { echo '::error::Cloudflare account ID not resolved'; exit 1; }
           echo "::add-mask::$id"
