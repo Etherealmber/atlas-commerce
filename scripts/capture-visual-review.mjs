@@ -1,3 +1,4 @@
+import { whatsNewVersion } from './visual-current-version.mjs';
 // Captures the actual test/test demo against localhost only. Never use real data.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
@@ -52,13 +53,13 @@ try {
         else void request.abort();
       });
       await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
-      await page.evaluateOnNewDocument((session, language, fp) => {
+      await page.evaluateOnNewDocument((session, language, fp, whatsNewVersion) => {
         const values = { stock_auth_token: session.token, stock_auth_user: 'test', stock_role: session.role, stock_display_name: session.display_name, stock_device_fp: fp,
           atlas_demo_session: JSON.stringify({ ...session.demo, intro_seen: true }), atlas_lang: language, 'atlas-theme': 'light', atlas_welcome_completed: 'true',
-          atlas_onboarding: JSON.stringify({ status: 'done', step: 0 }), atlas_phone_onboarding: 'done', 'atlas-whats-new-modal-seen': '0.9.3', 'atlas-whats-new-seen': '0.9.3',
+          atlas_onboarding: JSON.stringify({ status: 'done', step: 0 }), atlas_phone_onboarding: 'done', 'atlas-whats-new-modal-seen': whatsNewVersion, 'atlas-whats-new-seen': whatsNewVersion,
           atlas_cookie_consent_v1: JSON.stringify({ version: 1, necessary: true, preferences: false, analytics: false, method: 'necessary_only', decidedAt: '2026-01-01T00:00:00Z' }) };
         for (const [key, value] of Object.entries(values)) localStorage.setItem(key, String(value));
-      }, auth, lang, fingerprint);
+      }, auth, lang, fingerprint, whatsNewVersion);
       for (const [code, path] of (device === 'desktop' ? pages : mobile).filter(([id]) => !process.env.VISUAL_FILTER || id.includes(process.env.VISUAL_FILTER))) {
         await page.goto(BASE + path, { waitUntil: 'networkidle2', timeout: 60000 });
         const fontsReady = await page.evaluate(async () => {

@@ -2627,7 +2627,6 @@ if (loading && !settings) return (
           {catalogStatus === 'loading' && <p role="status" aria-busy="true">Chargement des catégories et unités…</p>}
           {catalogStatus === 'error' && <div role="alert"><p>Impossible de charger les catégories et unités.</p><button type="button" onClick={() => setCatalogRetry(n => n + 1)}>Réessayer</button></div>}
           {catalogStatus === 'ready' && <>
-          <button type="button" data-visual-review="category-create" onClick={() => { closeCategoryDialog(); setCategoryDialogOpen(true); }}>+ Ajouter une catégorie</button>
           {categoryDialogOpen && <SettingsUserDialog titleId="category-dialog-title" dismissDisabled={catSaving} onClose={closeCategoryDialog}>
           <h2 id="category-dialog-title">{editingCat ? 'Modifier la catégorie' : 'Ajouter une catégorie'}</h2>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
@@ -2645,6 +2644,9 @@ if (loading && !settings) return (
               value={catDesc}
               onChange={(e) => setCatDesc(e.target.value)}
             />
+            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
+            <div className="catalog-dialog-actions">
+            <button type="button" className="secondary" disabled={catSaving} onClick={closeCategoryDialog}>Annuler</button>
             <button
               type="button"
               disabled={catSaving}
@@ -2672,13 +2674,12 @@ if (loading && !settings) return (
             >
               {catSaving ? '…' : editingCat ? 'Enregistrer' : '+ Ajouter'}
             </button>
-            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
-            <button type="button" className="secondary" disabled={catSaving} onClick={closeCategoryDialog}>Annuler</button>
+            </div>
           </div></SettingsUserDialog>}
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Nom</th><th>Description</th><th>Source</th><th></th></tr>
+                <tr><th>Nom</th><th>Description</th><th>Source</th><th className="catalog-add-cell"><button type="button" data-visual-review="category-create" onClick={() => { closeCategoryDialog(); setCategoryDialogOpen(true); }}>+ Ajouter une catégorie</button></th></tr>
               </thead>
               <tbody>
                 {categories.map((cat: any) => (
@@ -2731,12 +2732,14 @@ if (loading && !settings) return (
           <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
             Ex. unité, kg, carton — modifiables et supprimables par l&apos;admin.
           </p>
-          <button type="button" data-visual-review="unit-create" onClick={() => { closeUnitDialog(); setUnitDialogOpen(true); }}>+ Ajouter unité</button>
           {unitDialogOpen && <SettingsUserDialog titleId="unit-dialog-title" dismissDisabled={catSaving} onClose={closeUnitDialog}>
           <h2 id="unit-dialog-title">{editingUnit ? 'Modifier l’unité' : 'Ajouter une unité'}</h2>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
             <label htmlFor="unit-dialog-name">Nom de l&apos;unité *</label>
             <input id="unit-dialog-name" placeholder="Nom de l&apos;unité *" value={unitName} onChange={(e) => setUnitName(e.target.value)} />
+            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
+            <div className="catalog-dialog-actions">
+            <button type="button" className="secondary" disabled={catSaving} onClick={closeUnitDialog}>Annuler</button>
             <button type="button" disabled={catSaving} onClick={async () => {
               if (!unitName.trim()) { setCatalogDialogError('Nom obligatoire.'); return; }
               setCatalogDialogError('');
@@ -2758,12 +2761,11 @@ if (loading && !settings) return (
               } catch (e: any) { setCatalogDialogError(e.message || 'Enregistrement impossible.'); }
               finally { setCatSaving(false); }
             }}>{editingUnit ? 'Enregistrer' : '+ Ajouter unité'}</button>
-            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
-            <button type="button" className="secondary" disabled={catSaving} onClick={closeUnitDialog}>Annuler</button>
+            </div>
           </div></SettingsUserDialog>}
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Nom</th><th></th></tr></thead>
+              <thead><tr><th>Nom</th><th className="catalog-add-cell"><button type="button" data-visual-review="unit-create" onClick={() => { closeUnitDialog(); setUnitDialogOpen(true); }}>+ Ajouter unité</button></th></tr></thead>
               <tbody>
                 {units.map((u: any) => (
                   <tr key={u.id ?? u.name}>

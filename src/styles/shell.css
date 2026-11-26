@@ -4134,3 +4134,12 @@ html body .audit-detail-modal.audit-detail-modal--expanded {
 .ac-audit-pager-meta { display: inline-flex; align-items: center; gap: 5px; white-space: normal; }
 .audit-agent-result { padding: 16px; border-radius: 12px; background: var(--ac-bg, #f5f6f8); }
 .audit-agent-result p { margin-block: 10px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Catalog controls align with their tables and dialogs in both directions. */
+.catalog-add-cell { text-align: end !important; width: 1%; white-space: nowrap; }
+.catalog-add-cell button { white-space: nowrap; text-transform: none; letter-spacing: normal; }
+.catalog-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-block-start: 10px; }
+.catalog-dialog-actions button { min-height: 42px; }
+@media (max-width: 480px) {
+  .catalog-dialog-actions > button { flex: 1 1 auto; }
+}
