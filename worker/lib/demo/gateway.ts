@@ -213,7 +213,7 @@ async function runInSandbox(app: AppFetch, env: Env, ctx: ExecutionContext, clai
  * fail-closed request budget before invoking the provider. */
 export async function configureDemoAi(env: Env, demoEnv: Env, sandboxKey: string, req: Request): Promise<Response | null> {
   const path = new URL(req.url).pathname;
-  const demoGroq = String(env.DEMO_GROQ_API_KEY || '').trim();
+  const demoGroq = String(env.DEMO_GROQ_API_KEY || env.GROQ_API_KEY || '').trim();
   const chat = req.method === 'POST' && (path === '/api/assist/chat' || path === '/api/assist/chat/stream');
   const status = req.method === 'GET' && (path === '/api/assist/status' || path === '/api/settings/assist-provider');
   if (demoGroq && (chat || status)) {
@@ -221,10 +221,13 @@ export async function configureDemoAi(env: Env, demoEnv: Env, sandboxKey: string
       // Count requests before any provider call, including failures. Both limits
       // are shared durable counters; do not rely on the demo owner's unlimited quota.
       try {
-        for (const [name, max] of [[`demo-ai-session:${sandboxKey}`, 10], ['demo-ai-global', 100]] as const) {
+        for (const [name, max] of [[`demo-ai-session:${sandboxKey}`, 5], ['demo-ai-global', 20]] as const) {
           const stub = hubStub(env, name);
           if (!stub || (await callHub(stub, '/ip-quota', { max }))?.ok !== true) {
-            return json({ success: false, code: 'DEMO_AI_QUOTA', error: 'Demo AI limit reached. Please try again later.' }, 429);
+            const lang = (req.headers.get('Accept-Language') || '').toLowerCase();
+            const error = lang.startsWith('ar') ? 'بلغت النسخة التجريبية حد استخدام Atlas Agent. استضف خادمك الخاص أو حاول مجددًا بعد منتصف الليل بالتوقيت العالمي.' : lang.startsWith('en') ? 'The demo Atlas Agent limit has been reached. Self-host your own server or try again after midnight UTC.' : 'La limite de l’Agent en démo est atteinte. Hébergez votre propre serveur ou réessayez après minuit UTC.';
+            const resetAt = new Date(); resetAt.setUTCHours(24, 0, 0, 0);
+            return json({ success: false, code: 'DEMO_AI_QUOTA', error, resets_at: resetAt.toISOString() }, 429);
           }
         }
       } catch {

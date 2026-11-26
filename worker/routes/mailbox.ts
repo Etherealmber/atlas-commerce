@@ -68,10 +68,11 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
 
   const AGENT_BLOB_MAGIC = new TextEncoder().encode('ATLASAGNT1');
 
-  async function agentCryptoKey(env: any, usage: KeyUsage[]): Promise<CryptoKey> {
+  async function agentCryptoKey(env: any, usage: KeyUsage[]): Promise<CryptoKey | null> {
     const material = String(
-      env.AGENT_CHAT_SECRET || env.MAIL_BODY_ENCRYPTION_KEY || env.JWT_SECRET || env.ADMIN_PASSWORD || 'atlas-agent',
+      env.AGENT_CHAT_SECRET || env.MAIL_BODY_ENCRYPTION_KEY || env.JWT_SECRET || env.ADMIN_PASSWORD || (usage.includes('encrypt') ? '' : 'atlas-agent'),
     ).trim();
+    if (!material) return null;
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`atlas-agent-v1|${material}`));
     return crypto.subtle.importKey('raw', hash, 'AES-GCM', false, usage);
   }
@@ -84,6 +85,7 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
         const plain = new TextEncoder().encode(JSON.stringify(body));
         if (plain.byteLength > 1_500_000) return false; // v231: refuse oversized blobs, keep local copy
         const cryptoKey = await agentCryptoKey(env, ['encrypt']);
+        if (!cryptoKey) return false;
         const iv = crypto.getRandomValues(new Uint8Array(12));
         const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, plain));
         const out = new Uint8Array(AGENT_BLOB_MAGIC.length + iv.length + cipher.length);
@@ -96,22 +98,7 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
         });
         return true;
       }
-      // Fallback: KV (no R2 binding in this env) — still no plaintext in D1
-      if (env.CACHE) {
-        const k = `agent-thread:${userKey}:${threadId}`;
-        await env.CACHE.put(k, JSON.stringify(body), { expirationTtl: 60 * 60 * 24 * 30 });
-        // index of thread ids
-        const idxKey = `agent-thread-idx:${userKey}`;
-        let ids: string[] = [];
-        try {
-          const raw = await env.CACHE.get(idxKey);
-          if (raw) ids = JSON.parse(raw);
-        } catch { /* */ }
-        if (!Array.isArray(ids)) ids = [];
-        if (!ids.includes(threadId)) ids.unshift(threadId);
-        await env.CACHE.put(idxKey, JSON.stringify(ids.slice(0, 40)), { expirationTtl: 60 * 60 * 24 * 30 });
-        return true;
-      }
+      // Do not create new plaintext KV copies of conversations. Legacy copies remain readable.
       return false;
     } catch (e) {
       console.error('storeAgentThreadR2', String((e as any)?.message || e));
@@ -132,6 +119,7 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
               const iv = buf.subarray(AGENT_BLOB_MAGIC.length, AGENT_BLOB_MAGIC.length + 12);
               const cipher = buf.subarray(AGENT_BLOB_MAGIC.length + 12);
               const cryptoKey = await agentCryptoKey(env, ['decrypt']);
+              if (!cryptoKey) return null;
               const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, cipher);
               return JSON.parse(new TextDecoder().decode(plain));
             }

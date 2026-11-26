@@ -432,11 +432,12 @@ describe('demo AI isolation', () => {
     await configureDemoAi(env, other, 'x', new Request('https://example.com/api/issues', { method: 'POST' }));
     expect(other.GROQ_API_KEY).toBeUndefined();
     const noDemo = {} as any;
-    await configureDemoAi({ GROQ_API_KEY: 'production-secret' } as any, noDemo, 'x', new Request('https://example.com/api/assist/chat', { method: 'POST' }));
-    expect(noDemo.GROQ_API_KEY).toBeUndefined();
+    await configureDemoAi({ GROQ_API_KEY: 'production-secret', DEMO_HUB: ns } as any, noDemo, 'x', new Request('https://example.com/api/assist/chat', { method: 'POST' }));
+    expect(noDemo.GROQ_API_KEY).toBe('production-secret');
     const unavailable = {} as any;
     const denied = await configureDemoAi({ DEMO_GROQ_API_KEY: 'demo-secret' } as any, unavailable, 'x', new Request('https://example.com/api/assist/chat', { method: 'POST' }));
     expect(denied?.status).toBe(429);
+    expect(await denied?.json()).toMatchObject({ code: 'DEMO_AI_QUOTA', resets_at: expect.any(String) });
     expect(unavailable.GROQ_API_KEY).toBeUndefined();
   });
 });

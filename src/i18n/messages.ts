@@ -2939,4 +2939,5 @@ export const MESSAGES: ReadonlyArray<readonly [string, string, string]> = [
   ['sur {n} compte', 'across {n} account', 'من أصل {n} حساب'],
   ['{n} unité', '{n} unit', '{n} وحدة'],
   ['{n} unités', '{n} units', '{n} وحدة'],
+  ['La limite de l’Agent en démo est atteinte. Hébergez votre propre serveur ou réessayez après minuit UTC.', 'The demo Atlas Agent limit has been reached. Self-host your own server or try again after midnight UTC.', 'بلغت النسخة التجريبية حد استخدام Atlas Agent. استضف خادمك الخاص أو حاول مجددًا بعد منتصف الليل بالتوقيت العالمي.'],
 ];

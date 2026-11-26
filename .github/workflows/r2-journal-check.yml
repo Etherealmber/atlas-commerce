@@ -1,0 +1,40 @@
+name: R2 journal security check (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+    steps:
+      - name: Check bucket access and lifecycle without exposing data
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          auth="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+          id="${CLOUDFLARE_ACCOUNT_ID:-}"
+          if [ -z "$id" ] && [ -n "$CF_ZONE_ID" ]; then
+            id=$(curl -fsS -H "$auth" "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID" | jq -r '.result.account.id // empty' || true)
+          fi
+          if [ -z "$id" ]; then
+            id=$(curl -fsS -H "$auth" 'https://api.cloudflare.com/client/v4/accounts?per_page=5' | jq -r '.result[0].id // empty' || true)
+          fi
+          test -n "$id"
+          echo "::add-mask::$id"
+          base="https://api.cloudflare.com/client/v4/accounts/$id/r2/buckets/atlas-commerce-private-api-journal-1"
+          managed=$(curl -fsS -H "$auth" "$base/domains/managed")
+          custom=$(curl -fsS -H "$auth" "$base/domains/custom")
+          lifecycle=$(curl -fsS -H "$auth" "$base/lifecycle")
+          echo "$managed" | jq -e '.success == true and .result.enabled == false' > /dev/null || { echo '::error::Managed public URL is enabled or could not be verified'; exit 1; }
+          echo "$custom" | jq -e '.success == true and (.result.domains | type == "array") and ([.result.domains[] | select(.enabled != false)] | length == 0)' > /dev/null || { echo '::error::A public custom domain is enabled or could not be verified'; exit 1; }
+          echo "$lifecycle" | jq -e '.success == true and ([.result.rules[]? | select(.id == "journal-expire-30d" and .enabled == true and .conditions.prefix == "api-journal/" and .deleteObjectsTransition.condition.maxAge == 2592000)] | length == 1)' > /dev/null || { echo '::error::The expected 30-day lifecycle rule could not be verified'; exit 1; }
+          echo '::notice::Journal bucket: public URLs disabled and 30-day journal lifecycle verified.'

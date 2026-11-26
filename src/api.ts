@@ -211,7 +211,11 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
     if (!silent429) {
       try { uiToast(msg, 'error'); } catch { /* */ }
     }
-    throw new Error(msg);
+    const err: any = new Error(msg);
+    err.code = data.code;
+    err.status = res.status;
+    err.body = data;
+    throw err;
   }
   if (!res.ok || data.success === false) {
     let msg = data.error || `Erreur (${res.status})`;

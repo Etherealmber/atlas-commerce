@@ -473,14 +473,7 @@ async function decryptAgentConv(env: any, bytes: ArrayBuffer | Uint8Array): Prom
     const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
     if (u8.length < 20) return null;
     const magic = new TextDecoder().decode(u8.slice(0, 4));
-    if (magic !== 'ACH2') {
-      // legacy JSON single-turn — return as opaque marker
-      try {
-        return new TextDecoder().decode(u8);
-      } catch {
-        return null;
-      }
-    }
+    if (magic !== 'ACH2') return null; // .conv is always authenticated ciphertext
     const key = await agentChatCryptoKey(env);
     if (!key) return null;
     const iv = u8.slice(4, 16);
@@ -987,7 +980,10 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   
     let body: any = {};
     try { body = await c.req.json(); } catch { body = {}; }
-    const message = String(body.message || body.prompt || '').trim().slice(0, 2500);
+    if (c.env.ATLAS_DEMO === '1' && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
+      return c.json({ success: false, code: 'DEMO_AI_TEXT_ONLY', error: 'Demo AI supports text only.' }, 400);
+    }
+    const message = String(body.message || body.prompt || '').trim().slice(0, c.env.ATLAS_DEMO === '1' ? 1000 : 2500);
     // v232 — attached images travel to the vision model as data-URL parts
     const images = Array.isArray(body.images)
       ? body.images.filter((x: any) => typeof x === 'string' && x.startsWith('data:image/')).slice(0, 4).map((x: string) => x.slice(0, 3_500_000))
@@ -1058,7 +1054,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           model,
           system: productDescriptionSystem({ responseLanguage }),
           message: descInput.prompt,
-          maxTokens: 220,
+          maxTokens: c.env.ATLAS_DEMO === '1' ? 160 : 220,
           temperature: 0.3,
           images,
         });
@@ -1113,7 +1109,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
             model: '',
             system,
             message: finalMessage,
-            maxTokens: 1200,
+            maxTokens: c.env.ATLAS_DEMO === '1' ? 200 : 1200,
             images,
           })
         : await groqChatWithTools({
@@ -1121,7 +1117,8 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
             model,
             system,
             message: finalMessage,
-            maxTokens: isGreeting ? 300 : 700,
+            maxTokens: c.env.ATLAS_DEMO === '1' ? 200 : isGreeting ? 300 : 700,
+            maxRounds: c.env.ATLAS_DEMO === '1' ? 1 : undefined,
             tools: chatTools,
             executor: agentKnowledgeExecutor(c, username, role, chatTools),
           });
@@ -1182,7 +1179,10 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     }
     let body: any = {};
     try { body = await c.req.json(); } catch { body = {}; }
-    const message = String(body.message || body.prompt || '').trim().slice(0, 2500);
+    if (c.env.ATLAS_DEMO === '1' && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
+      return c.json({ success: false, code: 'DEMO_AI_TEXT_ONLY', error: 'Demo AI supports text only.' }, 400);
+    }
+    const message = String(body.message || body.prompt || '').trim().slice(0, c.env.ATLAS_DEMO === '1' ? 1000 : 2500);
     const userMessage = String(body.user_message || body.userMessage || '').trim().slice(0, 2500) || message;
     if (!message) return c.json({ success: false, error: tr(uiLang, 'message_empty') }, 400);
     const images = Array.isArray(body.images)
@@ -1255,7 +1255,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           let toolTrace: AgentToolTrace[] = [];
           if (images.length) {
             // Buffered vision fallback — the whole reply arrives as one token event.
-            const out = await groqChat({ apiKey: groqKey, model: '', system, message: finalMessage, maxTokens: 1200, images });
+            const out = await groqChat({ apiKey: groqKey, model: '', system, message: finalMessage, maxTokens: c.env.ATLAS_DEMO === '1' ? 200 : 1200, images });
             reply = scrubVendorNames(String(out.reply || '').trim());
             usedModel = out.model;
             usage = out.usage;
@@ -1269,7 +1269,8 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
               model,
               system,
               message: finalMessage,
-              maxTokens: isGreeting ? 300 : 700,
+              maxTokens: c.env.ATLAS_DEMO === '1' ? 200 : isGreeting ? 300 : 700,
+              maxRounds: c.env.ATLAS_DEMO === '1' ? 1 : undefined,
               tools: chatTools,
               executor: agentKnowledgeExecutor(c, username, role, chatTools),
               onToken: (delta) => send('token', { t: delta }),
