@@ -33,7 +33,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { APP_VERSION } from '../version';
 import { createPortal } from 'react-dom';
-import { api, BASE } from '../api';
+import { api, BASE, peekCachedSettings } from '../api';
 import { START_PAGES, getStartPage, setStartPage } from '../lib/startPage';
 import { removePasskeyLocally, registerWebAuthn, getCachedFingerprint, getDeviceLabel, getDeviceMeta, setStoredBiometricCredentialId, isWebAuthnAvailable } from '../fingerprint';
 import { getToken, canAccessAdminSettings, canAccessCompanySettings, getRole, setProfileCache } from '../auth';
@@ -78,7 +78,8 @@ export default function Settings() {
   const [profileData, setProfileData] = useState<ProfileData>(() => profileDataFromServer({}, null));
   const [, setUiScaleState] = useState<UiScale>(() => getUiScale());
   const { confirm, prompt, toast } = useUi();
-  const [settings, setSettings] = useState<any>(null);
+  const [initialSettings] = useState(() => peekCachedSettings()?.data || null);
+  const [settings, setSettings] = useState<any>(initialSettings);
   const [, setAssistProvider] = useState<'groq'>('groq');
   const [assistMeta, setAssistMeta] = useState<{ groqConfigured?: boolean }>({});
   const [passkeys, setPasskeys] = useState<any[]>([]);
@@ -90,12 +91,14 @@ export default function Settings() {
   });
   const [profileSaving, setProfileSaving] = useState(false);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialSettings);
+  const [settingsLoadError, setSettingsLoadError] = useState(false);
+  const [settingsRetry, setSettingsRetry] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
   // Last loaded / saved settings: « Annuler » restores it in place (no reload).
-  const savedSettingsRef = useRef<any>(null);
+  const savedSettingsRef = useRef<any>(initialSettings);
   const [langOpen, setLangOpen] = useState(false);
   const uiLang = useLang();
   const [justSaved, setJustSaved] = useState(false);
@@ -315,16 +318,21 @@ export default function Settings() {
   };
 
 
+  const auditQueryLoaded = useRef('');
+  const auditGeneration = useRef(0);
   useEffect(() => {
-    if (activeTab === 'audit' && (canAccessAdminSettings() || isOwner)) {
+    if (activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && auditQueryLoaded.current !== `${auditRange}:${auditAction}`) {
+      auditQueryLoaded.current = `${auditRange}:${auditAction}`;
       void loadAuditPage(null, auditQ, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, auditRange, auditAction]);
 
+  const assistLoaded = useRef(false);
   useEffect(() => {
-    if (activeTab !== 'integrations') return;
+    if (activeTab !== 'integrations' || assistLoaded.current) return;
     if (!(canAccessAdminSettings() || isOwner)) return;
+    assistLoaded.current = true;
     api.getAssistProvider()
       .then((r: any) => {
         setAssistProvider('groq');
@@ -332,7 +340,7 @@ export default function Settings() {
           groqConfigured: !!r?.data?.groqConfigured,
         });
       })
-      .catch(() => {});
+      .catch(() => { assistLoaded.current = false; });
   }, [activeTab]);
 
   // Force profile tab when role cannot access company settings (stock / user)
@@ -367,8 +375,10 @@ export default function Settings() {
     }
   }, [toast]);
 
+  const backupLoaded = useRef(false);
   useEffect(() => {
-    if (activeTab === 'admin' && (canAccessAdminSettings() || isOwner)) {
+    if (activeTab === 'admin' && (canAccessAdminSettings() || isOwner) && !backupLoaded.current) {
+      backupLoaded.current = true;
       void loadBackupList(true);
     }
   }, [activeTab, isOwner]);
@@ -411,28 +421,23 @@ export default function Settings() {
 
 
   useEffect(() => {
-    const empty = {
-      company_name: '', legal_form: '', address: '', city: '', postal_code: '',
-      country: 'Morocco', phone: '', email: '', website: '', logo_url: '',
-      notes: '', pdf_footer: '', ice: '', rc: '', if_fiscal: '', cnss: '',
-    };
-    const timer = window.setTimeout(() => {
-      setSettings((prev: any) => {
-        const next = prev || empty;
-        if (!savedSettingsRef.current) savedSettingsRef.current = next;
-        return next;
-      });
-      setLoading(false);
-    }, 8000);
+    if (initialSettings && settingsRetry === 0) return;
+    let alive = true;
+    setSettingsLoadError(false);
     api.getSettings()
-      .then((r) => { const next = { ...empty, ...r.data }; savedSettingsRef.current = next; setSettings(next); })
-      .catch(() => { savedSettingsRef.current = empty; setSettings(empty); })
-      .finally(() => {
-        window.clearTimeout(timer);
-        setLoading(false);
-      });
-    api.getCategories().then((r) => setCategories(r.data || [])).catch(() => {});
-    api.getUnits().then((r) => setUnits(r.data || [])).catch(() => {});
+      .then((r) => {
+        if (!alive) return;
+        const next = r.data;
+        if (!next || typeof next !== 'object') throw new Error('Invalid settings');
+        savedSettingsRef.current = next;
+        setSettings(next);
+      })
+      .catch(() => { if (alive && !savedSettingsRef.current) setSettingsLoadError(true); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [settingsRetry]);
+
+  useEffect(() => {
     api.getMe().then((r) => {
       const m = r.data || {};
       const owner = !!(m.is_owner || m.role === 'owner' || m.role === 'admin');
@@ -453,19 +458,33 @@ export default function Settings() {
         role: m.role,
       });
       setProfileData((prev) => profileDataFromServer(m, prev));
-      if (owner) {
-        api.getAdminUsers().then((u) => {
-          setOwnerInfo(u.data?.owner);
-          setAdminUsers(u.data?.users || []);
-        }).catch(() => {});
-        api.getAdminConfig().then((c) => setAdminConfig(c.data)).catch(() => {});
-        loadAuditPage(null, '', true);
-      }
     }).catch(() => setIsOwner(false));
   }, []);
 
+  const catalogLoaded = useRef(false);
+  const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [catalogRetry, setCatalogRetry] = useState(0);
+  useEffect(() => {
+    if (activeTab !== 'categories' || !canAccessCompanySettings() || catalogLoaded.current) return;
+    catalogLoaded.current = true;
+    setCatalogStatus('loading');
+    Promise.all([api.getCategories(), api.getUnits()]).then(([cats, unitsResult]) => {
+      setCategories(cats.data || []); setUnits(unitsResult.data || []); setCatalogStatus('ready');
+    }).catch(() => { catalogLoaded.current = false; setCatalogStatus('error'); });
+  }, [activeTab, catalogRetry]);
+
+  const adminLoaded = useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'admin' || !(canAccessAdminSettings() || isOwner) || adminLoaded.current) return;
+    adminLoaded.current = true;
+    Promise.all([api.getAdminUsers(), api.getAdminConfig()]).then(([users, config]) => {
+      setOwnerInfo(users.data?.owner); setAdminUsers(users.data?.users || []); setAdminConfig(config.data);
+    }).catch(() => { adminLoaded.current = false; toast('Impossible de charger les données administrateur.', 'error'); });
+  }, [activeTab, isOwner]);
+
   /** Cursor-based audit pages. reset=true clears history (search / first page). */
   const loadAuditPage = async (cursor: string | null = null, q = auditQ, reset = false) => {
+    const generation = ++auditGeneration.current;
     setAuditLoading(true);
     try {
       const a = await api.getAuditLog({
@@ -476,16 +495,19 @@ export default function Settings() {
         range: auditRange,
         stats: reset || cursor == null,
       });
+      if (generation !== auditGeneration.current) return;
       setAuditLog(a.data || []);
       setAuditMeta(a.meta || null);
       if (a.meta?.stats) setAuditStats(a.meta.stats);
       if (reset) setAuditCursorStack([null]);
       else if (cursor) setAuditCursor(cursor);
     } catch {
+      if (generation !== auditGeneration.current) return;
+      auditQueryLoaded.current = '';
       setAuditLog([]);
       setAuditMeta(null);
     } finally {
-      setAuditLoading(false);
+      if (generation === auditGeneration.current) setAuditLoading(false);
     }
   };
 
@@ -740,9 +762,12 @@ export default function Settings() {
     }
   };
 
+  const passkeysLoaded = useRef(false);
   useEffect(() => {
+    if (activeTab !== 'profile' || passkeysLoaded.current) return;
+    passkeysLoaded.current = true;
     void loadPasskeys();
-  }, []);
+  }, [activeTab]);
 
 
   
@@ -784,10 +809,16 @@ export default function Settings() {
 
 
 
-if (loading) return (
+if (loading && !settings) return (
     <div className="atlas-page atlas-settings">
       <h1 className="sr-only">Paramètres</h1>
       <PageSkeleton variant="settings" />
+    </div>
+  );
+  if (settingsLoadError && !settings) return (
+    <div className="atlas-page atlas-settings" role="alert">
+      <p>Impossible de charger les paramètres. Réessayez.</p>
+      <button type="button" onClick={() => { setLoading(true); setSettingsRetry(n => n + 1); }}>Réessayer</button>
     </div>
   );
   const s = settings || {
@@ -2613,6 +2644,9 @@ if (loading) return (
               </span>
             </div>
           </div>
+          {catalogStatus === 'loading' && <p role="status" aria-busy="true">Chargement des catégories et unités…</p>}
+          {catalogStatus === 'error' && <div role="alert"><p>Impossible de charger les catégories et unités.</p><button type="button" onClick={() => setCatalogRetry(n => n + 1)}>Réessayer</button></div>}
+          {catalogStatus === 'ready' && <>
           <button type="button" data-visual-review="category-create" onClick={() => { closeCategoryDialog(); setCategoryDialogOpen(true); }}>+ Ajouter une catégorie</button>
           {categoryDialogOpen && <SettingsUserDialog titleId="category-dialog-title" dismissDisabled={catSaving} onClose={closeCategoryDialog}>
           <h2 id="category-dialog-title">{editingCat ? 'Modifier la catégorie' : 'Ajouter une catégorie'}</h2>
@@ -2782,6 +2816,7 @@ if (loading) return (
               </tbody>
             </table>
           </div>
+          </>}
         </div>
       )}
 

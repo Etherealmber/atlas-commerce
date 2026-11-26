@@ -5,6 +5,10 @@
  * Missing entries simply stay in French — run `npm run i18n:missing` to list them.
  */
 export const MESSAGES: ReadonlyArray<readonly [string, string, string]> = [
+  ["Impossible de charger les paramètres. Réessayez.", "Unable to load settings. Try again.", "تعذر تحميل الإعدادات. حاول مجدداً."],
+  ["Chargement des catégories et unités…", "Loading categories and units…", "جارٍ تحميل الفئات والوحدات…"],
+  ["Impossible de charger les catégories et unités.", "Unable to load categories and units.", "تعذر تحميل الفئات والوحدات."],
+  ["Impossible de charger les données administrateur.", "Unable to load administrator data.", "تعذر تحميل بيانات المسؤول."],
   ["Alertes indisponibles","Alerts unavailable","التنبيهات غير متاحة"],
   ["Aucune rupture critique","No critical stockouts","لا يوجد نفاد حرج للمخزون"],
   ["Scanner un article","Scan an item","مسح صنف"],

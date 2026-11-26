@@ -14,13 +14,13 @@ describe('settings « Annuler » reverts in place', () => {
   });
 
   it('restores the last loaded / saved snapshot', () => {
-    expect(src).toContain('const savedSettingsRef = useRef<any>(null);');
+    expect(src).toContain('const savedSettingsRef = useRef<any>(initialSettings);');
     const discard = src.slice(src.indexOf('const discardSettings = () => {'), src.indexOf('const save = async () => {'));
     expect(discard).toContain('setSettings(savedSettingsRef.current)');
     expect(discard).toContain('setSettingsDirty(false)');
     expect(discard).toContain('setFieldErrors({})');
     // snapshot refreshed on load and after a successful save
-    expect(src).toMatch(/savedSettingsRef\.current = next; setSettings\(next\);/);
+    expect(src).toMatch(/savedSettingsRef\.current = next;\s*setSettings\(next\);/);
     expect(src).toMatch(/setSettings\(res\.data\);\s*savedSettingsRef\.current = res\.data;/);
   });
 });

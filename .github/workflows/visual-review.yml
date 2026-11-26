@@ -35,6 +35,7 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:5173/api/demo/config >/dev/null
+          node scripts/settings-load-smoke.mjs
           node scripts/capture-visual-review.mjs
       - name: Upload screenshot artifact
         if: always()

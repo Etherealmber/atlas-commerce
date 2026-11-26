@@ -10,7 +10,7 @@ import { getLang } from './i18n/core';
 import { getCachedFingerprint } from './fingerprint';
 import { getApiBase, isNativeApp } from './config';
 import { uiToast } from './components/AppDialogs';
-import { dedupedGet, invalidateGetCache } from './lib/perf';
+import { dedupedGet, invalidateGetCache, peekFreshGet } from './lib/perf';
 
 /** Resolve on each use so Capacitor native is detected reliably */
 export function getBase(): string {
@@ -29,6 +29,13 @@ const GET_CACHE_TTL: Record<string, number> = {
   '/api/auth/me': 15_000,
   '/api/hub/snapshot': 10_000,
 };
+
+/** Synchronous fresh cache access for initial rendering; never crosses sessions. */
+export function peekCachedSettings(): { data: any } | undefined {
+  const token = getToken();
+  if (!token) return undefined;
+  return peekFreshGet(`GET:/api/settings:session:${token}`);
+}
 
 function cacheTtlForPath(path: string): number {
   const base = path.split('?')[0];

@@ -43,7 +43,7 @@ export function dedupedGet<T>(
 
   const p = fetcher()
     .then((data) => {
-      if (ttlMs > 0) {
+      if (ttlMs > 0 && inflight.get(key) === p) {
         if (getCache.size >= MAX_CACHE) {
           const first = getCache.keys().next().value;
           if (first != null) getCache.delete(first);
@@ -53,21 +53,31 @@ export function dedupedGet<T>(
       return data;
     })
     .finally(() => {
-      inflight.delete(key);
+      if (inflight.get(key) === p) inflight.delete(key);
     });
 
   inflight.set(key, p);
   return p;
 }
 
+/** Read only a still-fresh entry; callers must use the same session-scoped key. */
+export function peekFreshGet<T>(key: string): T | undefined {
+  const hit = getCache.get(key);
+  return hit && hit.expires > Date.now() ? hit.data as T : undefined;
+}
+
 /** Drop cached GET entries (call after mutations that invalidate lists). */
 export function invalidateGetCache(prefix?: string) {
   if (!prefix) {
     getCache.clear();
+    inflight.clear();
     return;
   }
   // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot on purpose: keys are deleted during the loop
   for (const k of [...getCache.keys()]) {
     if (k.startsWith(prefix)) getCache.delete(k);
+  }
+  for (const k of inflight.keys()) {
+    if (k.startsWith(prefix)) inflight.delete(k);
   }
 }
