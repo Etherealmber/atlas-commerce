@@ -215,7 +215,9 @@ describe('desktop v1 — real Worker, web authentication and D1 transitions', ()
   it('never logs OTPs or provider exception contents on preview hosts', async () => {
     env.EMAIL = { send: vi.fn(async () => { throw new Error('provider-private-content'); }) };
     const result = await call('/api/auth/login', { username: 'alice', password: 'ExamplePassword123!', fingerprint: BROWSER_FP, client: 'web' }, { web: true, origin: 'https://fictional.workers.dev', headers: { Authorization: '' } });
-    expect(result.body.needs_otp).toBe(true);
+    expect(result.status).toBe(503);
+    expect(result.body.code).toBe('OTP_DELIVERY_FAILED');
+    expect(result.body.token).toBeUndefined();
     const otp = sqlite.prepare("SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = ?").get(`fp:${BROWSER_FP}`).code;
     await Promise.resolve(); await Promise.resolve();
     expect(env.EMAIL.send).toHaveBeenCalled();

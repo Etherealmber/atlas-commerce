@@ -121,6 +121,9 @@ try {
       await page.close();
     }
   }
-} finally { await browser.close(); }
-writeFileSync(`${OUT}/i18n-observations.json`, JSON.stringify({ note: 'Heuristic French clues in the isolated demo; review manually, not a coverage measurement.', pages: i18nObservations }, null, 2));
-writeFileSync(`${OUT}/README.md`, `# Visual review screenshots\n\nIsolated local test/test demo; no production data. Names include page code, language and device. Send the filename and the area needing refinement. Light theme; most captures are full-page, audit is a viewport capture; overlays and every possible state are not covered. Files marked --loading still had visible loading indicators after 45 seconds. i18n-observations.json contains heuristic French-text candidates from Arabic and English demo pages; review manually and do not treat as coverage.\n\n${manifest.join('\n')}\n`);
+} finally {
+  await browser.close();
+  // Preserve a manifest even if a later capture fails, so partial artifacts are identifiable.
+  writeFileSync(`${OUT}/i18n-observations.json`, JSON.stringify({ note: 'Heuristic French clues in the isolated demo; review manually, not a coverage measurement.', pages: i18nObservations }, null, 2));
+  writeFileSync(`${OUT}/README.md`, `# Visual review screenshots\n\nIsolated local test/test demo; no production data. Names include page code, language and device. Send the filename and the area needing refinement. Light theme; most captures are full-page, audit is a viewport capture; overlays and every possible state are not covered. Captures fail rather than include visible loading indicators after 45 seconds. i18n-observations.json contains heuristic French-text candidates from Arabic and English demo pages; review manually and do not treat as coverage.\n\n${manifest.join('\n')}\n`);
+}
