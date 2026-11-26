@@ -307,7 +307,10 @@ jobs:
           export CLOUDFLARE_ACCOUNT_ID="$id"
           # Atomic guard: do not touch newer or changed inventories. R2 objects are
           # intentionally not deleted because references may be shared.
-          npx wrangler d1 execute DB --remote --config wrangler.jsonc --json --command "DELETE FROM mail_messages WHERE created_at < datetime('now','-30 days') AND (SELECT COUNT(*) FROM mail_messages)=129 AND (SELECT COUNT(*) FROM mail_messages WHERE created_at < datetime('now','-30 days'))=129 AND (SELECT COUNT(*) FROM mail_messages WHERE r2_key != '')=128" > result.json
+          if ! npx wrangler d1 execute DB --remote --config wrangler.jsonc --json --command "DELETE FROM mail_messages WHERE created_at < datetime('now','-30 days') AND (SELECT COUNT(*) FROM mail_messages)=129 AND (SELECT COUNT(*) FROM mail_messages WHERE created_at < datetime('now','-30 days'))=129 AND (SELECT COUNT(*) FROM mail_messages WHERE r2_key != '')=128" > result.json 2> error.txt; then
+            if grep -qiE 'quota|limit exceeded|exceeded.*limit' error.txt; then echo '::error::Cloudflare reports a quota or limit error.'; elif grep -qiE 'permission|authentication|unauthorized|not authorized' error.txt; then echo '::error::Cloudflare rejected the database write permission.'; else echo '::error::Cloudflare rejected the database delete; inspect the workflow log.'; fi
+            exit 1
+          fi
           changes=$(jq -er '.[0].meta.changes | numbers' result.json)
           if [ "$changes" != 129 ]; then echo "::error::Inventory changed or deletion incomplete: deleted $changes rows. Review before retry."; exit 1; fi
           echo '::notice::Deleted 129 inventoried test mail rows; no R2 objects were deleted.'
