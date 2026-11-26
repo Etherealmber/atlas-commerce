@@ -75,7 +75,7 @@ export default function ApiLogPanel({ range }: { range: Range }) {
       <div className="ac-apilog-head">
         <div>
           <h3><Activity size={16} strokeWidth={2.2} aria-hidden="true" /> Journal des appels API</h3>
-          <p className="ac-apilog-sub">{t('Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. Conservation : {n} jours.', { n: stats?.retention_days ?? 30 })}</p>
+          <p className="ac-apilog-sub">Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. La purge D1 est suspendue avant vérification de l’archive ; les données peuvent être conservées plus de 30 jours.</p>
         </div>
 
       </div>

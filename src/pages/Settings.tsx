@@ -2844,6 +2844,7 @@ if (loading && !settings) return (
                 {journalView === 'audit' && <button type="button" className="secondary" title="Export CSV" aria-label="Export CSV" disabled={auditLoading} onClick={async () => { try { await api.exportAuditLog('csv', 500); flash('Export CSV téléchargé.'); } catch (e: any) { flash(e?.message || 'Échec export', 'error'); } }}><Download size={15} aria-hidden="true" /><span className="tpa-label">Export CSV</span></button>}
               </TopPageActions>
             </div>}
+            <p role="note">Attention : la purge D1 des journaux est suspendue jusqu’à la vérification de leur archivage. Les données peuvent rester plus de 30 jours.</p>
             <div className="journal-toolbar">
               <div className="journal-view-switch" role="group" aria-label="Type de journal">
                 <button type="button" className="secondary" aria-pressed={journalView === 'audit'} onClick={() => setJournalView('audit')}>Historique détaillé</button>

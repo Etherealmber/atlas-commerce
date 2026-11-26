@@ -82,8 +82,9 @@ describe('mobile guided tour opens its pages', () => {
 describe('audit journal, tables and D1 target', () => {
   it('audit controls live in one toolbar above the search; no duplicate range select', () => {
     const s = read('src/pages/Settings.tsx');
-    expect(s).toContain('ac-audit-toolbar');
-    expect(s).toContain('ac-audit-toolbar-actions');
+    expect(s).toContain('journal-toolbar');
+    expect(s).toContain('<TopPageActions>');
+    expect(s).toContain('<ApiLogPanel range={auditRange} />');
     expect(s).not.toMatch(/<option[^>]*>\s*7 derniers jours/);
   });
 

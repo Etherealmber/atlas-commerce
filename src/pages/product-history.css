@@ -119,3 +119,16 @@ html[data-ui-density="compact"] body .product-history .product-history-actions b
 }
 /* Dark: rows sit flat on the card (a global div fill painted them #202024). */
 html[data-theme="dark"] body .product-history .product-history-movement:not(#ph-a):not(#ph-b) { background: transparent !important; }
+/* The quantity itself carries the stock colour, rather than a separate OK badge. */
+html body .product-history-chips .product-history-stock--ok,
+html body .product-history-chips .product-history-stock--ok span { background: #dcfce7; color: #166534; }
+html body .product-history-chips .product-history-stock--low,
+html body .product-history-chips .product-history-stock--low span { background: #ffedd5; color: #9a3412; }
+html body .product-history-chips .product-history-stock--out,
+html body .product-history-chips .product-history-stock--out span { background: #fee2e2; color: #991b1b; }
+html[data-theme="dark"] body .product-history-chips .product-history-stock--ok,
+html[data-theme="dark"] body .product-history-chips .product-history-stock--ok span { background: #14532d; color: #bbf7d0; }
+html[data-theme="dark"] body .product-history-chips .product-history-stock--low,
+html[data-theme="dark"] body .product-history-chips .product-history-stock--low span { background: #7c2d12; color: #fed7aa; }
+html[data-theme="dark"] body .product-history-chips .product-history-stock--out,
+html[data-theme="dark"] body .product-history-chips .product-history-stock--out span { background: #7f1d1d; color: #fecaca; }

@@ -748,8 +748,7 @@ export async function executeCronBackup(
       console.error('cron_db_purge_err', String(e));
     }
   }
-  // 30-day retention for the audit and API journals. Idle runs skip it to keep
-  // D1 reads flat: every journaled request also triggers an hourly purge.
+  // Journal purge is paused until archive reconciliation and recovery verification.
   let logsPurge = { api: 0, audit: 0 };
   if (env.DB && (!backupSkipped || force)) {
     try { logsPurge = await purgeOldLogs(env.DB); } catch (e: any) { console.error('cron_logs_purge_err', String(e)); }

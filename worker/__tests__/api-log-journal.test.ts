@@ -58,7 +58,7 @@ describe('API journal', () => {
     expect(shouldLogApiCall('/api/products', 'Bearer abc')).toBe(true);
   });
 
-  it('writes rows, enriches IPs, and purges api_log + audit_log beyond 30 days', async () => {
+  it('writes rows and preserves unverified journal rows beyond 30 days', async () => {
     const { db, sqlite } = makeD1();
     await writeApiLog(db, baseRow);
     await writeApiLog(db, { ...baseRow, status: 401, ip: '185.1.1.1', username: null, country: 'NL', city: 'Amsterdam', asn: 212238, as_org: 'Datacamp Limited' });
@@ -76,9 +76,9 @@ describe('API journal', () => {
     sqlite.exec(`INSERT INTO audit_log (action, created_at) VALUES ('old', datetime('now', '-31 days')), ('new', datetime('now'))`);
     sqlite.exec(`UPDATE api_log SET created_at = datetime('now', '-40 days') WHERE id = 1`);
     const purged = await purgeOldLogs(db);
-    expect(purged).toEqual({ api: 1, audit: 1 });
-    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM api_log').get().n).toBe(1);
-    expect(sqlite.prepare('SELECT action FROM audit_log').all().map((r: any) => r.action)).toEqual(['new']);
+    expect(purged).toEqual({ api: 0, audit: 0 });
+    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM api_log').get().n).toBe(2);
+    expect(sqlite.prepare('SELECT action FROM audit_log').all().map((r: any) => r.action)).toEqual(['old', 'new']);
   });
 
   it('journals real calls (including a 401) through the worker with geo data, in waitUntil', async () => {

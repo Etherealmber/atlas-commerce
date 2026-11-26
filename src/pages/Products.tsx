@@ -830,10 +830,7 @@ export default function Products() {
                     <td style={{ fontWeight: 700 }}>
                       {p.track_inventory ? (
                         <div>
-                          <span className="stock-cell">{dualStockLabel(p)}</span>
-                        {!!p.track_inventory && Number(p.stock_quantity) === 0 && <span className="stock-pill out">Rupture</span>}
-                        {!!p.track_inventory && Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.low_stock_threshold || 0) && <span className="stock-pill low">Bas</span>}
-                        {!!p.track_inventory && Number(p.stock_quantity) > Number(p.low_stock_threshold || 0) && <span className="stock-pill ok">OK</span>}
+                          <span className={`stock-pill ${phoneStockQuantity(p) <= 0 ? 'out' : phoneStockIsLow(p) ? 'low' : 'ok'}`}><bdi dir="auto">{dualStockLabel(p)}</bdi></span>
                           {placements[p.id]?.placements ? (
                             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, lineHeight: 1.35, fontWeight: 500 }}>
                               {placements[p.id].placements

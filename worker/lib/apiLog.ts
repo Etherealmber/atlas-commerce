@@ -186,29 +186,15 @@ export async function writeApiLog(db: D1Database, row: ApiLogRow): Promise<void>
   await maybePurgeLogs(db);
 }
 
-let lastPurgeAt = 0;
-/** Delete api_log and audit_log rows older than 30 days, at most once an hour per isolate. */
-export async function maybePurgeLogs(db: D1Database, force = false): Promise<{ api: number; audit: number } | null> {
-  const now = Date.now();
-  if (!force && now - lastPurgeAt < 3600_000) return null;
-  lastPurgeAt = now;
-  return purgeOldLogs(db);
+/** Journal deletion is paused until both archives have been reconciled and
+ * recovery verified. This deliberately extends D1 retention beyond 30 days;
+ * callers must not interpret the zero counts as a successful retention purge. */
+export async function maybePurgeLogs(_db: D1Database, _force = false): Promise<{ api: number; audit: number } | null> {
+  return null;
 }
 
-export async function purgeOldLogs(db: D1Database, days = API_LOG_RETENTION_DAYS): Promise<{ api: number; audit: number }> {
-  const span = `-${Math.max(1, Math.floor(days))} days`;
-  let api = 0;
-  let audit = 0;
-  try {
-    await ensureApiLogTable(db);
-    const r = await db.prepare(`DELETE FROM api_log WHERE created_at < datetime('now', ?)`).bind(span).run();
-    api = Number((r as any)?.meta?.changes || 0);
-  } catch { /* */ }
-  try {
-    const r = await db.prepare(`DELETE FROM audit_log WHERE created_at < datetime('now', ?)`).bind(span).run();
-    audit = Number((r as any)?.meta?.changes || 0);
-  } catch { /* table may not exist yet */ }
-  return { api, audit };
+export async function purgeOldLogs(_db: D1Database, _days = API_LOG_RETENTION_DAYS): Promise<{ api: number; audit: number }> {
+  return { api: 0, audit: 0 };
 }
 
 /** Latest known network data for each IP (used to enrich audit rows). */

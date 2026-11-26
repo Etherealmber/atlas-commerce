@@ -505,7 +505,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(host.querySelectorAll('.ac-audit-range-pills')).toHaveLength(1);
     expect(host.querySelector('.ac-audit-kpis')).toBeNull();
     expect(apiSpy).toHaveBeenCalledWith(expect.objectContaining({ range: '7d' }));
-    const dayButton = Array.from(host.querySelectorAll('button.ac-seg-btn')).find((b) => b.textContent === '24 h')!;
+    const dayButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button.ac-seg-btn')).find((b) => b.textContent === '24 h')!;
     await act(async () => { dayButton.click(); await new Promise((r) => setTimeout(r, 20)); });
     expect(apiSpy).toHaveBeenLastCalledWith(expect.objectContaining({ range: '24h' }));
 

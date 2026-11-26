@@ -2935,5 +2935,7 @@
   "La version 0.9.4 n’est pas encore publiée.": "La version 0.9.4 n’est pas encore publiée.",
   "Attention : la purge D1 des journaux de plus de 30 jours fonctionne indépendamment de la copie R2 ; elle ne prouve pas que les entrées ont été archivées.": "Attention : la purge D1 des journaux de plus de 30 jours fonctionne indépendamment de la copie R2 ; elle ne prouve pas que les entrées ont été archivées.",
   "Type de journal": "Type de journal",
-  "Les langues arabe et anglaise sont en cours de développement et nécessitent encore des améliorations.": "Les langues arabe et anglaise sont en cours de développement et nécessitent encore des améliorations."
+  "Les langues arabe et anglaise sont en cours de développement et nécessitent encore des améliorations.": "Les langues arabe et anglaise sont en cours de développement et nécessitent encore des améliorations.",
+  "Attention : la purge D1 des journaux est suspendue jusqu’à la vérification de leur archivage. Les données peuvent rester plus de 30 jours.": "Attention : la purge D1 des journaux est suspendue jusqu’à la vérification de leur archivage. Les données peuvent rester plus de 30 jours.",
+  "Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. La purge D1 est suspendue avant vérification de l’archive ; les données peuvent être conservées plus de 30 jours.": "Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. La purge D1 est suspendue avant vérification de l’archive ; les données peuvent être conservées plus de 30 jours."
 }
