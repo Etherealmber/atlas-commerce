@@ -428,6 +428,8 @@ export default function Login() {
   const [passwordConfigured, setPasswordConfigured] = useState(true);
   const [demoConfig, setDemoConfig] = useState<DemoConfig | null>(null);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
+  const [turnstileConfigState, setTurnstileConfigState] = useState<'loading' | 'ready' | 'error'>(() => shouldLoadTurnstile() ? 'loading' : 'ready');
+  const [turnstileConfigNonce, setTurnstileConfigNonce] = useState(0);
   const [, setTurnstileToken] = useState('');
   const [turnstileHint, setTurnstileHint] = useState(false);
   // v0.7.7 — retry manuel du widget Turnstile (re-render complet)
@@ -490,24 +492,6 @@ export default function Login() {
     }
     (async () => {
       try {
-        // Capacitor native APK: skip widget. Mobile browser + PWA + desktop: load Turnstile.
-        if (!shouldLoadTurnstile()) {
-          setTurnstileSiteKey(null);
-          setTurnstileToken('');
-        } else {
-          const client =
-            isPwaLogin() ? 'pwa' : isMobileLogin() ? 'mobile-web' : 'web';
-          const tr = await fetch(`${getApiBase()}/api/auth/turnstile-config`, {
-            headers: { 'X-Atlas-Client': client },
-          });
-          const tj = (await tr.json().catch(() => ({}))) as {
-            data?: { enabled?: boolean; site_key?: string };
-          };
-          const key = tj?.data?.enabled && tj?.data?.site_key ? String(tj.data.site_key) : '';
-          if (key) setTurnstileSiteKey(key);
-        }
-      } catch { /* optional */ }
-      try {
         const fp = await Promise.race([
         getCachedFingerprint().catch(() => 'none'),
         new Promise<string>((r) => setTimeout(() => r('none'), 3500)),
@@ -534,6 +518,35 @@ export default function Login() {
       } catch { /* ignore */ }
     })();
   }, []);
+
+  // Do not silently treat an unavailable config endpoint as a disabled widget:
+  // the login server may still require a valid challenge.
+  useEffect(() => {
+    if (!shouldLoadTurnstile()) { setTurnstileConfigState('ready'); return; }
+    let alive = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
+    setTurnstileConfigState('loading');
+    const client = isPwaLogin() ? 'pwa' : isMobileLogin() ? 'mobile-web' : 'web';
+    void (async () => {
+      try {
+        const response = await fetch(`${getApiBase()}/api/auth/turnstile-config`, {
+          headers: { 'X-Atlas-Client': client }, signal: controller.signal, cache: 'no-store',
+        });
+        if (response.ok === false) throw new Error('config unavailable');
+        const json = await response.json() as { data?: { enabled?: boolean; site_key?: string } };
+        if (typeof json?.data?.enabled !== 'boolean' || (json.data.enabled && !String(json.data.site_key || '').trim())) throw new Error('invalid config');
+        if (!alive) return;
+        setTurnstileSiteKey(json.data.enabled ? String(json.data.site_key).trim() : null);
+        setTurnstileConfigState('ready');
+      } catch {
+        if (!alive) return;
+        setTurnstileSiteKey(null);
+        setTurnstileConfigState('error');
+      } finally { window.clearTimeout(timeout); }
+    })();
+    return () => { alive = false; window.clearTimeout(timeout); controller.abort(); };
+  }, [turnstileConfigNonce]);
 
   useEffect(() => {
     let alive = true;
@@ -710,8 +723,13 @@ export default function Login() {
   /** v0.7.7 — le widget a échoué (réseau filtré, CSP tiers…) : on le remonte de zéro. */
   const retryTurnstile = () => {
     setTurnstileHint(false);
+    pendingSubmitAt.current = 0;
     turnstileTokenRef.current = '';
     setTurnstileToken('');
+    if (turnstileConfigState !== 'ready' || !turnstileSiteKey) {
+      setTurnstileConfigNonce((n) => n + 1);
+      return;
+    }
     // A blocked/failed script must be reloaded, not just the empty container.
     if (!(window as any).turnstile?.render) {
       document.querySelector('script[src*="challenges.cloudflare.com/turnstile/v0/api.js"]')?.remove();
@@ -726,6 +744,11 @@ export default function Login() {
     if (Object.keys(fe).length) { setError(firstError(fe) || 'Identifiants manquants.'); return; }
     if (!password) {
       setError('Veuillez saisir votre mot de passe.');
+      return;
+    }
+    if (shouldLoadTurnstile() && turnstileConfigState !== 'ready') {
+      setError(turnstileConfigState === 'loading' ? 'Chargement de la vérification de sécurité…' : 'La vérification de sécurité est indisponible. Réessayez avant de vous connecter.');
+      setTurnstileHint(turnstileConfigState === 'error');
       return;
     }
     setLoading(true);
@@ -782,6 +805,11 @@ export default function Login() {
       };
       if (!res.ok) {
         setError((data.code && REASON_MESSAGES[data.code]) || data.error || 'Échec de la connexion.');
+        if (data.code === 'TURNSTILE_FAILED') {
+          pendingSubmitAt.current = 0;
+          setTurnstileHint(true);
+          if (!turnstileSiteKey && !native) setTurnstileConfigNonce((n) => n + 1);
+        }
         setLoginFailed(true);
         window.setTimeout(() => setLoginFailed(false), 3000);
         resetTurnstile();
@@ -1128,7 +1156,8 @@ export default function Login() {
               {turnstileSiteKey && shouldLoadTurnstile() ? (
                 <div id="cf-turnstile" className="atlas-turnstile" aria-label="Vérification de sécurité" />
               ) : null}
-              {turnstileHint ? (
+              {shouldLoadTurnstile() && turnstileConfigState === 'loading' ? <p className="atlas-turnstile-hint" role="status">Chargement de la vérification de sécurité…</p> : null}
+              {turnstileHint || (shouldLoadTurnstile() && turnstileConfigState === 'error') ? (
                 <div className="atlas-turnstile-hint" role="status">
                   <p style={{ margin: 0 }}>
                     Si la vérification ne s’affiche pas, réessayez. Si le problème persiste, désactivez le bloqueur de contenu ou changez de réseau.

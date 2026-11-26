@@ -106,6 +106,68 @@ describe('login Turnstile', () => {
     expect(remove).toHaveBeenCalledWith('widget-id');
     // afterEach can safely unmount again
   });
+  it('reports configuration fetch failure, blocks login, and retries without losing the credentials', async () => {
+    let configCalls = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('turnstile-config')) {
+        if (++configCalls === 1) throw new Error('offline');
+        return { ok: true, json: async () => ({ data: { enabled: true, site_key: 'test-site-key' } }) };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+    const render = vi.fn((_el: HTMLElement, _options: any) => 'id');
+    (window as any).turnstile = { render, remove: vi.fn() };
+    await mount();
+    const input = container.querySelector<HTMLInputElement>('#password')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'example-password');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(container.querySelector('.atlas-turnstile-retry')).not.toBeNull();
+    await act(async () => { container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/auth/login'))).toBe(false);
+    await act(async () => { container.querySelector<HTMLButtonElement>('.atlas-turnstile-retry')!.click(); });
+    expect(input.value).toBe('example-password');
+    expect(configCalls).toBe(2);
+    expect(render).toHaveBeenCalledOnce();
+    expect(container.querySelector('#cf-turnstile')).not.toBeNull();
+  });
+  it('surfaces a hanging config request and lets the user retry', async () => {
+    vi.useFakeTimers();
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('turnstile-config')) return await new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+      });
+      return { ok: true, json: async () => ({}) };
+    });
+    await mount();
+    expect(container.textContent).toContain('Chargement de la vérification de sécurité');
+    await act(async () => { await vi.advanceTimersByTimeAsync(10001); });
+    expect(container.querySelector('.atlas-turnstile-retry')).not.toBeNull();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/auth/login'))).toBe(false);
+  });
+  it('permits normal server handling when the endpoint explicitly says verification is disabled', async () => {
+    fetchMock.mockImplementation(async (url: string) => ({ ok: true, json: async () => url.includes('turnstile-config') ? { data: { enabled: false, site_key: null } } : {} }));
+    await mount();
+    expect(container.querySelector('#cf-turnstile')).toBeNull();
+    expect(container.querySelector('.atlas-turnstile-retry')).toBeNull();
+  });
+  it('offers verification retry if the server rejects a token', async () => {
+    const render = vi.fn((_el: HTMLElement, _options: any) => 'widget-id');
+    (window as any).turnstile = { render, remove: vi.fn(), reset: vi.fn() };
+    fetchMock.mockImplementation(async (url: string) => ({
+      ok: !url.includes('/api/auth/login'),
+      json: async () => url.includes('turnstile-config') ? { data: { enabled: true, site_key: 'test-site-key' } } : url.includes('/api/auth/login') ? { code: 'TURNSTILE_FAILED' } : {},
+    }));
+    await mount();
+    const input = container.querySelector<HTMLInputElement>('#password')!;
+    await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'example-password'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => { render.mock.calls[0][1].callback('rejected-token'); });
+    await act(async () => { container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    expect(container.textContent).toContain('Vérification anti-bot échouée');
+    expect(container.querySelector('.atlas-turnstile-retry')).not.toBeNull();
+    expect((window as any).turnstile.reset).toHaveBeenCalled();
+  });
   it('shows retry after script failure and reloads the script without bypassing the challenge', async () => {
     await mount();
     const script = document.querySelector<HTMLScriptElement>('script[src*="challenges.cloudflare.com/turnstile"]')!;
