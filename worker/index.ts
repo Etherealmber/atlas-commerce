@@ -705,6 +705,10 @@ app.use('*', async (c, next) => {
 });
 
 app.use('/api/*', async (c, next) => {
+  // Widget configuration only reads environment keys. Database migrations can
+  // fail or be slow even though the public configuration itself is available.
+  // Login and all database-backed endpoints retain their normal checks.
+  if (c.req.method === 'GET' && new URL(c.req.url).pathname === '/api/auth/turnstile-config') return next();
   const migrationDb = (resolveRootDb((c.env as any).DB) || (c.env as any).DB) as D1Database | undefined;
   await ensureAutoSqlMigrations(migrationDb);
   await next();

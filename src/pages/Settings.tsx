@@ -3806,7 +3806,7 @@ if (loading && !settings) return (
               Seul le compte propriétaire voit cet onglet.
             </p>
             {isDemoToken(getToken()) ? (
-              <p role="note">La création d’utilisateurs est indisponible en mode démo.</p>
+              <p role="note" data-visual-review="demo-user-create-disabled">La création d’utilisateurs est indisponible en mode démo.</p>
             ) : (
               <button type="button" data-visual-review="user-create" onClick={() => setUserCreateOpen(true)}>+ Ajouter un utilisateur</button>
             )}

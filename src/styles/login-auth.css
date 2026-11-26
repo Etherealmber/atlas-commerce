@@ -980,3 +980,9 @@ html[dir="rtl"].atlas-login-page .atlas-login.atlas-login--auth7 .atlas-password
   left: 10px !important;
   right: auto !important;
 }
+
+/* French joins l’ directly to the bold span; Arabic needs a word space. */
+html[dir="rtl"].atlas-login-page .atlas-login-qr-hint strong {
+  margin-inline-start: 0.25em;
+  unicode-bidi: isolate;
+}
