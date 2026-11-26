@@ -175,9 +175,10 @@ export default function ApiLogPanel() {
       </div>
       <JournalArchive onOpen={setDetail} />
       {detail && createPortal(<div className="audit-detail-modal-backdrop" role="presentation" onClick={() => setDetail(null)}>
-        <div className="audit-detail-modal card" role="dialog" aria-modal="true" aria-labelledby="api-log-detail-title" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setDetail(null); }}>
+        <div className="audit-detail-modal audit-detail-modal--expanded card" role="dialog" aria-modal="true" aria-labelledby="api-log-detail-title" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setDetail(null); }}>
           <div className="audit-detail-heading"><h3 id="api-log-detail-title">Détails de la requête</h3><button type="button" className="secondary" aria-label="Fermer" onClick={() => setDetail(null)}>×</button></div>
-          <p><bdi dir="ltr" translate="no">{detail.method} {detail.path} · {detail.status} · {detail.ms} ms</bdi></p>
+          <p className="audit-request-summary"><bdi dir="ltr" translate="no">{detail.method} {detail.path} · {detail.status} · {detail.ms} ms</bdi></p>
+          <h4>Détails de la connexion</h4>
           <AuditRequestDetails row={detail} kind="api" />
           <button type="button" className="secondary" onClick={() => setDetail(null)}>Fermer</button>
         </div>

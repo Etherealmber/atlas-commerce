@@ -47,9 +47,11 @@ export async function copyJournalPage(env: BackfillEnv, db: D1Database, input: {
     const bytes = new Uint8Array(16 + ciphertext.length);
     bytes.set(magic); bytes.set(iv, 4); bytes.set(ciphertext, 16);
     const created = await env.JOURNAL_ARCHIVE!.put(path, bytes, { onlyIf: { etagDoesNotMatch: '*' }, httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'no-store' } });
-    if (!created) {
-      const existing = await env.JOURNAL_ARCHIVE!.get(path);
-      if (!existing || await decode(key, path, new Uint8Array(await existing.arrayBuffer())) !== payload) throw new Error('Existing journal object differs from source');
+    // A successful PUT alone is not a verified copy. Read and authenticate it
+    // before allowing the caller to checkpoint, including on retries.
+    const existing = await env.JOURNAL_ARCHIVE!.get(path);
+    if (!existing || await decode(key, path, new Uint8Array(await existing.arrayBuffer())) !== payload) {
+      throw new Error(created ? 'Journal read-back differs from source' : 'Existing journal object differs from source');
     }
     cursor = row.id;
   }

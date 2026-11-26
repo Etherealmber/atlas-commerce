@@ -4103,6 +4103,10 @@ html body .audit-detail-modal.audit-detail-modal--expanded {
 }
 .audit-detail-modal--expanded .audit-device-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; }
 .audit-detail-modal--expanded .audit-detail-dl > div { grid-template-columns: minmax(100px, 150px) minmax(0, 1fr); }
+.audit-missing-details { margin-block: 16px; padding: 14px; border: 1px solid var(--border, #d9dce5); border-radius: 12px; }
+.audit-missing-details summary { cursor: pointer; font-weight: 600; }
+.audit-request-summary { overflow-wrap: anywhere; }
+.audit-connection-details dd { overflow-wrap: anywhere; min-width: 0; }
 .audit-agent-explanation { margin-block: 18px; padding: 16px; border: 1px solid var(--border, #d9dce5); border-radius: 14px; background: var(--card, transparent); }
 .audit-agent-heading { display: flex; align-items: center; gap: 8px; }
 .audit-agent-heading h4 { margin: 0; }

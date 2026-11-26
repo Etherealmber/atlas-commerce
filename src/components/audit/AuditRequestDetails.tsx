@@ -15,11 +15,17 @@ export function AuditRequestDetails({ row, kind }: { row: Row; kind: 'audit' | '
     ['Système d’exploitation', null], ['Écran tactile', null], ['Canal', row.surface],
     ['Adresse de provenance', null], ['Nom d’hôte', null], ['Agent utilisateur', row.ua],
   ];
-  return <>
+  const available = fields.filter(([, value]) => value != null && value !== '');
+  const missing = fields.filter(([, value]) => value == null || value === '');
+  const renderFields = (items: [string, unknown][]) => <dl className="audit-detail-dl audit-device-details">
+    {items.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value == null || value === '' ? <span>Non disponible</span> : <bdi dir={label === 'Adresse IP' || label === 'Date / heure (UTC)' || label === 'ASN' ? 'ltr' : 'auto'} translate="no">{String(value)}</bdi>}</dd></div>)}
+  </dl>;
+  return <section className="audit-connection-details">
     {kind === 'audit' && <p className="audit-geo-note">Le lieu et le réseau proviennent du dernier appel API associé à cette IP ; ils peuvent différer de ceux de l’événement.</p>}
-    <dl className="audit-detail-dl audit-device-details">
-      {fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value == null || value === '' ? <span>Non disponible</span> : <bdi dir={label === 'Adresse IP' || label === 'Date / heure (UTC)' || label === 'ASN' ? 'ltr' : 'auto'} translate="no">{String(value)}</bdi>}</dd></div>)}
-    </dl>
-    <p className="audit-geo-note">Les informations non enregistrées ne peuvent pas être déduites de cet événement.</p>
-  </>;
+    {available.length ? renderFields(available) : <p>Aucune information de connexion enregistrée.</p>}
+    {missing.length > 0 && <details className="audit-missing-details"><summary>Informations non enregistrées</summary>
+      <p className="audit-geo-note">Les informations non enregistrées ne peuvent pas être déduites de cet événement.</p>
+      {renderFields(missing)}
+    </details>}
+  </section>;
 }

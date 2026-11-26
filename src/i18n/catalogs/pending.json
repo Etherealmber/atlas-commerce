@@ -7,5 +7,17 @@
   "Contrôle ce que l’assistant peut appeler (en plus des règles de rôle). Les conversations peuvent être enregistrées — voir la politique de confidentialité.",
   "non autorisé pour votre rôle",
   "Quota quotidien",
-  "Quota hebdomadaire"
+  "Quota hebdomadaire",
+  "Aucune information de connexion enregistrée.",
+  "Informations non enregistrées",
+  "Détail enregistré",
+  "Gouvernance de l’agent IA : quotas, verrouillage anti-injection, accès utilisateurs et suppressions protégées par OTP. (2FA et appareils connectés : onglet Profil → « Sécurité du compte ».)",
+  "Suspendez ou rétablissez l’accès à l’Atlas Agent compte par compte (abus ou injection de prompt). Un compte suspendu voit sa barre de saisie masquée et un popup d’explication.",
+  "Accès verrouillé — barre de saisie masquée, popup affiché.",
+  "Accès normal (quotas appliqués).",
+  "Rétablir",
+  "Suspendre",
+  "suspendu",
+  "Mode :",
+  "Détails"
 ]

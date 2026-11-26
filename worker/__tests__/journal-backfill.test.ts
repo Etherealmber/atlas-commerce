@@ -28,6 +28,12 @@ describe('journal backfill building block', () => {
     f.rows[0].action = 'changed';
     await expect(copyJournalPage(f.env, f.db, input)).rejects.toThrow('differs');
   });
+  it('does not checkpoint if a newly written object cannot be read back', async () => {
+    const f = fixture();
+    f.env.JOURNAL_ARCHIVE.get = async () => null;
+    await expect(copyJournalPage(f.env, f.db, { namespace: 'production-001', source: 'audit_log', afterId: 0, throughId: 3, limit: 1 })).rejects.toThrow('read-back');
+    expect(f.rows).toHaveLength(3);
+  });
   it('fails closed for invalid keys, bucket, source, and cursors', async () => {
     const f = fixture(); const input = { namespace: 'production-001', source: 'audit_log' as const, afterId: 0, throughId: 3 };
     await expect(copyJournalPage({ ...f.env, JOURNAL_ENCRYPTION_KEY: '' }, f.db, input)).rejects.toThrow();

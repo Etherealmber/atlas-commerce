@@ -9,6 +9,8 @@ describe('audit request details', () => {
     expect(html).toContain('Example ISP');
     expect(html).toContain('Example UA');
     expect(html).toContain('<bdi dir="ltr" translate="no">192.0.2.1</bdi>');
+    expect(html).toContain('<details class="audit-missing-details">');
+    expect(html).toContain('Informations non enregistrées');
     expect(html).toContain('Navigation privée');
     expect(html).toContain('Non disponible');
     expect(html).not.toContain('China Standard Time');

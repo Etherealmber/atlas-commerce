@@ -4239,7 +4239,7 @@ if (loading && !settings) return (
                   <dd><AuditIpCell ip={auditDetailRow.ip} geo={auditDetailRow.geo} /></dd>
                 </div>
                 <div>
-                  <dt>Détail</dt>
+                  <dt>Détail enregistré</dt>
                   <dd className="audit-detail-full" translate="no" dir="auto">{auditDetailRow.detail || '—'}</dd>
                 </div>
               </dl>
