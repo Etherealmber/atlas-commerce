@@ -86,7 +86,7 @@ export function scanText(source, filename, keys) {
 }
 
 function main() {
-  const keys = readKeys(readFileSync('src/i18n/messages.ts', 'utf8'));
+  const keys = new Set(Object.keys(JSON.parse(readFileSync('src/i18n/catalogs/fr.json', 'utf8'))).map(normal));
   const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', 'src'], { encoding: 'utf8' }).trim().split('\n').filter(f => /\.(tsx|ts)$/.test(f) && !f.includes('__tests__') && !f.startsWith('src/i18n/'));
   const args = process.argv.slice(2);
   const fileIndex = args.indexOf('--file');

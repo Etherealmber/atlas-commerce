@@ -1,0 +1,7 @@
+# French is the source locale. Crowdin project credentials are configured in
+# Crowdin's GitHub app or environment, never stored in this file.
+preserve_hierarchy: true
+files:
+  - source: /src/i18n/catalogs/fr.json
+    translation: /src/i18n/catalogs/%two_letters_code%.json
+    skip_untranslated_strings: true

@@ -35,7 +35,8 @@
     "lint": "oxlint -c .oxlintrc.json src worker",
     "lint:fix": "oxlint -c .oxlintrc.json src worker --fix",
     "check:version": "node scripts/check-version-sync.mjs",
-    "i18n:scan": "node scripts/i18n-ast-scan.mjs"
+    "i18n:scan": "node scripts/i18n-ast-scan.mjs",
+    "i18n:validate": "node scripts/i18n-validate.mjs"
   },
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0",
