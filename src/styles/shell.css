@@ -4145,3 +4145,12 @@ html body .audit-detail-modal.audit-detail-modal--expanded {
 }
 .journal-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .catalog-language-field { display: grid; gap: 5px; }
+/* Journal overview: the two sources remain separate and use the shared range. */
+.journal-history > .journal-toolbar { margin-block: 12px 18px; }
+.journal-history > .ac-audit-table-panel,
+.journal-history > .ac-apilog-panel { margin-block: 16px 0; }
+.ac-apilog-chart { margin-block: 20px; }
+.ac-apilog-chart h4 { margin: 0 0 4px; }
+.ac-apilog-chart p { margin: 0 0 12px; color: var(--muted, #667085); }
+.ac-apilog-chart-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(50px, 1fr) auto; gap: 12px; align-items: center; margin-block: 8px; }
+.ac-apilog-chart-row code { overflow-wrap: anywhere; }

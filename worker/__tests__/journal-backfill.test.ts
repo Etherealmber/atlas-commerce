@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { copyJournalPage } from '../lib/journalBackfill';
+import { copyJournalPage, verifyJournalPage } from '../lib/journalBackfill';
 
 function fixture() {
   const objects = new Map<string, Uint8Array>();
@@ -42,4 +42,16 @@ describe('journal backfill building block', () => {
     await expect(copyJournalPage(f.env, f.db, { ...input, afterId: -1 })).rejects.toThrow();
     expect(f.objects.size).toBe(0);
   });
+  it.each(['audit_log', 'api_log'] as const)('independently verifies %s copies and refuses missing or changed objects', async source => {
+    const f = fixture(); const input = { namespace: 'production-001', source, afterId: 0, throughId: 3, limit: 100 };
+    await copyJournalPage(f.env, f.db, input);
+    expect(await verifyJournalPage(f.env, f.db, input)).toEqual({ cursor: 3, verified: 2, done: true });
+    f.rows[0].action = 'changed';
+    await expect(verifyJournalPage(f.env, f.db, input)).rejects.toThrow('verification failed');
+    f.rows[0].action = 'secret action';
+    f.objects.delete([...f.objects.keys()][0]);
+    await expect(verifyJournalPage(f.env, f.db, input)).rejects.toThrow('verification failed');
+    expect(f.rows).toHaveLength(3);
+  });
+
 });

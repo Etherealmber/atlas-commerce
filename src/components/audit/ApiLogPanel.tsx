@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, AlertTriangle, Globe2, RefreshCw, Search, ShieldAlert, Timer } from 'lucide-react';
 import { api } from '../../api';
 import { ListPager } from '../ui/ListPager';
@@ -31,10 +31,13 @@ function statusTone(st: number) {
  * for 30 days. Each row shows the city, country and operator (VPN flag),
  * with inspectable request details.
  */
-export default function ApiLogPanel({ range }: { range: Range }) {
+export default function ApiLogPanel({ range, dockActions = true }: { range: Range; dockActions?: boolean }) {
   useLang();
   const [rows, setRows] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const statsCache = useRef<Partial<Record<Range, { value: any; at: number }>>>({});
+  const generation = useRef(0);
+  const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusFilter>('');
   const [q, setQ] = useState('');
@@ -49,18 +52,27 @@ export default function ApiLogPanel({ range }: { range: Range }) {
   }, [detail]);
 
   const load = useCallback(async (cursor: string | null, reset: boolean, query = q) => {
-    setLoading(true);
+    const requestId = ++generation.current;
+    setLoading(true); setError(false);
+    const cached = statsCache.current[range];
+    const useCache = !!cached && Date.now() - cached.at < 60_000;
+    if (reset) setStats(useCache ? cached.value : null);
     try {
-      const r = await api.getApiLog({ limit: PAGE, cursor, range, status: status || undefined, q: query || undefined, stats: reset });
+      const r = await api.getApiLog({ limit: PAGE, cursor, range, status: status || undefined, q: query || undefined, stats: reset && !useCache });
+      if (requestId !== generation.current) return;
       setRows(Array.isArray(r?.data) ? r.data : []);
       setNext(r?.meta?.has_more ? r.meta.next_cursor ?? null : null);
-      if (r?.meta?.stats && typeof r.meta.stats === 'object') setStats(r.meta.stats);
+      if (r?.meta?.stats && typeof r.meta.stats === 'object') {
+        statsCache.current[range] = { value: r.meta.stats, at: Date.now() };
+        setStats(r.meta.stats);
+      }
       if (reset) setStack([null]);
     } catch {
+      if (requestId !== generation.current) return;
       setRows([]);
-      setNext(null);
+      setNext(null); setError(true);
     } finally {
-      setLoading(false);
+      if (requestId === generation.current) setLoading(false);
     }
   }, [range, status, q]);
 
@@ -71,7 +83,7 @@ export default function ApiLogPanel({ range }: { range: Range }) {
 
   return (
     <section className="ac-panel ac-apilog-panel" aria-label="Journal des appels API">
-      <TopPageActions><button type="button" className="secondary" title="Actualiser" aria-label="Actualiser" disabled={loading} onClick={() => void load(null, true)}><RefreshCw size={15} aria-hidden="true" /><span className="tpa-label">Actualiser</span></button></TopPageActions>
+      <TopPageActions enabled={dockActions}><button type="button" className="secondary" title="Actualiser" aria-label="Actualiser" disabled={loading} onClick={() => { delete statsCache.current[range]; void load(null, true); }}><RefreshCw size={15} aria-hidden="true" /><span className="tpa-label">Actualiser</span></button></TopPageActions>
       <div className="ac-apilog-head">
         <div>
           <h3><Activity size={16} strokeWidth={2.2} aria-hidden="true" /> Journal des appels API</h3>
@@ -87,6 +99,16 @@ export default function ApiLogPanel({ range }: { range: Range }) {
         <div className="ac-metric"><div className="ac-metric-top"><span>Temps moyen</span><Timer size={14} aria-hidden="true" /></div><div className="as-value">{stats ? `${stats.avg_ms} ms` : '—'}</div><div className="ac-kpi-sub">{stats?.top_paths?.[0] ? `${stats.top_paths[0].method} ${stats.top_paths[0].path}` : '\u00a0'}</div></div>
       </div>
 
+      {stats?.top_paths?.length > 0 && <section className="ac-apilog-chart" aria-label={t('Chemins API les plus appelés')}>
+        <h4>{t('Chemins API les plus appelés')}</h4>
+        <p>{t('Appels enregistrés sur la période · statistiques indépendantes des filtres')}</p>
+        {stats.top_paths.map((item: any) => <div className="ac-apilog-chart-row" key={`${item.method}:${item.path}`}>
+          <code dir="ltr" translate="no">{item.method} {item.path}</code>
+          <span className="ac-audit-hbar-track" aria-hidden="true"><span className="ac-audit-hbar-fill" style={{ display: 'block', width: `${Math.max(0, Number(item.n) / Number(stats.top_paths[0].n) * 100)}%` }} /></span>
+          <span>{item.n}</span>
+        </div>)}
+      </section>}
+      {error && <p role="alert">{t('Impossible de charger le journal. Réessayez plus tard.')}</p>}
       <div className="ac-audit-filters ac-apilog-filters">
         <div className="ac-audit-search-wrap">
           <Search className="ac-audit-search-ico" size={15} strokeWidth={2} aria-hidden="true" />
@@ -118,7 +140,7 @@ export default function ApiLogPanel({ range }: { range: Range }) {
             </tr>
           </thead>
           <tbody>
-            {!loading && rows.length === 0 ? (
+            {!loading && !error && rows.length === 0 ? (
               <tr><td colSpan={6} className="audit-empty">Aucun appel pour ces filtres.</td></tr>
             ) : null}
             {rows.map((r) => (

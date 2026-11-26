@@ -456,3 +456,16 @@ describe('authoritative demo countdown', () => {
     expect((await handleDemoRequest(req, env, {} as any, () => new Response(), async () => ({ ok: true })))?.status).toBe(401);
   });
 });
+
+describe('Android demo login compatibility', () => {
+  it.each([['android', true], ['native', true], ['web', false], ['', false]])('applies the intended demo Turnstile policy for client %s', async (client, native) => {
+    const request = new Request('https://example.test/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'test', password: 'test', fingerprint: 'demo-test', client }),
+    });
+    const verify = vi.fn(async () => ({ ok: false, error: 'verification required' }));
+    const response = await handleDemoRequest(request, {} as any, {} as any, () => { throw new Error('must not dispatch'); }, verify);
+    expect(response?.status).toBe(403);
+    expect(verify).toHaveBeenCalledWith(expect.anything(), '', expect.any(String), native);
+  });
+});

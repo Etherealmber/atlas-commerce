@@ -307,7 +307,11 @@ async function handleDemoLogin(
   body: Record<string, unknown>,
   verifyTurnstile: TurnstileCheck,
 ): Promise<Response> {
-  const native = String(body.client || request.headers.get('X-Atlas-Client') || '').toLowerCase() === 'native';
+  // Match the existing Android app's LoginRequest (client: android). This
+  // only selects the already-supported native Turnstile policy for demo login;
+  // demo isolation and its per-device/network quotas still apply.
+  const client = String(body.client || request.headers.get('X-Atlas-Client') || '').trim().toLowerCase();
+  const native = client === 'native' || client === 'android';
   const ip = clientIp(request);
   const ts = await verifyTurnstile(env, String(body.turnstile_token || body['cf-turnstile-response'] || ''), ip, native);
   if (!ts.ok) return json({ success: false, code: 'TURNSTILE_FAILED', error: ts.error || 'Vérification anti-robot requise.' }, 403);

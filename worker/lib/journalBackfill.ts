@@ -57,3 +57,29 @@ export async function copyJournalPage(env: BackfillEnv, db: D1Database, input: {
   }
   return { cursor, copied: rows.length, done: rows.length < limit || cursor === throughId };
 }
+
+/** Re-read and authenticate previously copied source rows without modifying
+ * either store. This is one page only: an operator still needs a stable source
+ * snapshot, full-table accounting and a separately tested restore before any
+ * cutover or D1 deletion. */
+export async function verifyJournalPage(env: BackfillEnv, db: D1Database, input: { namespace: string; source: Source; afterId: number; throughId: number; limit?: number }) {
+  const { namespace, source, afterId, throughId } = input;
+  if (source !== 'audit_log' && source !== 'api_log') throw new Error('Invalid journal source');
+  objectPath(namespace, source, 1);
+  if (!Number.isSafeInteger(afterId) || afterId < 0 || !Number.isSafeInteger(throughId) || throughId < afterId) throw new Error('Invalid journal cursor');
+  const limit = input.limit ?? 100;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Invalid page size');
+  const key = await encryptionKey(env);
+  const result = await db.prepare(`SELECT * FROM ${source} WHERE id > ? AND id <= ? ORDER BY id ASC LIMIT ?`).bind(afterId, throughId, limit).all<Row>();
+  const rows = result.results || [];
+  let cursor = afterId;
+  for (const row of rows) {
+    if (!Number.isSafeInteger(row.id) || row.id <= cursor || row.id > throughId) throw new Error('Invalid source row order');
+    const path = objectPath(namespace, source, row.id);
+    const archived = await env.JOURNAL_ARCHIVE!.get(path);
+    const expected = JSON.stringify({ version: 1, source, row });
+    if (!archived || await decode(key, path, new Uint8Array(await archived.arrayBuffer())) !== expected) throw new Error('Journal verification failed');
+    cursor = row.id;
+  }
+  return { cursor, verified: rows.length, done: rows.length < limit || cursor === throughId };
+}

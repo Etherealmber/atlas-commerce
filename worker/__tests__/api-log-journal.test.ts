@@ -1,7 +1,7 @@
 /**
  * Journal des appels API: every /api/* call (failures included) is journaled
  * with Cloudflare's geo / operator data, VPN-like networks are flagged, rows
- * older than 30 days are purged, and « Expliquer » always answers (Groq, or
+ * older than 30 days remain until archive verification, and « Expliquer » answers (Groq, or
  * the deterministic fallback).
  */
 import { describe, it, expect, vi } from 'vitest';
@@ -79,6 +79,22 @@ describe('API journal', () => {
     expect(purged).toEqual({ api: 0, audit: 0 });
     expect(sqlite.prepare('SELECT COUNT(*) AS n FROM api_log').get().n).toBe(2);
     expect(sqlite.prepare('SELECT action FROM audit_log').all().map((r: any) => r.action)).toEqual(['old', 'new']);
+  });
+
+  it('finds the newest usable geo per IP using an indexed reverse lookup', async () => {
+    const { db, sqlite } = makeD1();
+    await ensureApiLogTable(db);
+    const insert = sqlite.prepare(`INSERT INTO api_log (method,path,status,ip,country,city,asn) VALUES ('GET','/api/test',200,?,?,?,?)`);
+    for (let i = 0; i < 300; i++) insert.run('203.0.113.5', 'MA', `city-${i}`, null);
+    insert.run('203.0.113.5', null, 'no-geo', null);
+    insert.run('203.0.113.6', null, 'network-only', 9009);
+    const result = await geoForIps(db, ['203.0.113.5', '203.0.113.5', '203.0.113.6', 'unknown']);
+    expect(result.get('203.0.113.5')?.city).toBe('city-299');
+    expect(result.get('203.0.113.6')?.city).toBe('network-only');
+    expect(result.size).toBe(2);
+    const plan = sqlite.prepare(`EXPLAIN QUERY PLAN SELECT id FROM api_log WHERE ip = ? AND (country IS NOT NULL OR asn IS NOT NULL) ORDER BY id DESC LIMIT 1`).all('203.0.113.5');
+    expect(JSON.stringify(plan)).toContain('idx_api_log_ip');
+    sqlite.close();
   });
 
   it('journals real calls (including a 401) through the worker with geo data, in waitUntil', async () => {

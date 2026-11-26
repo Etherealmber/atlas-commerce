@@ -8,8 +8,8 @@
  * That network data also lets us flag VPN, proxy and hosting traffic, like
  * Grabify does.
  *
- * Retention: 30 days max, for both `api_log` and `audit_log`. A purge runs
- * at most once an hour per isolate, and also from the 12 h cron backup job.
+ * Retention target: 30 days. D1 purge is paused until both journals have
+ * been safely archived and independently verified.
  *
  * Free-tier budget: a single INSERT per call, plus 2 indexes. Health probes,
  * static polling and demo-sandbox traffic are skipped (demo data stays out of
@@ -204,10 +204,13 @@ export async function geoForIps(db: D1Database, ips: string[]): Promise<Map<stri
   if (!list.length) return out;
   try {
     await ensureApiLogTable(db);
-    const marks = list.map(() => '?').join(',');
+    const marks = list.map(() => '(?)').join(',');
     const { results } = await db.prepare(
-      `SELECT ip, country, city, region, asn, as_org FROM api_log
-       WHERE id IN (SELECT MAX(id) FROM api_log WHERE ip IN (${marks}) AND (country IS NOT NULL OR asn IS NOT NULL) GROUP BY ip)`,
+      `WITH requested(ip) AS (VALUES ${marks})
+       SELECT ip, country, city, region, asn, as_org FROM api_log
+       WHERE id IN (SELECT (SELECT id FROM api_log AS recent
+         WHERE recent.ip = requested.ip AND (recent.country IS NOT NULL OR recent.asn IS NOT NULL)
+         ORDER BY id DESC LIMIT 1) FROM requested)`,
     ).bind(...list).all();
     for (const r of (results || []) as any[]) {
       const geo: ApiLogGeo = { country: r.country ?? null, city: r.city ?? null, region: r.region ?? null, asn: r.asn ?? null, as_org: r.as_org ?? null };

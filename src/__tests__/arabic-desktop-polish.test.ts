@@ -29,6 +29,7 @@ describe('Arabic desktop polish', () => {
       createElement(ListPager, { page: 1, totalPages: 4, onChange: page }))));
     const trigger = host.querySelector<HTMLButtonElement>('.ac-dp-trigger')!;
     expect(trigger.textContent).toMatch(/[\u0600-\u06ff]/);
+    expect((trigger.textContent!.match(/2026|٢٠٢٦/g) || [])).toHaveLength(2);
     await act(async () => trigger.click());
     expect(document.querySelector('.ac-dp-weekdays')?.textContent).toMatch(/[\u0600-\u06ff]/);
     expect(change).not.toHaveBeenCalled();
@@ -40,4 +41,19 @@ describe('Arabic desktop polish', () => {
     expect(page).toHaveBeenCalledWith(2);
     await act(async () => root.unmount());
   });
+});
+
+it.each(['fr', 'en', 'ar'] as const)('shows a year for both range endpoints in %s', async lang => {
+  setLang(lang);
+  const host = document.createElement('div'); document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(DateRangePicker, { from: '2026-06-01', to: '2026-11-27', onChange: vi.fn() })));
+    const text = host.querySelector('.ac-dp-trigger')!.textContent!;
+    expect((text.match(/2026|٢٠٢٦/g) || [])).toHaveLength(2);
+    await act(async () => root.render(createElement(DateRangePicker, { from: '2025-06-01', to: '2026-11-27', onChange: vi.fn() })));
+    const changed = host.querySelector('.ac-dp-trigger')!.textContent!;
+    expect(changed).toMatch(/2025|٢٠٢٥/);
+    expect(changed).toMatch(/2026|٢٠٢٦/);
+  } finally { await act(async () => root.unmount()); host.remove(); }
 });
