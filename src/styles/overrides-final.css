@@ -4042,3 +4042,19 @@ html body .page-skeleton-toolbar {
   }
 }
 
+
+/* Atlas Agent: clearer conversation hierarchy without changing actions. */
+html body aside.atlas-agent-panel .atlas-agent-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+html body aside.atlas-agent-panel .atlas-agent-identity-mark {
+  display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px;
+  color: #fff; background: #202a40; border-radius: 12px; font-size: 20px;
+}
+html body aside.atlas-agent-panel .atlas-agent-msg-label {
+  display: block; margin: 0 4px 5px; color: #526176; font-size: 11px; font-weight: 700;
+}
+html body aside.atlas-agent-panel .atlas-agent-msg.user .atlas-agent-msg-label { text-align: end; }
+html body aside.atlas-agent-panel .atlas-agent-body { scroll-behavior: smooth; }
+html body aside.atlas-agent-panel .atlas-agent-bubble { line-height: 1.6; overflow-wrap: anywhere; }
+html body aside.atlas-agent-panel button:focus-visible { outline: 2px solid #4675ca; outline-offset: 2px; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-msg-label { color: #c1c9d5; }
+@media (prefers-reduced-motion: reduce) { html body aside.atlas-agent-panel .atlas-agent-body { scroll-behavior: auto; } }

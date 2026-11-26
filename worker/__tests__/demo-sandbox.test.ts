@@ -11,6 +11,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { applyDemoMigrations, DemoHub, durableSqlBackend } from '../durable/DemoHub';
 import { DemoD1, DemoExpiredError, type DemoTransport } from '../lib/demo/demoD1';
+import { buildDemoEnv } from '../lib/demo/demoEnv';
 import { DEMO_MIGRATIONS } from '../lib/demo/migrations';
 import {
   decideDemoSession,
@@ -467,5 +468,41 @@ describe('Android demo login compatibility', () => {
     const response = await handleDemoRequest(request, {} as any, {} as any, () => { throw new Error('must not dispatch'); }, verify);
     expect(response?.status).toBe(403);
     expect(verify).toHaveBeenCalledWith(expect.anything(), '', expect.any(String), native);
+  });
+});
+
+describe('demo request production D1 isolation', () => {
+  it('rejects a real database binding even if a future caller passes it by mistake', async () => {
+    const production = { prepare: vi.fn() } as unknown as D1Database;
+    await expect(buildDemoEnv({ DB: production } as any, production, 'test')).rejects.toThrow('DEMO_ISOLATION_INVALID');
+  });
+
+  it('routes wrapped requests to sandbox SQLite, not either production binding', async () => {
+    const prod = { prepare: vi.fn(() => { throw new Error('production D1 must not be touched'); }) };
+    const demoSql = vi.fn(async (req: Request | string) => {
+      expect(String(req)).toContain('/query');
+      return Response.json({ ok: true, result: { columns: ['value'], rows: [[7]], meta: {} } });
+    });
+    const env = {
+      JWT_SECRET: 'test-secret', DB: prod, DB_TARGET: prod, DB_SOURCE: prod,
+      JOURNAL_AUDIT_SHADOW: '1', JOURNAL_ARCHIVE: { put: vi.fn() },
+      DEMO_HUB: { idFromName: (name: string) => name, get: () => ({ fetch: demoSql }) },
+    } as any;
+    const exp = Date.now() + 60000;
+    const token = await wrapDemoToken(env, { fp: 'b'.repeat(32), gen: 1, exp }, 'inner');
+    const req = new Request('https://example.test/api/products', { headers: { Authorization: `Bearer ${token}` } });
+    const response = await handleDemoRequest(req, env, {} as any, async (_req, isolated) => {
+      expect(isolated.ATLAS_DEMO).toBe('1');
+      expect(isolated.DB).not.toBe(prod);
+      expect(isolated.DB_TARGET).toBeUndefined();
+      expect((isolated as any).DB_SOURCE).toBeUndefined();
+      expect(isolated.JOURNAL_ARCHIVE).toBeUndefined();
+      expect(isolated.JOURNAL_AUDIT_SHADOW).toBeUndefined();
+      expect(await isolated.DB.prepare('SELECT 7 AS value').first()).toEqual({ value: 7 });
+      return Response.json({ success: true });
+    }, async () => ({ ok: true }));
+    expect(response?.status).toBe(200);
+    expect(demoSql).toHaveBeenCalledOnce();
+    expect(prod.prepare).not.toHaveBeenCalled();
   });
 });

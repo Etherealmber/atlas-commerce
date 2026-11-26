@@ -1344,7 +1344,7 @@ export default function AtlasAgent() {
           ...m,
           {
             role: 'assistant',
-            text: (friendlyError(e) || 'Je ne peux pas répondre pour le moment.') + '\n\n💡 Exemples de demandes que je sais traiter : « Résumé stock bas », « Rapport des ventes du jour », « Créer un client », « Ajouter une dépense de 200 DH », « Combien d\'actions en attente ? », « Que faire sur cette page ? ».',
+            text: friendlyError(e) || 'Je ne peux pas répondre pour le moment.',
             ms: Math.round(performance.now() - t0),
             failed: true,
             prompt: q,
@@ -1433,9 +1433,10 @@ export default function AtlasAgent() {
           }}
         />
         <header className="atlas-agent-head">
-          <div>
-            <strong>Atlas Agent</strong>
-            <span>Je suis là pour vous aider sur Atlas Commerce</span>
+          <div className="atlas-agent-identity">
+            <span className="atlas-agent-identity-mark" aria-hidden="true">✦</span>
+            <div><strong>Atlas Agent</strong>
+            <span>Je suis là pour vous aider sur Atlas Commerce</span></div>
           </div>
           {!isPhoneShell && (
           <div className="atlas-agent-head-actions">
@@ -1525,10 +1526,11 @@ export default function AtlasAgent() {
           </div>
         )}
 
-        <div className="atlas-agent-body">
+        <div className="atlas-agent-body" role="log" aria-label="Conversation Atlas Agent" aria-live="polite" aria-relevant="additions">
           {loadingThread && !msgs.some((m) => m.role === 'user') && <AtlasAgentShimmerBody rows={2} />}
           {!(loadingThread && !msgs.some((m) => m.role === 'user')) && msgs.filter((m) => !(m.streaming && !String(m.text || '').trim())).map((m, i) => (
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
+              <span className="atlas-agent-msg-label">{m.role === 'assistant' ? 'Atlas Agent' : 'Vous'}</span>
               <div className="atlas-agent-bubble">
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
                 {m.role === 'user' && ((m as any).fileNames || []).length ? (
