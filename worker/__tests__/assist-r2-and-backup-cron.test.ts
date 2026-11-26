@@ -136,6 +136,26 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
     // Existing thread: 1 r2_get call for loadCompactHistoryWithTranscript, reused by putAgentChatTurn
     expect(r2Get).toHaveBeenCalledTimes(1);
     expect(r2Put).toHaveBeenCalledTimes(2);
+    // Reject legacy plaintext, corrupted ciphertext, and storage failures without
+    // replacing the existing bytes or sending a prompt without its history.
+    const key = 'agent-chats/v2/admin/mobile-thread-1.conv';
+    for (const bytes of [new TextEncoder().encode('U|old|private history\n'), new TextEncoder().encode('ACH2broken ciphertext value')]) {
+      store.set(key, bytes);
+      const response = await app.request('/api/assist/chat', {
+        method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'Nouveau tour', thread_id: 'mobile-thread-1' }),
+      }, env as any);
+      expect(response.status).toBe(502);
+      expect(store.get(key)).toEqual(bytes);
+      expect(r2Put).toHaveBeenCalledTimes(2);
+    }
+    r2List.mockRejectedValueOnce(new Error('storage unavailable'));
+    const failedRead = await app.request('/api/assist/chat', {
+      method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Nouveau tour', thread_id: 'mobile-thread-1' }),
+    }, env as any);
+    expect(failedRead.status).toBe(502);
+    expect(r2Put).toHaveBeenCalledTimes(2);
   });
 
   it('POST /api/cron/backup-execute skips redundant D1 table dumps when no business mutation occurred', async () => {

@@ -512,7 +512,7 @@ async function loadCompactHistoryWithTranscript(
     if (!obj) return { history: '', existingPlain: '' };
     const buf = await obj.arrayBuffer();
     const plain = await decryptAgentConv(env, buf);
-    if (!plain || plain.trimStart().startsWith('{')) return { history: '', existingPlain: '' };
+    if (plain === null || plain.trimStart().startsWith('{')) throw new Error('Agent transcript unavailable');
     const lines = plain.split('\n').filter((l) => l.startsWith('U|') || l.startsWith('A|'));
     if (!lines.length) return { history: '', existingPlain: plain };
     const history = lines
@@ -526,7 +526,8 @@ async function loadCompactHistoryWithTranscript(
       .join('\n');
     return { history, existingPlain: plain };
   } catch {
-    return { history: '', existingPlain: '' };
+    // Never treat a read or authentication failure as a missing transcript.
+    throw new Error('Agent transcript unavailable');
   }
 }
 
@@ -562,9 +563,10 @@ async function putAgentChatTurn(
         if (existing) {
           const buf = await existing.arrayBuffer();
           const prev = await decryptAgentConv(env, buf);
-          if (prev && !prev.trimStart().startsWith('{')) body = prev;
+          if (prev === null || prev.trimStart().startsWith('{')) return;
+          body = prev;
         }
-      } catch { /* */ }
+      } catch { return; /* preserve an object we could not read */ }
     }
     if (body && !body.endsWith('\n')) body += '\n';
     body += userLine + '\n' + asstLine + '\n';

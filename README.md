@@ -28,6 +28,12 @@
 
 ---
 
+## 🌍 Traductions et contributions
+
+L’interface prend en charge le français, l’anglais et l’arabe, avec une prise en charge droite-à-gauche en cours d’amélioration. Les catalogues sont dans [`src/i18n/catalogs/`](src/i18n/catalogs/) ; les traductions existantes peuvent être corrigées. Pour contribuer, conserver les variables comme `{name}` et `{n}`, vérifier le contexte et consulter le [guide de localisation](docs/localization-contributing.md). Lancez `npm run i18n:validate` et `npm run i18n:scan` ; le scan est indicatif et ne mesure pas la couverture de toute l’interface.
+
+Une intégration Crowdin est en préparation, mais n’est pas encore connectée ni publiée. Merci à toutes les personnes qui contribuent aux traductions !
+
 ## 📸 Aperçu de l’application
 
 Captures **réelles** de l’interface web (pas de maquettes) : données et identité de démonstration. Les écrans et les permissions peuvent varier selon la version.

@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
 const { DatabaseSync } = (await import(SQLITE_MODULE)) as { DatabaseSync: new (path: string) => any };
-import { groqChatStreamWithTools, proposalsFromToolTrace } from '../lib/assist';
+import { groqChatWithTools, groqChatStreamWithTools, proposalsFromToolTrace } from '../lib/assist';
 import { toolsForRole } from '../lib/agent';
 
 async function sha256(s: string): Promise<string> {
@@ -75,6 +75,36 @@ describe('groqChatStreamWithTools (lib)', () => {
     expect(bodies[0]).toMatchObject({ stream: true, tool_choice: 'auto' });
     expect(bodies[1].messages.some((m: any) => m.role === 'tool')).toBe(true); // contexte outil rejoué
     expect(bodies[1].messages.find((m: any) => m.role === 'tool').content).toContain('42');
+  });
+
+  it('uses tool results for the bounded final completion in both modes', async () => {
+    for (const streaming of [false, true]) {
+      const bodies: any[] = [];
+      const mock = vi.fn(async (_url: any, init: any) => {
+        const body = JSON.parse(init.body);
+        bodies.push(body);
+        if (bodies.length === 1) {
+          return streaming
+            ? sseResponse([toolCallDelta(0, 'c1', 'stock', '{}'), usageChunk(10, 2)])
+            : new Response(JSON.stringify({ choices: [{ message: { tool_calls: [{ id: 'c1', type: 'function', function: { name: 'stock', arguments: '{}' } }] } }], usage: { prompt_tokens: 10, completion_tokens: 2 } }));
+        }
+        return new Response(JSON.stringify({ model: 'test', choices: [{ message: { content: '42 units' } }], usage: { prompt_tokens: 20, completion_tokens: 3 } }));
+      });
+      const tokens: string[] = [];
+      const opts = { apiKey: 'k', system: 's', message: 'stock?', maxRounds: 1, maxTokens: 200, tools: [], executor: async () => ({ ok: true, data: { qty: 42 } }) };
+      vi.stubGlobal('fetch', mock);
+      try {
+        const out = streaming
+          ? await groqChatStreamWithTools({ ...opts, onToken: t => tokens.push(t), fetchImpl: mock as typeof fetch })
+          : await groqChatWithTools(opts);
+        expect(bodies).toHaveLength(2);
+        expect(bodies[1].messages.find((m: any) => m.role === 'tool').content).toContain('42');
+        expect(bodies[1].tools).toBeUndefined();
+        expect(out.usage).toEqual({ prompt: 30, completion: 5 });
+        expect(out.reply).toBe('42 units');
+        if (streaming) expect(tokens.join('')).toBe('42 units');
+      } finally { vi.unstubAllGlobals(); }
+    }
   });
 
   it('sans tool_calls : un seul round, trace vide', async () => {

@@ -2889,5 +2889,10 @@
   "Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.": "الإحصاءات وعوامل التصفية أعلاه تخص سجل D1 فقط. يمكن تصفح الأرشيف منفصلاً حسب اليوم.",
   "Date UTC": "التاريخ بالتوقيت العالمي",
   "Afficher les archives": "عرض الأرشيف",
-  "chaque contributeur et aux personnes qui traduisent Atlas Commerce · voir le journal détaillé dans": "كل المساهمين وكل من يترجم أطلس للتجارة · راجع السجل المفصل في"
+  "chaque contributeur et aux personnes qui traduisent Atlas Commerce · voir le journal détaillé dans": "كل المساهمين وكل من يترجم أطلس للتجارة · راجع السجل المفصل في",
+  "Traductions : des fichiers séparés facilitent les corrections communautaires en français, en anglais et en arabe ; merci aux personnes qui contribuent aux traductions.": "الترجمات: تسهّل الملفات المنفصلة تصحيحات المجتمع بالفرنسية والإنجليزية والعربية؛ شكراً لكل من يساهم في الترجمة.",
+  "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte.": "الوضع التجريبي: يتزامن العد التنازلي مع الجلسة ويعرض أطلس إيجنت رسالة عند بلوغ حد التجربة.",
+  "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées.": "الإعدادات: تظل علامات التبويب المفتوحة متاحة أثناء التحديث، وتستخدم نماذج الإدارة نوافذ مخصصة.",
+  "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe.": "الأمان: تتوفر رسائل تسجيل الدخول وتأكيد حذف محادثات أطلس إيجنت بالفرنسية والإنجليزية والعربية.",
+  "Historique Agent : les anciennes conversations illisibles sont protégées contre le remplacement ; leur récupération nécessite une migration séparée.": "سجل الوكيل: تُحمى المحادثات القديمة غير القابلة للقراءة من الاستبدال؛ وتحتاج استعادتها إلى ترحيل منفصل."
 }

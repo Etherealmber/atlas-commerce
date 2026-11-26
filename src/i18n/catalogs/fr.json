@@ -2889,5 +2889,10 @@
   "Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.": "Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.",
   "Date UTC": "Date UTC",
   "Afficher les archives": "Afficher les archives",
-  "chaque contributeur et aux personnes qui traduisent Atlas Commerce · voir le journal détaillé dans": "chaque contributeur et aux personnes qui traduisent Atlas Commerce · voir le journal détaillé dans"
+  "chaque contributeur et aux personnes qui traduisent Atlas Commerce · voir le journal détaillé dans": "chaque contributeur et aux personnes qui traduisent Atlas Commerce · voir le journal détaillé dans",
+  "Traductions : des fichiers séparés facilitent les corrections communautaires en français, en anglais et en arabe ; merci aux personnes qui contribuent aux traductions.": "Traductions : des fichiers séparés facilitent les corrections communautaires en français, en anglais et en arabe ; merci aux personnes qui contribuent aux traductions.",
+  "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte.": "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte.",
+  "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées.": "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées.",
+  "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe.": "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe.",
+  "Historique Agent : les anciennes conversations illisibles sont protégées contre le remplacement ; leur récupération nécessite une migration séparée.": "Historique Agent : les anciennes conversations illisibles sont protégées contre le remplacement ; leur récupération nécessite une migration séparée."
 }

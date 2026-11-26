@@ -175,6 +175,8 @@ export async function groqChat(opts: {
   maxTokens?: number;
   temperature?: number;
   images?: string[];
+  messages?: any[];
+  fetchImpl?: typeof fetch;
 }): Promise<{ reply: string; model: string; usage?: { prompt: number; completion: number } }> {
   const preferred = (opts.model || '').trim();
   const images = (opts.images || []).filter((u) => typeof u === 'string' && u.startsWith('data:image/') && u.length <= 3_500_000).slice(0, 4);
@@ -186,7 +188,7 @@ export async function groqChat(opts: {
     const base = activeImages.length ? [...VISION_MODELS, ...MODELS] : MODELS;
     const models = [preferred, ...base].filter((m, i, a) => !!m && a.indexOf(m) === i);
     for (const model of models) {
-      const res = await upstreamFetch('https://api.groq.com/openai/v1/chat/completions', {
+      const request = {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${opts.apiKey}`,
@@ -196,7 +198,7 @@ export async function groqChat(opts: {
           model,
           temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.55,
           max_tokens: maxTokens,
-          messages: [
+          messages: opts.messages || [
             { role: 'system', content: opts.system },
             activeImages.length
               ? {
@@ -209,7 +211,10 @@ export async function groqChat(opts: {
               : { role: 'user', content: opts.message },
           ],
         }),
-      }, { timeoutMs: 20000, retries: 2, label: 'groq' });
+      };
+      const res = opts.fetchImpl
+        ? await opts.fetchImpl('https://api.groq.com/openai/v1/chat/completions', request)
+        : await upstreamFetch('https://api.groq.com/openai/v1/chat/completions', request, { timeoutMs: 20000, retries: 2, label: 'groq' });
 
       const raw = await res.text().catch(() => '');
       lastStatus = res.status;
@@ -321,9 +326,10 @@ export async function groqChatWithTools(opts: {
         model: opts.model,
         system: opts.system,
         message: opts.message,
+        messages: trace.length ? messages : undefined,
         maxTokens,
       });
-      return { ...fallback, tool_trace: trace };
+      return { ...fallback, usage: { prompt: promptTokens + (fallback.usage?.prompt || 0), completion: completionTokens + (fallback.usage?.completion || 0) }, tool_trace: trace };
     }
     promptTokens += Number(data?.usage?.prompt_tokens || 0);
     completionTokens += Number(data?.usage?.completion_tokens || 0);
@@ -359,9 +365,10 @@ export async function groqChatWithTools(opts: {
     model: opts.model,
     system: opts.system,
     message: opts.message,
+    messages: trace.length ? messages : undefined,
     maxTokens,
   });
-  return { ...fallback, tool_trace: trace };
+  return { ...fallback, usage: { prompt: promptTokens + (fallback.usage?.prompt || 0), completion: completionTokens + (fallback.usage?.completion || 0) }, tool_trace: trace };
 }
 
 export async function groqChatStreamWithTools(opts: {
@@ -483,7 +490,7 @@ export async function groqChatStreamWithTools(opts: {
       content: roundText || null,
       tool_calls: calls.map((v, k) => ({ id: v.id || `call_${k}`, type: 'function', function: { name: v.name, arguments: v.args || '{}' } })),
     });
-    for (const call of calls) {
+    for (const [index, call] of calls.entries()) {
       let args: Record<string, unknown> = {};
       try { args = JSON.parse(call.args || '{}'); } catch { args = {}; }
       let out: AgentToolResult = { ok: false, error: 'Outil inconnu.' };
@@ -495,11 +502,12 @@ export async function groqChatStreamWithTools(opts: {
       const entry: AgentToolTrace = { name: call.name, ok: out.ok, error: out.ok ? undefined : out.error, data: out.ok ? out.data : undefined, ...(out.ok && out.proposal ? { proposal: out.proposal } : {}) };
       trace.push(entry);
       try { opts.onTool?.(entry); } catch { /* consumer went away */ }
-      messages.push({ role: 'tool', tool_call_id: call.id || '', content: JSON.stringify(out).slice(0, 6000) });
+      messages.push({ role: 'tool', tool_call_id: call.id || `call_${index}`, content: JSON.stringify(out).slice(0, 6000) });
     }
   }
-  const fallback = await groqChat({ apiKey: opts.apiKey, model: opts.model, system: opts.system, message: opts.message, maxTokens });
-  return { ...fallback, tool_trace: trace };
+  const fallback = await groqChat({ apiKey: opts.apiKey, model: opts.model, system: opts.system, message: opts.message, messages: trace.length ? messages : undefined, maxTokens, fetchImpl: opts.fetchImpl });
+  if (fallback.reply) opts.onToken(fallback.reply);
+  return { ...fallback, usage: { prompt: promptTokens + (fallback.usage?.prompt || 0), completion: completionTokens + (fallback.usage?.completion || 0) }, tool_trace: trace };
 }
 
 export async function groqChatStream(opts: {

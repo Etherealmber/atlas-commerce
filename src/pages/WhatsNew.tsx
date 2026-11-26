@@ -44,6 +44,11 @@ export const UPCOMING_RELEASE_094: Release = {
       { id: '094i2', platforms: ['web'], text: 'Navigation : calendrier et pagination améliorés, et davantage de place pour les pages lorsque Atlas Agent est ouvert.' },
       { id: '094i3', platforms: ['web'], text: 'Pour tous : Atlas Commerce se rapproche de sa sortie de bêta. Merci de nous accompagner !' },
       { id: '094i4', platforms: ['desktop'], text: 'À suivre : une application bureau inspirée du site, avec des fonctionnalités, un cache et un démarrage avec votre ordinateur. Nous visons une expérience plus légère que Chrome ; les performances restent à mesurer.' },
+      { id: '094i5', platforms: ['web', 'android'], text: "Traductions : des fichiers séparés facilitent les corrections communautaires en français, en anglais et en arabe ; merci aux personnes qui contribuent aux traductions." },
+      { id: '094i6', platforms: ['web', 'server'], text: "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte." },
+      { id: '094i7', platforms: ['web'], text: "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées." },
+      { id: '094i8', platforms: ['server'], text: "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe." },
+      { id: '094i9', platforms: ['server'], text: "Historique Agent : les anciennes conversations illisibles sont protégées contre le remplacement ; leur récupération nécessite une migration séparée." },
     ] },
   ],
 };
