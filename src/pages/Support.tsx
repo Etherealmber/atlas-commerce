@@ -6,6 +6,7 @@ import { PublicNav, PublicSessionCta, GitHubStarButton } from '../components/Pub
 import { getApiBase } from '../config';
 import { APP_BUILD_DATE, APP_CREATOR_NAME, APP_NAME, APP_VERSION } from '../version';
 import Select from '../components/ui/Select';
+import { openSection } from '../lib/sectionAnchor';
 
 const GITHUB_ORG = 'https://github.com/Etherealmber';
 const GITHUB_REPO = 'Etherealmber/atlas-commerce';
@@ -366,7 +367,7 @@ export default function Support() {
                   caisse, facturation, comptes sécurisés, application Android et client bureau.
                 </p>
                 <div className="dl-ctas">
-                  <a className="dl-cta-main support-cta-btn" href="#demande">
+                  <a className="dl-cta-main support-cta-btn" href="#demande" onClick={e => openSection(e, 'demande')}>
                     Ouvrir une demande <span className="dl-cta-arrow" aria-hidden="true">↓</span>
                   </a>
                   <a className="dl-cta-ghost support-cta-btn" href={GITHUB_ISSUES} target="_blank" rel="noopener noreferrer">
@@ -415,7 +416,7 @@ export default function Support() {
           </div>
         </section>
 
-        <section className="dl-ed-section dl-container" id="demande" aria-labelledby="support-form-title">
+        <section className="dl-ed-section dl-container" id="demande" tabIndex={-1} aria-labelledby="support-form-title">
           <div className="dl-ed-rail">
             <div className="dl-ed-heading">
               <p className="dl-ed-kicker">01 / ASSISTANCE</p>

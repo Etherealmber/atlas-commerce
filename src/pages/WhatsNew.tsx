@@ -1432,8 +1432,8 @@ export default function WhatsNew() {
       </motion.h1>
 
       <details className="wn-upcoming">
-        <summary><strong>0.9.4 — Aperçu en préparation</strong></summary>
-        <p>Ces notes sont provisoires ; la version 0.9.4 n’est pas encore publiée.</p>
+        <summary><strong>0.9.4 — Nouveautés ajoutées jusqu’à présent</strong></summary>
+        <p>La version 0.9.4 n’est pas encore publiée.</p>
         {UPCOMING_RELEASE_094.sections.map(section => <ul key={section.kind} className="wn-list">
           {section.items.map(item => <li key={item.id}>{item.text}</li>)}
         </ul>)}

@@ -77,6 +77,7 @@ export default function DbMigrationPanel() {
         Copie intégrale (schéma + données) de <code>company-stock-db</code> vers <code>atlas-db</code> (binding D1
         « DB_TARGET »), puis bascule définitive depuis les Paramètres. Aucune donnée n’est supprimée.
       </p>
+      <p className="modal-note" role="note">Attention : la purge D1 des journaux de plus de 30 jours fonctionne indépendamment de la copie R2 ; elle ne prouve pas que les entrées ont été archivées.</p>
       {!status?.enabled ? (
         <div className="modal-note">
           Binding « DB_TARGET » non détecté sur ce déploiement. La configuration (<code>wrangler.jsonc</code>) lie

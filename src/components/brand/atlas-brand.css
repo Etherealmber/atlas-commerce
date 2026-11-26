@@ -339,5 +339,6 @@ html[data-theme="dark"] .settings-topbar-brand .atlas-lockup.settings-topbar-bra
 
 /* Arabic lockups read from the mark on the right toward the word on the left. */
 html[dir="rtl"] .atlas-loader-lockup { direction: rtl; }
-html[dir="rtl"] .atlas-loader-lockup .atlas-mark { transform: scaleX(-1); }
+/* Brand marks retain their artwork in RTL. */
+html[dir="rtl"] .atlas-lockup:not(.atlas-lockup--mark) { direction: ltr; }
 html[dir="rtl"] .atlas-loader-lockup .atlas-brand-word-ar { width: auto; aspect-ratio: auto; height: auto; font-size: clamp(30px, 8vw, 48px); }

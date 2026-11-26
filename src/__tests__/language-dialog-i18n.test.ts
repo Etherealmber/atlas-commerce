@@ -17,6 +17,7 @@ describe('localized language chooser', () => {
     await act(async () => root.render(createElement(LanguageSoonDialog, { open: true, onClose: close })));
     const radios = [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
     expect(radios).toHaveLength(3);
+    expect(document.querySelector('.ac-lang-preview-note')?.textContent).toContain('arabe et anglaise');
     await act(async () => { radios[0].focus(); radios[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); });
     retranslateAll(); await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(document.documentElement.lang).toBe('ar');
