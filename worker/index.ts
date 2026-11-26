@@ -2435,7 +2435,7 @@ async function ensureCatalogTables(db: D1Database) {
   const row = await db.prepare(`SELECT id FROM catalog_settings WHERE id = 1`).first();
   if (!row) {
     await db.prepare(`
-      INSERT INTO catalog_settings (id, site_title, site_tagline, show_prices, show_stock)
+      INSERT OR IGNORE INTO catalog_settings (id, site_title, site_tagline, show_prices, show_stock)
       VALUES (1, 'Catalogue', '', 1, 0)
     `).run();
   }

@@ -65,7 +65,8 @@ export function prefixedBucket(bucket: R2Bucket, prefix: string): R2Bucket {
     put: async (key: string, value: any, opts?: any) => wrapObject((await bucket.put(k(key), value, opts)) as any, prefix),
     delete: async (keys: string | string[]) => bucket.delete(Array.isArray(keys) ? keys.map(k) : k(keys)),
     list: async (opts: any = {}) => {
-      const res: any = await bucket.list({ ...opts, prefix: k(opts?.prefix || ''), startAfter: opts?.startAfter ? k(opts.startAfter) : undefined });
+      const { cursor, startAfter, ...rest } = opts;
+      const res: any = await bucket.list({ ...rest, prefix: k(opts?.prefix || ''), ...(cursor ? { cursor } : {}), ...(startAfter ? { startAfter: k(startAfter) } : {}) });
       return {
         ...res,
         objects: (res.objects || []).map((o: any) => wrapObject(o, prefix)),

@@ -414,7 +414,7 @@ export async function purgeAgentConversationsOlderThan(env: any, days = 30): Pro
     try {
       let cursor: string | undefined;
       do {
-        const listed = await env.IMAGES.list({ prefix, limit: 100, cursor });
+        const listed = await env.IMAGES.list({ prefix, limit: 100, ...(cursor ? { cursor } : {}) });
         for (const o of listed.objects || []) {
           const uploaded = o.uploaded ? new Date(o.uploaded).getTime() : 0;
           if (uploaded && uploaded < cutoff) {

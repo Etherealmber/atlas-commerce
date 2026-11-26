@@ -323,7 +323,7 @@ export async function purgeDeletedAccountFromBackups(
     try {
       let cursor: string | undefined;
       do {
-        const page: any = await env.IMAGES.list({ prefix, cursor, limit: 200 });
+        const page: any = await env.IMAGES.list({ prefix, ...(cursor ? { cursor } : {}), limit: 200 });
         for (const obj of page?.objects || []) {
           try {
             await env.IMAGES.delete(obj.key);
@@ -388,7 +388,7 @@ export async function purgeDeletedAccountFromBackups(
       const allObjs: Array<{ key: string; uploadedMs: number }> = [];
       let cursor: string | undefined;
       do {
-        const page: any = await env.IMAGES.list({ prefix, cursor, limit: 500 });
+        const page: any = await env.IMAGES.list({ prefix, ...(cursor ? { cursor } : {}), limit: 500 });
         for (const o of page?.objects || []) {
           if (!String(o?.key || '').endsWith('.abk')) continue;
           allObjs.push({
@@ -590,7 +590,7 @@ export async function runDailyBackup(
       let cursor: string | undefined;
       let listed = 0;
       do {
-        const page: any = await env.IMAGES.list({ cursor, limit: 500, prefix: '' });
+        const page: any = await env.IMAGES.list({ ...(cursor ? { cursor } : {}), limit: 500, prefix: '' });
         for (const obj of page.objects || []) {
           const objKey = String(obj.key || '');
           if (objKey.startsWith('backups/')) continue; // skip nested backup noise
@@ -784,7 +784,7 @@ export async function purgeExpiredBackups(env: any): Promise<{ deleted: number }
     const snaps: Array<{ key: string; uploadedMs: number }> = [];
     let cursor: string | undefined;
     do {
-      const page: any = await env.IMAGES.list({ prefix: 'backups/30m/', cursor, limit: 500 });
+      const page: any = await env.IMAGES.list({ prefix: 'backups/30m/', ...(cursor ? { cursor } : {}), limit: 500 });
       for (const obj of page.objects || []) {
         const key = String(obj.key || '');
         if (key.endsWith('manifest.json')) {
@@ -809,7 +809,7 @@ export async function purgeExpiredBackups(env: any): Promise<{ deleted: number }
   {
     let cursor: string | undefined;
     do {
-      const page: any = await env.IMAGES.list({ prefix: 'backups/pre-revert/', cursor, limit: 500 });
+      const page: any = await env.IMAGES.list({ prefix: 'backups/pre-revert/', ...(cursor ? { cursor } : {}), limit: 500 });
       for (const obj of page.objects || []) {
         const key = String(obj.key || '');
         const uploaded = obj.uploaded ? new Date(obj.uploaded).getTime() : 0;
@@ -825,7 +825,7 @@ export async function purgeExpiredBackups(env: any): Promise<{ deleted: number }
   try {
     let cursor: string | undefined;
     do {
-      const page: any = await env.IMAGES.list({ prefix: 'backups/restore-work/', cursor, limit: 500 });
+      const page: any = await env.IMAGES.list({ prefix: 'backups/restore-work/', ...(cursor ? { cursor } : {}), limit: 500 });
       for (const obj of page.objects || []) {
         const key = String(obj.key || '');
         const uploaded = obj.uploaded ? new Date(obj.uploaded).getTime() : 0;
@@ -841,7 +841,7 @@ export async function purgeExpiredBackups(env: any): Promise<{ deleted: number }
   try {
     let cursor: string | undefined;
     do {
-      const page: any = await env.IMAGES.list({ prefix: 'backups/', cursor, limit: 500 });
+      const page: any = await env.IMAGES.list({ prefix: 'backups/', ...(cursor ? { cursor } : {}), limit: 500 });
       for (const obj of page.objects || []) {
         const key = String(obj.key || '');
         if (key.includes('manifest.json')) {
@@ -1244,7 +1244,7 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
     const items: any[] = [];
     let cursor: string | undefined;
     do {
-      const page: any = await c.env.IMAGES.list({ prefix: 'backups/', cursor, limit: 200 });
+      const page: any = await c.env.IMAGES.list({ prefix: 'backups/', ...(cursor ? { cursor } : {}), limit: 200 });
       for (const obj of page.objects || []) {
         const key = String(obj.key || '');
         // UI list: only encrypted .abk under 30m + latest pointer.
