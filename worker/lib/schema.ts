@@ -9,11 +9,13 @@ import { scopedKey } from './dataScope';
  * Checking PRAGMA table_info first means the failing ALTER is never issued.
  */
 const _schemaOnce = new Set<string>();
-const _schemaOnceInflight = new Map<string, Promise<void>>();
 
 const _sessionToRootDb = new WeakMap<object, object>();
 const _dbSchemaDone = new WeakMap<object, Set<string>>();
-const _dbSchemaInflight = new WeakMap<object, Map<string, Promise<void>>>();
+// These legacy migrations can rebuild tables and must never run concurrently
+// within an isolate. Only a marker is shared, never an I/O promise.
+const _exclusiveDbSchema = new WeakMap<object, Set<string>>();
+const EXCLUSIVE_SCHEMA_KEYS = new Set(['auto_sql_migrations_0013_0020', 'offline_ops_schema_v20']);
 
 /** Associate a D1 session object (from `db.withSession(...)`) with its root D1 binding. */
 export function registerDbRoot(sessionDb: unknown, rootDb: unknown): void {
@@ -27,64 +29,43 @@ export function resolveRootDb(db: unknown): object | null {
   return _sessionToRootDb.get(db) || db;
 }
 
+/** Cache completed initialization only. Never retain request-bound I/O promises
+ * across Worker requests: an abandoned request can leave those promises unable
+ * to settle. Initializers must tolerate concurrent execution. */
 export async function schemaOnce(rawKey: string, fn: () => Promise<void>): Promise<void> {
-  // Keyed per data scope: a demo sandbox must run its own schema setup.
   const key = scopedKey(rawKey);
   if (_schemaOnce.has(key)) return;
-  const existing = _schemaOnceInflight.get(key);
-  if (existing) {
-    await existing;
-    return;
-  }
-  const p = (async () => {
-    try {
-      await fn();
-    } finally {
-      _schemaOnce.add(key);
-      _schemaOnceInflight.delete(key);
-    }
-  })();
-  _schemaOnceInflight.set(key, p);
-  await p;
+  await fn();
+  _schemaOnce.add(key);
 }
 
-/**
- * Run `fn` once per underlying D1 binding (coalescing concurrent cold-start calls),
- * while allowing separate in-memory DBs in tests to each initialize cleanly.
- */
+/** Cache completed initialization per binding, not pending request promises. */
 export async function schemaOnceForDb(db: D1Database, key: string, fn: () => Promise<void>): Promise<void> {
   const root = resolveRootDb(db);
   if (!root || typeof (db as any).prepare !== 'function') return;
-
-  let done = _dbSchemaDone.get(root);
-  if (done?.has(key)) return;
-
-  let inflightMap = _dbSchemaInflight.get(root);
-  const inflight = inflightMap?.get(key);
-  if (inflight) {
-    await inflight;
-    return;
-  }
-
-  if (!done) {
-    done = new Set<string>();
-    _dbSchemaDone.set(root, done);
-  }
-  if (!inflightMap) {
-    inflightMap = new Map<string, Promise<void>>();
-    _dbSchemaInflight.set(root, inflightMap);
-  }
-
-  const p = (async () => {
-    try {
-      await fn();
-    } finally {
-      done!.add(key);
-      inflightMap!.delete(key);
+  if (_dbSchemaDone.get(root)?.has(key)) return;
+  let active: Set<string> | undefined;
+  if (EXCLUSIVE_SCHEMA_KEYS.has(key)) {
+    active = _exclusiveDbSchema.get(root);
+    if (!active) { active = new Set<string>(); _exclusiveDbSchema.set(root, active); }
+    // Wait using timers owned by this request, never the other request's I/O.
+    // A bounded wait avoids hanging forever if the initializing request died;
+    // fail closed rather than overlap a potentially destructive rebuild.
+    for (let i = 0; active.has(key) && i < 150; i++) {
+      await new Promise<void>(resolve => setTimeout(resolve, 20));
     }
-  })();
-  inflightMap.set(key, p);
-  await p;
+    if (_dbSchemaDone.get(root)?.has(key)) return;
+    if (active.has(key)) throw new Error('Schema initialization busy; retry request');
+    active.add(key);
+  }
+  try {
+    await fn();
+    let done = _dbSchemaDone.get(root);
+    if (!done) { done = new Set<string>(); _dbSchemaDone.set(root, done); }
+    done.add(key);
+  } finally {
+    active?.delete(key);
+  }
 }
 
 /**

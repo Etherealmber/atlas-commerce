@@ -60,7 +60,7 @@ export const LanguageSoonDialog: FC<{ open: boolean; onClose: () => void }> = ({
             <X size={15} strokeWidth={2} aria-hidden />
           </button>
         </div>
-        <p className="ac-lang-preview-note">Les versions arabe et anglaise sont en aperçu et nécessitent encore des améliorations.</p>
+        <p className="ac-lang-preview-note">Les langues arabe et anglaise sont en cours de développement et nécessitent encore des améliorations.</p>
         <ul className="ac-lang-list" role="radiogroup" aria-labelledby="ac-lang-title">
           {LANGS.map((l) => {
             const selected = l.code === lang;

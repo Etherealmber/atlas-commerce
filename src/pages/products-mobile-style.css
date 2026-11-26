@@ -6,3 +6,4 @@ html body .ac-products .stock-pill.out { background: #fee2e2 !important; color: 
 html[data-theme="dark"] body .ac-products .stock-pill.ok { background: #14532d !important; color: #bbf7d0 !important; }
 html[data-theme="dark"] body .ac-products .stock-pill.low { background: #7c2d12 !important; color: #fed7aa !important; }
 html[data-theme="dark"] body .ac-products .stock-pill.out { background: #7f1d1d !important; color: #fecaca !important; }
+html body .ac-products .stock-pill { text-transform: none !important; letter-spacing: normal !important; }

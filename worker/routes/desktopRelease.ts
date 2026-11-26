@@ -370,7 +370,7 @@ async function listDesktopAssets(bucket: any): Promise<Array<{ key: string; size
   const items: Array<{ key: string; size: number; uploaded: string | null }> = [];
   let cursor: string | undefined;
   for (let page = 0; page < 20; page++) {
-    const res: any = await bucket.list({ prefix: `${DESKTOP_UPDATE_PREFIX}/`, cursor }).catch(() => null);
+    const res: any = await bucket.list({ prefix: `${DESKTOP_UPDATE_PREFIX}/`, ...(cursor ? { cursor } : {}) }).catch(() => null);
     if (!res) break;
     for (const obj of (res.objects || []) as any[]) {
       if (obj?.key) {

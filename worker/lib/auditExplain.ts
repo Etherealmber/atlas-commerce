@@ -53,9 +53,9 @@ const SYSTEM = [
   'On te donne UNE ligne du journal d’audit ou du journal des appels API.',
   'Explique en français simple, pour un gérant non technicien, ce qui s’est passé.',
   'Réponds en JSON strict : {"summary": "...", "risk": "normal|à surveiller|suspect", "advice": "..."}.',
-  'summary : 1 à 3 phrases sur le type d’événement fourni. advice : 1 phrase prudente de vérification.',
+  'summary : explique clairement le type d’événement et ses limites en 2 à 4 phrases. advice : propose une vérification prudente et concrète.',
   'Les indicateurs agrégés sont incomplets ; un réseau signalé ne prouve pas une intrusion.',
-  'N’invente aucun détail absent des données et ne propose pas de sanction automatique.',
+  'N’invente aucun détail absent des données et ne propose pas de sanction automatique. Pour une entrée audit, aucun statut HTTP ni méthode HTTP ne sont fournis : ne dis jamais que la requête a réussi ou échoué. Ne déduis ni personnalité, ni intention, ni équipement ou lieu réel.',
 ].join('\n');
 
 // Send only bounded event categories and aggregate indicators, never raw audit
@@ -66,7 +66,7 @@ function linesFor(input: ExplainInput): string {
   const actions = new Set(['assist.chat', 'assist.chat.stream', 'auth.login', 'auth.logout', 'auth.desktop_exchange', 'cash_shift.open', 'cash_shift.close']);
   const methods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
   return JSON.stringify({ kind: input.kind, action: actions.has(input.action || '') ? input.action : 'other',
-    method: methods.has(input.method || '') ? input.method : 'unknown', status: Number(input.status) || 0,
+    method: input.kind === 'api' && methods.has(input.method || '') ? input.method : null, status: input.kind === 'api' && input.status != null ? Number(input.status) : null,
     network_flagged: classifyNetwork(input.as_org, input.asn).risky,
     recent_failures: Math.min(1000, Math.max(0, Number(input.ip_recent_failures) || 0)),
   });
@@ -136,7 +136,7 @@ async function cfg(db: D1Database | undefined, key: string, value?: string): Pro
 
 export async function explainLogLine(env: Env, input: ExplainInput, fetcher: Fetcher = fetch): Promise<Explanation> {
   const language = input.language === 'en' || input.language === 'ar' ? input.language : 'fr';
-  const cacheKey = `audit_explain:v2:${language}:${input.kind}:${input.id}`;
+  const cacheKey = `audit_explain:v3:${language}:${input.kind}:${input.id}`;
   try {
     const hit = env.CACHE ? await env.CACHE.get(cacheKey) : null;
     if (hit) return { ...(JSON.parse(hit) as Explanation), source: 'cache' };

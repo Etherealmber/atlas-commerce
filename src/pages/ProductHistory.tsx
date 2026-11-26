@@ -1,4 +1,5 @@
 import { dualStockLabel } from '../lib/dualUnit';
+import { phoneStockIsLow, phoneStockQuantity } from '../mobile/phoneStock';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Camera, History, Maximize2, Pencil, RefreshCw, SlidersHorizontal, Sparkles, Tags } from 'lucide-react';
@@ -314,7 +315,7 @@ export default function ProductHistory({ mobile = false, onProductUpdated }: Pro
         <button type="button" className="secondary product-history-action-label" onClick={() => setLabelOpen(true)}><Tags size={14} aria-hidden="true" />Étiquette</button>
       </div>}
       {imageMessage && <p role="status">{imageMessage}</p>}
-      <div className="product-history-chips"><span>{product.track_inventory != null && !Number(product.track_inventory) ? 'Stock non suivi' : <><span>Stock</span> <bdi dir="ltr">{dualStockLabel(product)}</bdi></>}</span>{canSell() && typeof product.price === 'number' && <span>{product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD</span>}</div>
+      <div className="product-history-chips"><span className={product.track_inventory != null && !Number(product.track_inventory) ? '' : `product-history-stock product-history-stock--${phoneStockQuantity(product) <= 0 ? 'out' : phoneStockIsLow(product) ? 'low' : 'ok'}`}>{product.track_inventory != null && !Number(product.track_inventory) ? 'Stock non suivi' : <><span>Stock</span> <bdi dir="auto">{dualStockLabel(product)}</bdi></>}</span>{canSell() && typeof product.price === 'number' && <span>{product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD</span>}</div>
     </section>}
     <section className={`product-history-card product-history-movements${loading && rows.length ? ' is-refreshing' : ''}`} aria-busy={loading || undefined}><div className="product-history-section-head"><History size={20} /><h2>Historique des mouvements</h2>{!loading && !error && <span className="product-history-tag">{rows.length}{hasMore ? '+' : ''}</span>}<button type="button" className="secondary product-history-refresh" aria-label="Actualiser l’historique" title="Actualiser l’historique" disabled={loading} onClick={() => void refreshMovements()}><RefreshCw size={19} /></button></div>
       {loading && !rows.length && <MovementSkeleton rows={mobile ? 3 : 4} />}

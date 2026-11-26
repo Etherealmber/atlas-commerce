@@ -22,3 +22,16 @@ it('only asks for an explanation after a click and sends the chosen locale', asy
     expect(host.textContent).toContain('Test explanation');
   } finally { await act(async () => root.unmount()); host.remove(); }
 });
+
+it('explains API entries only on demand using the API journal kind', async () => {
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+  const explain = vi.spyOn(api, 'explainLogLine').mockResolvedValue({ data: { summary: 'API event', risk: 'normal', advice: 'Review.', source: 'rules' } });
+  const host = document.createElement('div'); document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(AuditAgentExplanation, { id: 17, kind: 'api' })));
+    expect(explain).not.toHaveBeenCalled();
+    await act(async () => host.querySelector('button')!.click());
+    expect(explain).toHaveBeenCalledWith('api', 17, 'fr');
+  } finally { await act(async () => root.unmount()); host.remove(); }
+});

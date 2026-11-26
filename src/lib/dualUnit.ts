@@ -1,4 +1,4 @@
-export type UnitOption = { id?: number | null; name: string; symbol?: string };
+export type UnitOption = { id?: number | null; name: string; symbol?: string; name_fr?: string; name_en?: string; name_ar?: string };
 
 const DEFAULT_UNIT_OPTIONS: UnitOption[] = [
   { name: 'unité', symbol: 'u' },
@@ -34,7 +34,7 @@ export function mergeUnitOptions(serverUnits: UnitOption[] = []): UnitOption[] {
     const key = name.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ id: raw.id ?? null, name, symbol: raw.symbol || '' });
+    out.push({ ...raw, id: raw.id ?? null, name, symbol: raw.symbol || '' });
   }
   return out;
 }

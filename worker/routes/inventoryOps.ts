@@ -62,8 +62,8 @@ export async function ensureStockLocations(db: D1Database) {
     await addColumnIfMissing(db, 'stock_locations', 'is_default', 'INTEGER DEFAULT 0');
     const n = await db.prepare(`SELECT COUNT(*) as c FROM stock_locations`).first() as any;
     if (!Number(n?.c)) {
-      await db.prepare(`INSERT INTO stock_locations (code, name, is_default, is_active) VALUES ('MAG', 'Magasin principal', 1, 1)`).run();
-      await db.prepare(`INSERT INTO stock_locations (code, name, is_default, is_active) VALUES ('RES', 'Réserve', 0, 1)`).run();
+      await db.prepare(`INSERT OR IGNORE INTO stock_locations (code, name, is_default, is_active) VALUES ('MAG', 'Magasin principal', 1, 1)`).run();
+      await db.prepare(`INSERT OR IGNORE INTO stock_locations (code, name, is_default, is_active) VALUES ('RES', 'Réserve', 0, 1)`).run();
     }
     await ensureWarehouseSettings(db);
   });

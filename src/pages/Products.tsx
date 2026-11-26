@@ -1,3 +1,4 @@
+import { useLang } from '../i18n/core';
 import { onAgentDraft } from '../lib/agentDraft';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
@@ -153,8 +154,12 @@ export default function Products() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [, setDeleteTargets] = useState<number[] | null>(null);
   const [, setDeleteBusy] = useState(false);
+  const uiLang = useLang();
   const [categories, setCategories] = useState<any[]>([]);
   const [units, setUnits] = useState<UnitOption[]>(() => mergeUnitOptions());
+  const categoryLabel = (name: string) => categories.find(c => c.name === name)?.[`name_${uiLang}`] || name;
+  const unitLabel = (name: string | null | undefined) => units.find(u => u.name === name)?.[`name_${uiLang}`] || name;
+  const localizedStockLabel = (product: any) => dualStockLabel({ ...product, unit: unitLabel(product.unit), secondary_unit: unitLabel(product.secondary_unit) });
   const [variants, setVariants] = useState<any[]>([]);
   const [variantForm, setVariantForm] = useState({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
   const [savingVariant, setSavingVariant] = useState(false);
@@ -673,7 +678,7 @@ export default function Products() {
           <Select className="ac-filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Catégorie">
             <option value="">Toutes catégories</option>
             {categories.map((c) => (
-              <option key={c.id ?? c.name} value={c.name}>{c.name}</option>
+              <option key={c.id ?? c.name} value={c.name}>{c[`name_${uiLang}`] || c.name}</option>
             ))}
           </Select>
           <Select className="ac-filter-select" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label="Niveau de stock">
@@ -749,10 +754,10 @@ export default function Products() {
                     </div>
                     <Link to={`/products/${p.id}/historique`} className="pc-body">
                       <strong className="pc-name">{p.name}</strong>
-                      <span className="pc-ref">{p.sku || p.barcode || 'Sans référence'}{p.category ? ` · ${p.category}` : ''}</span>
+                      <span className="pc-ref">{p.sku || p.barcode || 'Sans référence'}{p.category ? ` · ${categoryLabel(p.category)}` : ''}</span>
                       <span className="pc-meta">
                         {!hideMoney && p.price != null ? <b className="pc-price">{fmt(p.price)} MAD</b> : <span />}
-                        <span className={`pc-qty pc-qty--${stockState}`}>{p.track_inventory ? dualStockLabel(p) : '—'}</span>
+                        <span className={`pc-qty pc-qty--${stockState}`}>{p.track_inventory ? localizedStockLabel(p) : '—'}</span>
                       </span>
                     </Link>
                     <div className="pc-actions">
@@ -824,16 +829,13 @@ export default function Products() {
                       <Link className="product-list-open pc-list-open" to={`/products/${p.id}/historique`}><ProductArtwork url={p.image_url} largeImageProductId={p.image_inline_large ? p.id : undefined} alt="" className="pc-list-art" /><span className="pc-list-text" translate="no"><strong>{p.name}</strong>{p.description ? <small>{p.description}</small> : null}</span></Link>
                     </td>
                     <td><span className="sku-mono">{p.sku || '—'}</span></td>
-                    <td translate="no">{p.category || '—'}</td>
+                    <td translate="no">{p.category ? categoryLabel(p.category) : '—'}</td>
                     {!hideMoney && <td>{fmt(p.price)}</td>}
                     {!hideCost && <td>{fmt(p.cost)}</td>}
                     <td style={{ fontWeight: 700 }}>
                       {p.track_inventory ? (
                         <div>
-                          <span className="stock-cell">{dualStockLabel(p)}</span>
-                        {!!p.track_inventory && Number(p.stock_quantity) === 0 && <span className="stock-pill out">Rupture</span>}
-                        {!!p.track_inventory && Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.low_stock_threshold || 0) && <span className="stock-pill low">Bas</span>}
-                        {!!p.track_inventory && Number(p.stock_quantity) > Number(p.low_stock_threshold || 0) && <span className="stock-pill ok">OK</span>}
+                          <span className={`stock-pill ${phoneStockQuantity(p) <= 0 ? 'out' : phoneStockIsLow(p) ? 'low' : 'ok'}`}><bdi dir="auto">{localizedStockLabel(p)}</bdi></span>
                           {placements[p.id]?.placements ? (
                             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, lineHeight: 1.35, fontWeight: 500 }}>
                               {placements[p.id].placements
@@ -1020,7 +1022,7 @@ export default function Products() {
                 >
                   <option value="">— Choisir —</option>
                   {categories.map((c) => (
-                    <option key={c.id ?? c.name} value={c.name}>{c.name}</option>
+                    <option key={c.id ?? c.name} value={c.name}>{c[`name_${uiLang}`] || c.name}</option>
                   ))}
                   {form.category && !categories.some((c) => c.name === form.category) && (
                     <option value={form.category}>{form.category}</option>
@@ -1041,7 +1043,7 @@ export default function Products() {
                   <option value="">— Choisir —</option>
                   {units.map((u) => (
                     <option key={u.id ?? u.name} value={u.name}>
-                      {u.symbol ? `${u.name} (${u.symbol})` : u.name}
+                      {u.symbol ? `${u[`name_${uiLang}`] || u.name} (${u.symbol})` : u[`name_${uiLang}`] || u.name}
                     </option>
                   ))}
                   {form.unit && !units.some((u) => u.name === form.unit) && (
@@ -1072,7 +1074,7 @@ export default function Products() {
                       value={u.name}
                       disabled={Boolean(form.unit) && u.name.toLowerCase() === String(form.unit).trim().toLowerCase()}
                     >
-                      {u.symbol ? `${u.name} (${u.symbol})` : u.name}
+                      {u.symbol ? `${u[`name_${uiLang}`] || u.name} (${u.symbol})` : u[`name_${uiLang}`] || u.name}
                     </option>
                   ))}
                   {form.secondary_unit && !units.some((u) => u.name === form.secondary_unit) && (

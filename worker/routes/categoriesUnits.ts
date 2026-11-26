@@ -10,6 +10,17 @@ interface CategoriesUnitsRouteDeps {
   checkConfirmPassword: (env: any, db: D1Database, authHeader: string | undefined, body: any) => Promise<any>;
 }
 
+const catalogLanguages = ['fr', 'en', 'ar'] as const;
+function localizedNames(body: any, existing: any = {}) {
+  return catalogLanguages.map(lang => {
+    const value = body[`name_${lang}`];
+    return value === undefined ? String(existing[`name_${lang}`] || '') : String(value || '').trim();
+  });
+}
+function validLocalizedNames(names: string[]) {
+  return names.every(value => value.length <= 80 && !Array.from(value).some(char => char.charCodeAt(0) < 32));
+}
+
 export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUnitsRouteDeps): void {
   const { ensureCategoriesTable, ensureUnitsTable, checkConfirmPassword } = deps;
 
@@ -58,10 +69,12 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
     const body = await c.req.json().catch(() => ({}));
     const name = String(body.name || '').trim();
     if (!name) return c.json({ success: false, error: 'Nom de catégorie obligatoire' }, 400);
+    const names = localizedNames(body);
+    if (!validLocalizedNames(names)) return c.json({ success: false, error: 'Nom traduit invalide.' }, 400);
     try {
       const r = await c.env.DB.prepare(
-        `INSERT INTO product_categories (name, description, sort_order) VALUES (?, ?, ?)`,
-      ).bind(name, String(body.description || ''), Number(body.sort_order || 0)).run();
+        `INSERT INTO product_categories (name, description, sort_order, name_fr, name_en, name_ar) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(name, String(body.description || ''), Number(body.sort_order || 0), ...names).run();
       const row = await c.env.DB.prepare(`SELECT * FROM product_categories WHERE id = ?`).bind(r.meta.last_row_id).first();
       await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       return c.json({ success: true, data: row, message: 'Catégorie créée.' }, 201);
@@ -83,11 +96,13 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
     if (!existing) return c.json({ success: false, error: 'Catégorie introuvable' }, 404);
     const name = body.name !== undefined ? String(body.name).trim() : existing.name;
     if (!name) return c.json({ success: false, error: 'Nom obligatoire' }, 400);
+    const names = localizedNames(body, existing);
+    if (!validLocalizedNames(names)) return c.json({ success: false, error: 'Nom traduit invalide.' }, 400);
     const description = body.description !== undefined ? String(body.description) : existing.description;
     const sort_order = body.sort_order !== undefined ? Number(body.sort_order) : existing.sort_order;
     await c.env.DB.prepare(
-      `UPDATE product_categories SET name = ?, description = ?, sort_order = ? WHERE id = ?`,
-    ).bind(name, description, sort_order, id).run();
+      `UPDATE product_categories SET name = ?, description = ?, sort_order = ?, name_fr = ?, name_en = ?, name_ar = ? WHERE id = ?`,
+    ).bind(name, description, sort_order, ...names, id).run();
     if (name !== existing.name) {
       await c.env.DB.prepare(`UPDATE products SET category = ? WHERE category = ?`).bind(name, existing.name).run();
     }
@@ -166,10 +181,12 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
     const body = await c.req.json().catch(() => ({}));
     const name = String(body.name || '').trim();
     if (!name) return c.json({ success: false, error: "Nom d'unité obligatoire" }, 400);
+    const names = localizedNames(body);
+    if (!validLocalizedNames(names)) return c.json({ success: false, error: 'Nom traduit invalide.' }, 400);
     try {
       const r = await c.env.DB.prepare(
-        `INSERT INTO product_units (name, symbol, sort_order) VALUES (?, ?, ?)`,
-      ).bind(name, String(body.symbol || ''), Number(body.sort_order || 0)).run();
+        `INSERT INTO product_units (name, symbol, sort_order, name_fr, name_en, name_ar) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(name, String(body.symbol || ''), Number(body.sort_order || 0), ...names).run();
       const row = await c.env.DB.prepare(`SELECT * FROM product_units WHERE id = ?`).bind(r.meta.last_row_id).first();
       await afterBusinessMutation(c.env.CACHE, c.env.MOBILE_HUB);
       return c.json({ success: true, data: row, message: 'Unité créée.' }, 201);
@@ -191,11 +208,13 @@ export function registerCategoriesUnitsRoutes(app: Hono<any>, deps: CategoriesUn
     if (!existing) return c.json({ success: false, error: 'Unité introuvable' }, 404);
     const name = body.name !== undefined ? String(body.name).trim() : existing.name;
     if (!name) return c.json({ success: false, error: 'Nom obligatoire' }, 400);
+    const names = localizedNames(body, existing);
+    if (!validLocalizedNames(names)) return c.json({ success: false, error: 'Nom traduit invalide.' }, 400);
     const symbol = body.symbol !== undefined ? String(body.symbol) : existing.symbol;
     const sort_order = body.sort_order !== undefined ? Number(body.sort_order) : existing.sort_order;
     await c.env.DB.prepare(
-      `UPDATE product_units SET name = ?, symbol = ?, sort_order = ? WHERE id = ?`,
-    ).bind(name, symbol, sort_order, id).run();
+      `UPDATE product_units SET name = ?, symbol = ?, sort_order = ?, name_fr = ?, name_en = ?, name_ar = ? WHERE id = ?`,
+    ).bind(name, symbol, sort_order, ...names, id).run();
     if (name !== existing.name) {
       await c.env.DB.prepare(`UPDATE products SET unit = ? WHERE unit = ?`).bind(name, existing.name).run();
     }

@@ -119,7 +119,7 @@ async function checkProductSearchIndex(db: D1Database): Promise<boolean | 'missi
   }
 }
 
-let repairInFlight: Promise<'rebuilt' | 'recreated' | 'failed'> | null = null;
+let repairInFlight = false;
 let lastRepairAt = 0;
 let lastFtsProbeAt = 0;
 
@@ -153,13 +153,15 @@ export async function proactiveFtsHealth(db: D1Database): Promise<void> {
  * ensureProductSearchIndex recreate and reseed it — loses no business data.
  * Cooldown + in-flight guard keep a corruption burst from looping repairs.
  */
-export function repairProductSearchIndex(
+export async function repairProductSearchIndex(
   db: D1Database,
   opts?: { force?: boolean },
 ): Promise<'rebuilt' | 'recreated' | 'failed'> {
-  if (repairInFlight) return repairInFlight;
-  if (!opts?.force && Date.now() - lastRepairAt < 60_000) return Promise.resolve('failed');
-  repairInFlight = (async () => {
+  // Never await another request's I/O; fail closed while a repair is running.
+  if (repairInFlight) return 'failed';
+  if (!opts?.force && Date.now() - lastRepairAt < 60_000) return 'failed';
+  repairInFlight = true;
+  return (async () => {
     lastRepairAt = Date.now();
     try {
       try {
@@ -181,10 +183,9 @@ export function repairProductSearchIndex(
       console.error('[search-index] repair failed', String((e as any)?.message || e).slice(0, 300));
       return 'failed' as const;
     } finally {
-      repairInFlight = null;
+      repairInFlight = false;
     }
   })();
-  return repairInFlight;
 }
 
 

@@ -1,3 +1,4 @@
+import CatalogNames, { emptyCatalogNames } from '../components/settings/CatalogNames';
 import { langMeta, translate, useLang } from '../i18n/core';
 import { DEFAULT_CATEGORIES, DEFAULT_UNITS } from '../../worker/lib/product-defaults';
 import QrLoginPanel from '../components/settings/QrLoginPanel';
@@ -258,20 +259,21 @@ export default function Settings() {
   const [pwTitle, setPwTitle] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
-  const [unitName, setUnitName] = useState('');
+  const [unitNames, setUnitNames] = useState(emptyCatalogNames);
   const [editingCat, setEditingCat] = useState<any>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [unitDialogOpen, setUnitDialogOpen] = useState(false);
-  const closeCategoryDialog = () => { setCategoryDialogOpen(false); setEditingCat(null); setCatName(''); setCatDesc(''); setCatalogDialogError(''); };
-  const closeUnitDialog = () => { setUnitDialogOpen(false); setEditingUnit(null); setUnitName(''); setCatalogDialogError(''); };
+  const closeCategoryDialog = () => { setCategoryDialogOpen(false); setEditingCat(null); setCatNames(emptyCatalogNames()); setCatDesc(''); setCatalogDialogError(''); };
+  const closeUnitDialog = () => { setUnitDialogOpen(false); setEditingUnit(null); setUnitNames(emptyCatalogNames()); setCatalogDialogError(''); };
   const [editingUnit, setEditingUnit] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
-  const [catName, setCatName] = useState('');
+  const [catNames, setCatNames] = useState(emptyCatalogNames);
   const [catDesc, setCatDesc] = useState('');
   const [catSaving, setCatSaving] = useState(false);
   const [catalogDialogError, setCatalogDialogError] = useState('');
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [auditDetailRow, setAuditDetailRow] = useState<any | null>(null);
+  const [journalView, setJournalView] = useState<'audit' | 'api'>('audit');
   useEffect(() => {
     if (!auditDetailRow) return;
     const prev = document.body.style.overflow;
@@ -288,7 +290,7 @@ export default function Settings() {
   const [auditCursorStack, setAuditCursorStack] = useState<(string | null)[]>([null]);
   const [auditMeta, setAuditMeta] = useState<{ limit: number; has_more: boolean; next_cursor: string | null; cursor: string | null } | null>(null);
   const [auditQ, setAuditQ] = useState('');
-  const [auditRange, setAuditRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
+  const [auditRange, setAuditRange] = useState<'24h' | '7d' | '30d'>('7d');
   const [auditAction, setAuditAction] = useState('');
   const [auditStats, setAuditStats] = useState<any>(null);
   const [payrollRates, setPayrollRates] = useState<any>(null);
@@ -893,28 +895,6 @@ if (loading && !settings) return (
     setPwOpen(true);
   };
 
-
-  const formatAuditSummary = (row: any): string => {
-    const action = String(row.action || '');
-    const detail = String(row.detail || '').trim();
-    if (action === 'backup.restore') {
-      // Minimal: filename only if entity_id looks like a file
-      const id = String(row.entity_id || '').split('/').pop() || '';
-      if (detail && detail.length < 80 && !detail.includes('tables=products')) return detail;
-      return id ? `Restauration · ${id}` : 'Restauration de sauvegarde';
-    }
-    if (action === 'settings.update') {
-      const m = detail.match(/champs=([^;]+)/);
-      if (m) {
-        const n = m[1].split(',').filter(Boolean).length;
-        return n ? `${n} champ${n > 1 ? 's' : ''} modifié${n > 1 ? 's' : ''}` : 'Paramètres mis à jour';
-      }
-      return 'Paramètres mis à jour';
-    }
-    if (action.startsWith('assist.')) return detail.slice(0, 48) || 'Atlas Agent';
-    if (detail.length > 64) return detail.slice(0, 61) + '…';
-    return detail || '—';
-  };
 
   const formatAuditActor = (row: any): { title: string; sub: string } => {
     const u = String(row.username || '').trim();
@@ -2648,17 +2628,10 @@ if (loading && !settings) return (
           {catalogStatus === 'loading' && <p role="status" aria-busy="true">Chargement des catégories et unités…</p>}
           {catalogStatus === 'error' && <div role="alert"><p>Impossible de charger les catégories et unités.</p><button type="button" onClick={() => setCatalogRetry(n => n + 1)}>Réessayer</button></div>}
           {catalogStatus === 'ready' && <>
-          <button type="button" data-visual-review="category-create" onClick={() => { closeCategoryDialog(); setCategoryDialogOpen(true); }}>+ Ajouter une catégorie</button>
           {categoryDialogOpen && <SettingsUserDialog titleId="category-dialog-title" dismissDisabled={catSaving} onClose={closeCategoryDialog}>
           <h2 id="category-dialog-title">{editingCat ? 'Modifier la catégorie' : 'Ajouter une catégorie'}</h2>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
-            <label htmlFor="category-dialog-name">Nom de la catégorie *</label>
-            <input
-              id="category-dialog-name"
-              placeholder="Nom de la catégorie *"
-              value={catName}
-              onChange={(e) => setCatName(e.target.value)}
-            />
+            <CatalogNames kind="category" value={catNames} onChange={setCatNames} disabled={catSaving} />
             <label htmlFor="category-dialog-description">Description (optionnel)</label>
             <input
               id="category-dialog-description"
@@ -2666,20 +2639,25 @@ if (loading && !settings) return (
               value={catDesc}
               onChange={(e) => setCatDesc(e.target.value)}
             />
+            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
+            <div className="catalog-dialog-actions">
+            <button type="button" className="secondary" disabled={catSaving} onClick={closeCategoryDialog}>Annuler</button>
             <button
               type="button"
               disabled={catSaving}
               onClick={async () => {
-                if (!catName.trim()) { setCatalogDialogError('Nom obligatoire.'); return; }
+                const name = catNames.fr.trim() || catNames.en.trim() || catNames.ar.trim();
+                if (!name) { setCatalogDialogError('Nom obligatoire.'); return; }
+                const names = { name_fr: catNames.fr.trim(), name_en: catNames.en.trim(), name_ar: catNames.ar.trim() };
                 setCatalogDialogError('');
                 setCatSaving(true);
                 try {
                   if (editingCat?.id) {
-                    await api.updateCategory(editingCat.id, { name: catName.trim(), description: catDesc });
+                    await api.updateCategory(editingCat.id, { name: editingCat.name, ...names, description: catDesc });
                     flash('Catégorie mise à jour.');
                     setEditingCat(null);
                   } else {
-                    await api.createCategory({ name: catName.trim(), description: catDesc });
+                    await api.createCategory({ name, ...names, description: catDesc });
                     flash('Catégorie créée.');
                   }
                   closeCategoryDialog();
@@ -2693,18 +2671,17 @@ if (loading && !settings) return (
             >
               {catSaving ? '…' : editingCat ? 'Enregistrer' : '+ Ajouter'}
             </button>
-            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
-            <button type="button" className="secondary" disabled={catSaving} onClick={closeCategoryDialog}>Annuler</button>
+            </div>
           </div></SettingsUserDialog>}
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Nom</th><th>Description</th><th>Source</th><th></th></tr>
+                <tr><th>Nom</th><th>Description</th><th>Source</th><th className="catalog-add-cell"><button type="button" data-visual-review="category-create" onClick={() => { closeCategoryDialog(); setCategoryDialogOpen(true); }}>+ Ajouter une catégorie</button></th></tr>
               </thead>
               <tbody>
                 {categories.map((cat: any) => (
                   <tr key={cat.id ?? cat.name}>
-                    <td><strong data-user-data dir="auto">{DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.name, uiLang) : cat.name}</strong></td>
+                    <td><strong data-user-data dir="auto">{cat[`name_${uiLang}`] || (DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.name, uiLang) : cat.name)}</strong></td>
                     <td data-user-data dir="auto" style={{ color: 'var(--muted)', fontSize: 13 }}>{DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.description, uiLang) : cat.description || '—'}</td>
                     <td style={{ fontSize: 12 }}>{cat.from_products ? 'Utilisée sur produits' : 'Définie'}</td>
                     <td className="row-actions-cell">
@@ -2716,7 +2693,7 @@ if (loading && !settings) return (
                           onClick={() => {
                             setEditingCat(cat);
                             setCategoryDialogOpen(true);
-                            setCatName(cat.name || '');
+                            setCatNames({ fr: cat.name_fr || (cat.name_en || cat.name_ar ? '' : cat.name || ''), en: cat.name_en || '', ar: cat.name_ar || '' });
                             setCatDesc(cat.description || '');
                           }}
                         >
@@ -2752,23 +2729,26 @@ if (loading && !settings) return (
           <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
             Ex. unité, kg, carton — modifiables et supprimables par l&apos;admin.
           </p>
-          <button type="button" data-visual-review="unit-create" onClick={() => { closeUnitDialog(); setUnitDialogOpen(true); }}>+ Ajouter unité</button>
           {unitDialogOpen && <SettingsUserDialog titleId="unit-dialog-title" dismissDisabled={catSaving} onClose={closeUnitDialog}>
           <h2 id="unit-dialog-title">{editingUnit ? 'Modifier l’unité' : 'Ajouter une unité'}</h2>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
-            <label htmlFor="unit-dialog-name">Nom de l&apos;unité *</label>
-            <input id="unit-dialog-name" placeholder="Nom de l&apos;unité *" value={unitName} onChange={(e) => setUnitName(e.target.value)} />
+            <CatalogNames kind="unit" value={unitNames} onChange={setUnitNames} disabled={catSaving} />
+            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
+            <div className="catalog-dialog-actions">
+            <button type="button" className="secondary" disabled={catSaving} onClick={closeUnitDialog}>Annuler</button>
             <button type="button" disabled={catSaving} onClick={async () => {
-              if (!unitName.trim()) { setCatalogDialogError('Nom obligatoire.'); return; }
+              const name = unitNames.fr.trim() || unitNames.en.trim() || unitNames.ar.trim();
+              if (!name) { setCatalogDialogError('Nom obligatoire.'); return; }
+              const names = { name_fr: unitNames.fr.trim(), name_en: unitNames.en.trim(), name_ar: unitNames.ar.trim() };
               setCatalogDialogError('');
               setCatSaving(true);
               try {
                 if (editingUnit?.id) {
-                  await api.updateUnit(editingUnit.id, { name: unitName.trim() });
+                  await api.updateUnit(editingUnit.id, { name: editingUnit.name, ...names });
                   flash('Unité mise à jour.');
                   setEditingUnit(null);
                 } else {
-                  await api.createUnit({ name: unitName.trim() });
+                  await api.createUnit({ name, ...names });
                   flash('Unité créée.');
                 }
                 closeUnitDialog();
@@ -2779,20 +2759,19 @@ if (loading && !settings) return (
               } catch (e: any) { setCatalogDialogError(e.message || 'Enregistrement impossible.'); }
               finally { setCatSaving(false); }
             }}>{editingUnit ? 'Enregistrer' : '+ Ajouter unité'}</button>
-            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
-            <button type="button" className="secondary" disabled={catSaving} onClick={closeUnitDialog}>Annuler</button>
+            </div>
           </div></SettingsUserDialog>}
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Nom</th><th></th></tr></thead>
+              <thead><tr><th>Nom</th><th className="catalog-add-cell"><button type="button" data-visual-review="unit-create" onClick={() => { closeUnitDialog(); setUnitDialogOpen(true); }}>+ Ajouter unité</button></th></tr></thead>
               <tbody>
                 {units.map((u: any) => (
                   <tr key={u.id ?? u.name}>
-                    <td><strong data-user-data dir="auto">{DEFAULT_UNITS.some((d) => d.name === u.name && d.symbol === u.symbol) ? translate(u.name, uiLang) : u.name}</strong></td>
+                    <td><strong data-user-data dir="auto">{u[`name_${uiLang}`] || (DEFAULT_UNITS.some((d) => d.name === u.name && d.symbol === u.symbol) ? translate(u.name, uiLang) : u.name)}</strong></td>
                     <td className="row-actions-cell">
                       {u.id ? (
                           <button type="button" className="secondary" data-visual-review="unit-edit"
-                            onClick={() => { setEditingUnit(u); setUnitName(u.name || ''); setUnitDialogOpen(true); }}>Modifier</button>
+                            onClick={() => { setEditingUnit(u); setUnitNames({ fr: u.name_fr || (u.name_en || u.name_ar ? '' : u.name || ''), en: u.name_en || '', ar: u.name_ar || '' }); setUnitDialogOpen(true); }}>Modifier</button>
                       ) : null}
                           <TimedUndoDelete iconOnly width="34px"
                             deleteLabel="Supprimer"
@@ -2857,60 +2836,23 @@ if (loading && !settings) return (
 
         return (
           <div className="audit-panel settings-audit-full ac-audit-stack">
-            <div className="ac-panel ac-audit-header-panel">
-              <div className="ac-panel-head">
-                <div>
-                  <h3>
-                    <ShieldCheck className="as-icon" size={17} strokeWidth={2} aria-hidden="true" />
-                    <span>Journal d’audit &amp; Traçabilité</span>
-                  </h3>
-                  <p>Suivi complet des connexions, modifications et opérations sensibles (admin uniquement).</p>
-                </div>
+            {journalView === 'audit' && <div className="page-header ac-page-header dock-page-header">
+              <TopPageActions>
+                {journalView === 'audit' && <button type="button" className="secondary" title="Actualiser" aria-label="Actualiser" disabled={auditLoading} onClick={() => void loadAuditPage(null, auditQ, true)}><RefreshCw size={15} aria-hidden="true" /><span className="tpa-label">Actualiser</span></button>}
+                {journalView === 'audit' && <button type="button" className="secondary" title="Export CSV" aria-label="Export CSV" disabled={auditLoading} onClick={async () => { try { await api.exportAuditLog('csv', 500); flash('Export CSV téléchargé.'); } catch (e: any) { flash(e?.message || 'Échec export', 'error'); } }}><Download size={15} aria-hidden="true" /><span className="tpa-label">Export CSV</span></button>}
+              </TopPageActions>
+            </div>}
+            <p role="note">Attention : la purge D1 des journaux est suspendue jusqu’à la vérification de leur archivage. Les données peuvent rester plus de 30 jours.</p>
+            <div className="journal-toolbar">
+              <div className="journal-view-switch" role="group" aria-label="Type de journal">
+                <button type="button" className="secondary" aria-pressed={journalView === 'audit'} onClick={() => setJournalView('audit')}>Historique détaillé</button>
+                <button type="button" className="secondary" aria-pressed={journalView === 'api'} onClick={() => setJournalView('api')}>Journal des appels API</button>
               </div>
-                <div className="ac-audit-toolbar ac-audit-toolbar--head">
-                  <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période d’audit">
-                    {(['24h', '7d', '30d', 'all'] as const).map((rKey) => (
-                      <button
-                        key={rKey}
-                        type="button"
-                        className="ac-seg-btn"
-                        aria-pressed={auditRange === rKey}
-                        onClick={() => setAuditRange(rKey)}
-                      >
-                        {rangeShort[rKey]}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="ac-audit-toolbar-actions">
-                    <button
-                      type="button"
-                      className="secondary ac-audit-action-btn"
-                      disabled={auditLoading}
-                      onClick={() => loadAuditPage(null, auditQ, true)}
-                    >
-                      <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
-                      <span>{auditLoading ? 'Chargement…' : 'Actualiser'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary ac-audit-action-btn"
-                      disabled={auditLoading}
-                      onClick={async () => {
-                        try {
-                          await api.exportAuditLog('csv', 500);
-                          flash('Export CSV téléchargé.');
-                        } catch (e: any) {
-                          flash(e?.message || 'Échec export', 'error');
-                        }
-                      }}
-                    >
-                      <Download size={14} strokeWidth={2} aria-hidden="true" />
-                      <span>Export CSV</span>
-                    </button>
-                  </div>
-                </div>
+              <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période">
+                {(['24h', '7d', '30d'] as const).map((rKey) => <button key={rKey} type="button" className="ac-seg-btn" aria-pressed={auditRange === rKey} onClick={() => setAuditRange(rKey)}>{rangeShort[rKey]}</button>)}
+              </div>
             </div>
-
+            {journalView === 'audit' && <>
             <div className="ac-metric-grid ac-audit-kpis">
               <article className="ac-metric">
                 <div className="as-label">
@@ -3045,7 +2987,9 @@ if (loading && !settings) return (
               </section>
             </div>
 
-            <section className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
+            </>}
+            <div className="ac-panel journal-history" aria-label="Historique détaillé">
+            {journalView === 'audit' ? <section className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
               <div className="ac-panel-head" style={{ marginBottom: 12 }}>
                 <div>
                   <h3>
@@ -3188,7 +3132,6 @@ if (loading && !settings) return (
                     )}
                     {auditLog.map((row: any) => {
                       const actor = formatAuditActor(row);
-                      const summary = formatAuditSummary(row);
                       const tone = auditPillTone(row.action);
                       const resource = (() => {
                         const ent = String(row.entity || '');
@@ -3229,13 +3172,13 @@ if (loading && !settings) return (
                             <button
                               type="button"
                               className="ac-audit-detail-link ac-audit-detail-btn"
-                              aria-label={`Inspecter : ${summary}`}
+                              aria-label="Détails"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setAuditDetailRow(row);
                               }}
                             >
-                              <span className="ac-audit-detail-text">{summary}</span>
+                              <span className="ac-audit-detail-text">Détails</span>
                               <ChevronRight className="ac-audit-detail-chev" size={14} strokeWidth={2} aria-hidden="true" />
                             </button>
                           </td>
@@ -3246,8 +3189,8 @@ if (loading && !settings) return (
                 </table>
               </div>
 
-            </section>
-            <ApiLogPanel />
+            </section> : <ApiLogPanel range={auditRange} />}
+            </div>
           </div>
         );
       })()}

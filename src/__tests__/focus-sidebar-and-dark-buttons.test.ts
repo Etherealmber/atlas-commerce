@@ -480,12 +480,13 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     });
 
     expect(host.querySelector('.ac-dash-hero')).toBeNull();
-    expect(host.querySelector('.ac-audit-header-panel')).not.toBeNull();
+    expect(host.querySelector('.ac-audit-header-panel')).toBeNull();
+    expect(host.querySelectorAll('.ac-audit-range-pills')).toHaveLength(1);
     expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
     expect(host.querySelector('.ac-audit-charts-grid')).not.toBeNull();
     expect(host.querySelector('.ac-audit-table-panel')).not.toBeNull();
     expect(host.querySelector('.ac-dash-period-pills')).not.toBeNull();
-    expect(host.textContent).toContain('Journal d’audit & Traçabilité');
+    expect(host.textContent).toContain('Journal des appels API');
     expect(host.textContent).toContain('invoice.create');
     expect(host.textContent).toContain('FA-101');
 
@@ -497,6 +498,16 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     });
     expect(hbarBtn!.classList.contains('is-selected')).toBe(true);
     expect(auditSpy).toHaveBeenCalled();
+
+    const apiSpy = vi.spyOn(api, 'getApiLog').mockResolvedValue({ data: [], meta: { has_more: false, stats: { total: 4 } } } as any);
+    const switchButton = Array.from(host.querySelectorAll('button')).find((b) => b.textContent === 'Journal des appels API')!;
+    await act(async () => { switchButton.click(); await new Promise((r) => setTimeout(r, 20)); });
+    expect(host.querySelectorAll('.ac-audit-range-pills')).toHaveLength(1);
+    expect(host.querySelector('.ac-audit-kpis')).toBeNull();
+    expect(apiSpy).toHaveBeenCalledWith(expect.objectContaining({ range: '7d' }));
+    const dayButton = Array.from(host.querySelectorAll<HTMLButtonElement>('button.ac-seg-btn')).find((b) => b.textContent === '24 h')!;
+    await act(async () => { dayButton.click(); await new Promise((r) => setTimeout(r, 20)); });
+    expect(apiSpy).toHaveBeenLastCalledWith(expect.objectContaining({ range: '24h' }));
 
     vi.restoreAllMocks();
     vi.unstubAllGlobals();

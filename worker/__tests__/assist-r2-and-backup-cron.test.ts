@@ -14,7 +14,9 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
 
     const env = {
       IMAGES: {
-        list: vi.fn(async ({ prefix, cursor }: { prefix: string; cursor?: string }) => {
+        list: vi.fn(async (options: { prefix: string; cursor?: string }) => {
+          const { prefix, cursor } = options;
+          if (cursor === undefined) expect(Object.hasOwn(options, 'cursor')).toBe(false);
           listCursors.push(cursor);
           expect(typeof cursor === 'string' || cursor === undefined).toBe(true);
           if (prefix === 'agent/' && !cursor) {
