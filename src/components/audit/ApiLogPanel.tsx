@@ -24,7 +24,7 @@ function statusTone(st: number) {
 }
 
 /**
- * « Journal des appels API »: every /api/* call, including failures, kept
+ * « Journal des appels API »: eligible API calls, including failures, kept
  * for 30 days. Each row shows the city, country and operator (VPN flag),
  * with inspectable request details.
  */
@@ -71,7 +71,7 @@ export default function ApiLogPanel() {
       <div className="ac-apilog-head">
         <div>
           <h3><Activity size={16} strokeWidth={2.2} aria-hidden="true" /> Journal des appels API</h3>
-          <p className="ac-apilog-sub">Toutes les requêtes, y compris les échecs. Conservation : {stats?.retention_days ?? 30} jours.</p>
+          <p className="ac-apilog-sub">Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. Conservation : {stats?.retention_days ?? 30} jours.</p>
         </div>
         <div className="ac-apilog-tools">
           <div className="ac-dash-period-pills" role="group" aria-label="Période">

@@ -1,6 +1,6 @@
-name: D1 read insights (read-only)
+name: D1 read and write insights (read-only)
 
-# Which queries read the most rows on the production D1 databases.
+# Which query shapes consume the most D1 reads and writes, without printing raw SQL.
 # Read-only: it only calls Cloudflare's D1 analytics (`wrangler d1 insights`),
 # never touches data or schema. Run it from GitHub → Actions → "D1 read insights".
 # Secrets: CLOUDFLARE_API_TOKEN or CF_API_TOKEN (Account → D1 → Read is enough),
@@ -14,16 +14,13 @@ on:
         required: true
         default: 7d
         type: string
-  push:
-    branches: ['arena/**']
-    paths: ['.github/workflows/d1-read-insights.yml']
 
 permissions:
   contents: read
 
 jobs:
   insights:
-    name: D1 top queries by rows read
+    name: D1 top queries by rows read and written
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
@@ -59,30 +56,23 @@ jobs:
 
       - run: npm ci --ignore-scripts
 
-      - name: Top queries by rows read
+      - name: Aggregated top query shapes
         run: |
-          set -uo pipefail
-          for db in company-stock-db atlas-db; do
-            for sort in reads count; do
-              echo "::group::$db — top by $sort ($PERIOD)"
-              if npx wrangler d1 insights "$db" --time-period "$PERIOD" --sort-type sum --sort-by "$sort" --limit 25 --json > "ins-$db-$sort.json" 2> err.txt; then
-                # Query text is SQL with bound parameters; trimmed to 400 chars per line.
-                jq -r '.[] | [ (.totalRowsRead // .rowsRead // 0), (.numberOfTimesRun // .count // 0), (.avgRowsRead // 0), (.query | gsub("\\s+"; " ") | .[0:400]) ] | @tsv' "ins-$db-$sort.json" \
-                  | awk -F'\t' 'BEGIN{print "rows_read\truns\tavg_rows\tquery"} {print}' | tee "ins-$db-$sort.tsv"
-                {
-                  echo "## $db — top 25 by $sort ($PERIOD)"
-                  echo '```'
-                  cat "ins-$db-$sort.tsv"
-                  echo '```'
-                } >> "$GITHUB_STEP_SUMMARY"
-                # Also surface as a check-run annotation (readable via the REST API
-                # when raw logs are not reachable). Newlines are %0A-encoded.
-                msg=$(head -26 "ins-$db-$sort.tsv" | cut -c1-300 | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
-                echo "::notice title=$db top by $sort ($PERIOD)::$msg"
-              else
-                echo "insights unavailable for $db:"; cat err.txt | head -20
-                echo "::warning title=$db insights unavailable::$(head -5 err.txt | tr '\n' ' ')"
-              fi
-              echo "::endgroup::"
-            done
+          set -euo pipefail
+          case "$PERIOD" in 1h|6h|1d|7d|30d) ;; *) echo "::error::Unsupported time window"; exit 1;; esac
+          for sort in writes reads count; do
+            if ! npx wrangler d1 insights company-stock-db --time-period "$PERIOD" --sort-type sum --sort-by "$sort" --limit 25 --json > "ins-$sort.json" 2> err.txt; then
+              echo "::error title=D1 insights unavailable::Cloudflare D1 Analytics query failed. Check the token's Analytics and D1 read permissions and account scope."
+              exit 1
+            fi
+            node scripts/d1-insights-summary.mjs "ins-$sort.json" > "summary-$sort.tsv"
+            {
+              echo "## company-stock-db — top query shapes by $sort ($PERIOD)"
+              echo '```'
+              cat "summary-$sort.tsv"
+              echo '```'
+              echo 'Values are aggregated query insights, not account billing totals. SQL and parameter values are not included.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            msg=$(head -26 "summary-$sort.tsv" | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::notice title=D1 top by $sort::$msg"
           done

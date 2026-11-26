@@ -59,7 +59,7 @@ import type { Env } from './env';
 import { doCacheGet, doCachePut, hasLiveCache, checkRefreshLimit, invalidateDashboardCache } from './lib/cache';
 import { keyFromCdnUrl, deleteR2Object } from './lib/r2';
 import { rateLimit, isAllowedImageUrl, clientIpFromRequest } from './lib/security';
-import { shouldLogApiCall, geoFromCf, writeApiLog } from './lib/apiLog';
+import { shouldLogApiCall, geoFromCf, writeApiLog, isIdleQrPoll } from './lib/apiLog';
 import { canMutateBusiness, normalizeRole } from './lib/rbac';
 import { apiFail, apiOk } from './lib/api-response';
 import { toClientError } from './lib/errors';
@@ -372,7 +372,11 @@ app.use('/api/*', async (c, next) => {
           surface: String(c.get('bffSurface') || '') || null,
           ...geoFromCf((c.req.raw as any).cf),
         };
-        ctx.waitUntil(writeApiLog(db, row));
+        const response = c.res;
+        ctx.waitUntil((async () => {
+          if (await isIdleQrPoll(row.method, path, status, response)) return;
+          await writeApiLog(db, row);
+        })());
       }
     } catch { /* journaling never breaks a request */ }
   }

@@ -5,6 +5,7 @@
  * Missing entries simply stay in French — run `npm run i18n:missing` to list them.
  */
 export const MESSAGES: ReadonlyArray<readonly [string, string, string]> = [
+  ["Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. Conservation : {n} jours.", "Recorded requests, including failures; pending QR checks and some probes are excluded. Retention: {n} days.", "الطلبات المسجلة، بما فيها الإخفاقات؛ تُستثنى فحوصات QR المعلقة وبعض فحوصات الخدمة. مدة الاحتفاظ: {n} يوماً."],
   ["Impossible de charger les paramètres. Réessayez.", "Unable to load settings. Try again.", "تعذر تحميل الإعدادات. حاول مجدداً."],
   ["Chargement des catégories et unités…", "Loading categories and units…", "جارٍ تحميل الفئات والوحدات…"],
   ["Impossible de charger les catégories et unités.", "Unable to load categories and units.", "تعذر تحميل الفئات والوحدات."],
