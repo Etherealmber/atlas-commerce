@@ -1,3 +1,4 @@
+import CatalogNames, { emptyCatalogNames } from '../components/settings/CatalogNames';
 import { langMeta, translate, useLang } from '../i18n/core';
 import { DEFAULT_CATEGORIES, DEFAULT_UNITS } from '../../worker/lib/product-defaults';
 import QrLoginPanel from '../components/settings/QrLoginPanel';
@@ -258,15 +259,15 @@ export default function Settings() {
   const [pwTitle, setPwTitle] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
-  const [unitName, setUnitName] = useState('');
+  const [unitNames, setUnitNames] = useState(emptyCatalogNames);
   const [editingCat, setEditingCat] = useState<any>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [unitDialogOpen, setUnitDialogOpen] = useState(false);
-  const closeCategoryDialog = () => { setCategoryDialogOpen(false); setEditingCat(null); setCatName(''); setCatDesc(''); setCatalogDialogError(''); };
-  const closeUnitDialog = () => { setUnitDialogOpen(false); setEditingUnit(null); setUnitName(''); setCatalogDialogError(''); };
+  const closeCategoryDialog = () => { setCategoryDialogOpen(false); setEditingCat(null); setCatNames(emptyCatalogNames()); setCatDesc(''); setCatalogDialogError(''); };
+  const closeUnitDialog = () => { setUnitDialogOpen(false); setEditingUnit(null); setUnitNames(emptyCatalogNames()); setCatalogDialogError(''); };
   const [editingUnit, setEditingUnit] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
-  const [catName, setCatName] = useState('');
+  const [catNames, setCatNames] = useState(emptyCatalogNames);
   const [catDesc, setCatDesc] = useState('');
   const [catSaving, setCatSaving] = useState(false);
   const [catalogDialogError, setCatalogDialogError] = useState('');
@@ -2630,13 +2631,7 @@ if (loading && !settings) return (
           {categoryDialogOpen && <SettingsUserDialog titleId="category-dialog-title" dismissDisabled={catSaving} onClose={closeCategoryDialog}>
           <h2 id="category-dialog-title">{editingCat ? 'Modifier la catégorie' : 'Ajouter une catégorie'}</h2>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
-            <label htmlFor="category-dialog-name">Nom de la catégorie *</label>
-            <input
-              id="category-dialog-name"
-              placeholder="Nom de la catégorie *"
-              value={catName}
-              onChange={(e) => setCatName(e.target.value)}
-            />
+            <CatalogNames kind="category" value={catNames} onChange={setCatNames} disabled={catSaving} />
             <label htmlFor="category-dialog-description">Description (optionnel)</label>
             <input
               id="category-dialog-description"
@@ -2651,16 +2646,18 @@ if (loading && !settings) return (
               type="button"
               disabled={catSaving}
               onClick={async () => {
-                if (!catName.trim()) { setCatalogDialogError('Nom obligatoire.'); return; }
+                const name = catNames.fr.trim() || catNames.en.trim() || catNames.ar.trim();
+                if (!name) { setCatalogDialogError('Nom obligatoire.'); return; }
+                const names = { name_fr: catNames.fr.trim(), name_en: catNames.en.trim(), name_ar: catNames.ar.trim() };
                 setCatalogDialogError('');
                 setCatSaving(true);
                 try {
                   if (editingCat?.id) {
-                    await api.updateCategory(editingCat.id, { name: catName.trim(), description: catDesc });
+                    await api.updateCategory(editingCat.id, { name: editingCat.name, ...names, description: catDesc });
                     flash('Catégorie mise à jour.');
                     setEditingCat(null);
                   } else {
-                    await api.createCategory({ name: catName.trim(), description: catDesc });
+                    await api.createCategory({ name, ...names, description: catDesc });
                     flash('Catégorie créée.');
                   }
                   closeCategoryDialog();
@@ -2684,7 +2681,7 @@ if (loading && !settings) return (
               <tbody>
                 {categories.map((cat: any) => (
                   <tr key={cat.id ?? cat.name}>
-                    <td><strong data-user-data dir="auto">{DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.name, uiLang) : cat.name}</strong></td>
+                    <td><strong data-user-data dir="auto">{cat[`name_${uiLang}`] || (DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.name, uiLang) : cat.name)}</strong></td>
                     <td data-user-data dir="auto" style={{ color: 'var(--muted)', fontSize: 13 }}>{DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.description, uiLang) : cat.description || '—'}</td>
                     <td style={{ fontSize: 12 }}>{cat.from_products ? 'Utilisée sur produits' : 'Définie'}</td>
                     <td className="row-actions-cell">
@@ -2696,7 +2693,7 @@ if (loading && !settings) return (
                           onClick={() => {
                             setEditingCat(cat);
                             setCategoryDialogOpen(true);
-                            setCatName(cat.name || '');
+                            setCatNames({ fr: cat.name_fr || (cat.name_en || cat.name_ar ? '' : cat.name || ''), en: cat.name_en || '', ar: cat.name_ar || '' });
                             setCatDesc(cat.description || '');
                           }}
                         >
@@ -2735,22 +2732,23 @@ if (loading && !settings) return (
           {unitDialogOpen && <SettingsUserDialog titleId="unit-dialog-title" dismissDisabled={catSaving} onClose={closeUnitDialog}>
           <h2 id="unit-dialog-title">{editingUnit ? 'Modifier l’unité' : 'Ajouter une unité'}</h2>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
-            <label htmlFor="unit-dialog-name">Nom de l&apos;unité *</label>
-            <input id="unit-dialog-name" placeholder="Nom de l&apos;unité *" value={unitName} onChange={(e) => setUnitName(e.target.value)} />
+            <CatalogNames kind="unit" value={unitNames} onChange={setUnitNames} disabled={catSaving} />
             {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
             <div className="catalog-dialog-actions">
             <button type="button" className="secondary" disabled={catSaving} onClick={closeUnitDialog}>Annuler</button>
             <button type="button" disabled={catSaving} onClick={async () => {
-              if (!unitName.trim()) { setCatalogDialogError('Nom obligatoire.'); return; }
+              const name = unitNames.fr.trim() || unitNames.en.trim() || unitNames.ar.trim();
+              if (!name) { setCatalogDialogError('Nom obligatoire.'); return; }
+              const names = { name_fr: unitNames.fr.trim(), name_en: unitNames.en.trim(), name_ar: unitNames.ar.trim() };
               setCatalogDialogError('');
               setCatSaving(true);
               try {
                 if (editingUnit?.id) {
-                  await api.updateUnit(editingUnit.id, { name: unitName.trim() });
+                  await api.updateUnit(editingUnit.id, { name: editingUnit.name, ...names });
                   flash('Unité mise à jour.');
                   setEditingUnit(null);
                 } else {
-                  await api.createUnit({ name: unitName.trim() });
+                  await api.createUnit({ name, ...names });
                   flash('Unité créée.');
                 }
                 closeUnitDialog();
@@ -2769,11 +2767,11 @@ if (loading && !settings) return (
               <tbody>
                 {units.map((u: any) => (
                   <tr key={u.id ?? u.name}>
-                    <td><strong data-user-data dir="auto">{DEFAULT_UNITS.some((d) => d.name === u.name && d.symbol === u.symbol) ? translate(u.name, uiLang) : u.name}</strong></td>
+                    <td><strong data-user-data dir="auto">{u[`name_${uiLang}`] || (DEFAULT_UNITS.some((d) => d.name === u.name && d.symbol === u.symbol) ? translate(u.name, uiLang) : u.name)}</strong></td>
                     <td className="row-actions-cell">
                       {u.id ? (
                           <button type="button" className="secondary" data-visual-review="unit-edit"
-                            onClick={() => { setEditingUnit(u); setUnitName(u.name || ''); setUnitDialogOpen(true); }}>Modifier</button>
+                            onClick={() => { setEditingUnit(u); setUnitNames({ fr: u.name_fr || (u.name_en || u.name_ar ? '' : u.name || ''), en: u.name_en || '', ar: u.name_ar || '' }); setUnitDialogOpen(true); }}>Modifier</button>
                       ) : null}
                           <TimedUndoDelete iconOnly width="34px"
                             deleteLabel="Supprimer"

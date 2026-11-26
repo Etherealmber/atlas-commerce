@@ -2937,5 +2937,13 @@
   "Type de journal": "Type de journal",
   "Les langues arabe et anglaise sont en cours de développement et nécessitent encore des améliorations.": "Les langues arabe et anglaise sont en cours de développement et nécessitent encore des améliorations.",
   "Attention : la purge D1 des journaux est suspendue jusqu’à la vérification de leur archivage. Les données peuvent rester plus de 30 jours.": "Attention : la purge D1 des journaux est suspendue jusqu’à la vérification de leur archivage. Les données peuvent rester plus de 30 jours.",
-  "Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. La purge D1 est suspendue avant vérification de l’archive ; les données peuvent être conservées plus de 30 jours.": "Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. La purge D1 est suspendue avant vérification de l’archive ; les données peuvent être conservées plus de 30 jours."
+  "Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. La purge D1 est suspendue avant vérification de l’archive ; les données peuvent être conservées plus de 30 jours.": "Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. La purge D1 est suspendue avant vérification de l’archive ; les données peuvent être conservées plus de 30 jours.",
+  "Nom en français": "Nom en français",
+  "Nom en anglais": "Nom en anglais",
+  "Nom en arabe": "Nom en arabe",
+  "Proposer les noms avec l’IA": "Proposer les noms avec l’IA",
+  "Vérifiez les propositions avant d’enregistrer. Les champs déjà remplis ne sont pas remplacés.": "Vérifiez les propositions avant d’enregistrer. Les champs déjà remplis ne sont pas remplacés.",
+  "Saisissez d’abord un nom.": "Saisissez d’abord un nom.",
+  "Suggestion indisponible. Vous pouvez saisir les noms manuellement.": "Suggestion indisponible. Vous pouvez saisir les noms manuellement.",
+  "Au moins un nom est obligatoire.": "Au moins un nom est obligatoire."
 }

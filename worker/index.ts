@@ -2379,6 +2379,10 @@ async function ensureCategoriesTable(db: D1Database) {
       created_at TEXT DEFAULT (datetime('now'))
     )
   `).run();
+  for (const lang of ['fr', 'en', 'ar']) await addColumnIfMissing(db, 'product_categories', `name_${lang}`, "TEXT NOT NULL DEFAULT ''");
+  const catalogColumns = await db.prepare(`PRAGMA table_info(product_categories)`).all();
+  const catalogColumnNames = new Set((catalogColumns.results || []).map((row: any) => row.name));
+  if (!['name_fr', 'name_en', 'name_ar'].every(column => catalogColumnNames.has(column))) throw new Error('Catalog language schema unavailable');
   const count = await db.prepare(`SELECT COUNT(*) as c FROM product_categories`).first() as any;
   if (!Number(count?.c || 0)) {
     for (const cat of DEFAULT_CATEGORIES) {
@@ -2403,6 +2407,10 @@ async function ensureUnitsTable(db: D1Database) {
       created_at TEXT DEFAULT (datetime('now'))
     )
   `).run();
+  for (const lang of ['fr', 'en', 'ar']) await addColumnIfMissing(db, 'product_units', `name_${lang}`, "TEXT NOT NULL DEFAULT ''");
+  const catalogColumns = await db.prepare(`PRAGMA table_info(product_units)`).all();
+  const catalogColumnNames = new Set((catalogColumns.results || []).map((row: any) => row.name));
+  if (!['name_fr', 'name_en', 'name_ar'].every(column => catalogColumnNames.has(column))) throw new Error('Catalog language schema unavailable');
   const count = await db.prepare(`SELECT COUNT(*) as c FROM product_units`).first() as any;
   if (!Number(count?.c || 0)) {
     for (const u of DEFAULT_UNITS) {
