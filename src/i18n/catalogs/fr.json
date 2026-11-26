@@ -2954,5 +2954,12 @@
   "Volume quotidien d’événements enregistrés": "Volume quotidien d’événements enregistrés",
   "Historique D1 · les archives R2 ne sont pas encore incluses.": "Historique D1 · les archives R2 ne sont pas encore incluses.",
   "Horodatage (heure locale)": "Horodatage (heure locale)",
-  "Heure enregistrée (UTC)": "Heure enregistrée (UTC)"
+  "Heure enregistrée (UTC)": "Heure enregistrée (UTC)",
+  "Conservation visée : 30 jours · Archivage non vérifié, purge suspendue.": "Conservation visée : 30 jours · Archivage non vérifié, purge suspendue.",
+  "Accès aux journaux": "Accès aux journaux",
+  "Deux journaux séparés · période sélectionnée": "Deux journaux séparés · période sélectionnée",
+  "Voir l’historique": "Voir l’historique",
+  "Voir les appels API": "Voir les appels API",
+  "Activité API dans le temps": "Activité API dans le temps",
+  "Appels enregistrés par jour UTC · 14 derniers jours affichés": "Appels enregistrés par jour UTC · 14 derniers jours affichés"
 }

@@ -273,6 +273,7 @@ export default function Settings() {
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [auditDetailRow, setAuditDetailRow] = useState<any | null>(null);
   const [journalView, setJournalView] = useState<'all' | 'audit' | 'api'>('all');
+  const [journalReset, setJournalReset] = useState(0);
   useEffect(() => {
     if (!auditDetailRow) return;
     const prev = document.body.style.overflow;
@@ -2864,18 +2865,23 @@ if (loading && !settings) return (
               </TopPageActions>
             </div>}
             <div className="ac-panel journal-history" aria-label="Journaux">
-            <p role="note">Attention : la purge D1 des journaux est suspendue jusqu’à la vérification de leur archivage. Les données peuvent rester plus de 30 jours.</p>
+            <p role="note">{translateText('Conservation visée : 30 jours · Archivage non vérifié, purge suspendue.')}</p>
             <div className="journal-toolbar">
-              <div className="journal-view-switch" role="group" aria-label="Type de journal">
-                <button type="button" className="secondary" aria-pressed={journalView === 'all'} onClick={() => setJournalView('all')}>{translateText('Tous les journaux')}</button>
-                <button type="button" className="secondary" aria-pressed={journalView === 'audit'} onClick={() => setJournalView('audit')}>Historique détaillé</button>
-                <button type="button" className="secondary" aria-pressed={journalView === 'api'} onClick={() => setJournalView('api')}>Journal des appels API</button>
+              <div className="ac-dash-period-pills journal-view-switch" role="group" aria-label="Type de journal">
+                <button type="button" className="ac-seg-btn" aria-pressed={journalView === 'all'} onClick={() => { setJournalView('all'); setJournalReset(n => n + 1); setAuditQ(''); setAuditAction(''); if (!auditAction && (auditQ.trim() || auditCursorStack.length > 1)) void loadAuditPage(null, '', true); }}>{translateText('Tous les journaux')}</button>
+                <button type="button" className="ac-seg-btn" aria-pressed={journalView === 'audit'} onClick={() => setJournalView('audit')}>Historique détaillé</button>
+                <button type="button" className="ac-seg-btn" aria-pressed={journalView === 'api'} onClick={() => setJournalView('api')}>Journal des appels API</button>
               </div>
               <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période">
                 {(['24h', '7d', '30d'] as const).map((rKey) => <button key={rKey} type="button" className="ac-seg-btn" aria-pressed={auditRange === rKey} onClick={() => setAuditRange(rKey)}>{rangeShort[rKey]}</button>)}
               </div>
             </div>
-            {journalView !== 'api' && <section className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
+            {journalView === 'all' && <nav className="journal-quick-nav" aria-label={translateText('Accès aux journaux')}>
+              <span>{translateText('Deux journaux séparés · période sélectionnée')}</span>
+              <button type="button" className="secondary" onClick={() => document.getElementById('journal-audit')?.scrollIntoView()}>{translateText('Voir l’historique')}</button>
+              <button type="button" className="secondary" onClick={() => document.getElementById('journal-api')?.scrollIntoView()}>{translateText('Voir les appels API')}</button>
+            </nav>}
+            {journalView !== 'api' && <section id="journal-audit" className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
             <h3>Historique détaillé</h3>
             <div className="ac-metric-grid ac-audit-kpis">
               <article className="ac-metric">
@@ -3212,7 +3218,7 @@ if (loading && !settings) return (
               </div>
 
             </section>}
-            {journalView !== 'audit' && <ApiLogPanel range={auditRange} dockActions={journalView === 'api'} />}
+            {journalView !== 'audit' && <ApiLogPanel key={`${journalView}:${journalReset}`} range={auditRange} dockActions={journalView === 'api'} />}
             </div>
           </div>
         );

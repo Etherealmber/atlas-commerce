@@ -27,8 +27,8 @@ function statusTone(st: number) {
 }
 
 /**
- * « Journal des appels API »: eligible API calls, including failures, kept
- * for 30 days. Each row shows the city, country and operator (VPN flag),
+ * « Journal des appels API »: eligible API calls, including failures.
+ * Retention is not guaranteed until verified archival and purge are active. Each row shows the city, country and operator (VPN flag),
  * with inspectable request details.
  */
 export default function ApiLogPanel({ range, dockActions = true }: { range: Range; dockActions?: boolean }) {
@@ -90,15 +90,17 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
   }, [load, stack.length]);
   useEffect(() => () => { generation.current++; }, []);
 
+  const days = Array.isArray(stats?.by_day) ? stats.by_day.slice(-14) : [];
+  const maxDay = Math.max(1, ...days.map((item: any) => Number(item.n || 0)));
   const errRate = stats?.total ? Math.round((Number(stats.errors || 0) / Number(stats.total)) * 1000) / 10 : 0;
 
   return (
-    <section className="ac-panel ac-apilog-panel" aria-label="Journal des appels API">
+    <section id="journal-api" className="ac-panel ac-apilog-panel" aria-label="Journal des appels API">
       <TopPageActions enabled={dockActions}><button type="button" className="secondary" title="Actualiser" aria-label="Actualiser" disabled={loading} onClick={() => { delete statsCache.current[range]; void load(null, true); }}><RefreshCw size={15} aria-hidden="true" /><span className="tpa-label">Actualiser</span></button></TopPageActions>
       <div className="ac-apilog-head">
         <div>
           <h3><Activity size={16} strokeWidth={2.2} aria-hidden="true" /> Journal des appels API</h3>
-          <p className="ac-apilog-sub">Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. La purge D1 est suspendue avant vérification de l’archive ; les données peuvent être conservées plus de 30 jours.</p>
+          <p className="ac-apilog-sub">Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues.</p>
         </div>
 
       </div>
@@ -110,15 +112,28 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
         <div className="ac-metric"><div className="ac-metric-top"><span>Temps moyen</span><Timer size={14} aria-hidden="true" /></div><div className="as-value">{stats ? `${stats.avg_ms} ms` : '—'}</div><div className="ac-kpi-sub">{stats?.top_paths?.[0] ? `${stats.top_paths[0].method} ${stats.top_paths[0].path}` : '\u00a0'}</div></div>
       </div>
 
-      {stats?.top_paths?.length > 0 && <section className="ac-apilog-chart" aria-label={t('Chemins API les plus appelés')}>
-        <h4>{t('Chemins API les plus appelés')}</h4>
-        <p>{t('Appels enregistrés sur la période · statistiques indépendantes des filtres')}</p>
-        {stats.top_paths.map((item: any) => <div className="ac-apilog-chart-row" key={`${item.method}:${item.path}`}>
-          <code dir="ltr" translate="no">{item.method} {item.path}</code>
-          <span className="ac-audit-hbar-track" aria-hidden="true"><span className="ac-audit-hbar-fill" style={{ display: 'block', width: `${Math.max(0, Number(item.n) / Number(stats.top_paths[0].n) * 100)}%` }} /></span>
-          <span>{item.n}</span>
-        </div>)}
-      </section>}
+      <div className="ac-audit-charts-grid ac-apilog-charts">
+        <section className="ac-panel" aria-label={t('Activité API dans le temps')}>
+          <div className="ac-panel-head"><div><h3><Activity size={16} aria-hidden="true" /> {t('Activité API dans le temps')}</h3>
+            <p>{t('Appels enregistrés par jour UTC · 14 derniers jours affichés')}</p></div></div>
+          {days.length ? <div className="ac-audit-bars">{days.map((day: any) => {
+            const count = Number(day.n || 0);
+            return <div className="ac-audit-bar-col" key={day.day} title={`${day.day} UTC: ${count}`}>
+              <span className="ac-audit-bar-val">{count}</span><div className="ac-audit-bar-track"><div className="ac-audit-bar" style={{ height: `${Math.max(6, Math.round(count / maxDay * 100))}%` }} /></div>
+              <span className="ac-audit-bar-lbl">{String(day.day).slice(5)}</span>
+            </div>;
+          })}</div> : <div className="atlas-empty">{t('Pas assez de données sur cette période.')}</div>}
+        </section>
+        <section className="ac-panel ac-apilog-chart" aria-label={t('Chemins API les plus appelés')}>
+          <div className="ac-panel-head"><div><h3>{t('Chemins API les plus appelés')}</h3>
+            <p>{t('Appels enregistrés sur la période · statistiques indépendantes des filtres')}</p></div></div>
+          {stats?.top_paths?.length ? stats.top_paths.map((item: any) => <div className="ac-apilog-chart-row" key={`${item.method}:${item.path}`}>
+            <code dir="ltr" translate="no">{item.method} {item.path}</code>
+            <span className="ac-audit-hbar-track" aria-hidden="true"><span className="ac-audit-hbar-fill" style={{ display: 'block', width: `${Math.max(0, Number(item.n) / Number(stats.top_paths[0].n) * 100)}%` }} /></span>
+            <span>{item.n}</span>
+          </div>) : <div className="atlas-empty">{t('Pas assez de données sur cette période.')}</div>}
+        </section>
+      </div>
       {error && <p role="alert">{t('Impossible de charger le journal. Réessayez plus tard.')}</p>}
       <div className="ac-audit-filters ac-apilog-filters">
         <div className="ac-audit-search-wrap">

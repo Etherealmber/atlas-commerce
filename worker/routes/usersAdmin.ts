@@ -393,10 +393,28 @@ app.get('/api/admin/api-log', async (c) => {
                 CAST(AVG(ms) AS INTEGER) AS avg_ms
          FROM api_log WHERE created_at >= datetime('now', ?)`,
       ).bind(span).first() as any;
-      const { results: topPaths } = await c.env.DB.prepare(
-        `SELECT method, path, COUNT(*) AS n, SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END) AS errors
-         FROM api_log WHERE created_at >= datetime('now', ?) GROUP BY method, path ORDER BY n DESC LIMIT 6`,
+      // Aggregate the period once from D1, then derive both charts from the
+      // grouped rows. Avoid a second full period scan just for the daily chart.
+      const { results: chartRows } = await c.env.DB.prepare(
+        `WITH daily_paths AS MATERIALIZED (
+           SELECT substr(created_at, 1, 10) AS day, method, path, COUNT(*) AS n,
+                  SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END) AS errors
+           FROM api_log WHERE created_at >= datetime('now', ?)
+           GROUP BY day, method, path
+         )
+         SELECT 'path' AS kind, method, path, NULL AS day, n, errors FROM (
+           SELECT method, path, SUM(n) AS n, SUM(errors) AS errors
+           FROM daily_paths GROUP BY method, path ORDER BY n DESC, method, path LIMIT 6
+         )
+         UNION ALL
+         SELECT 'day' AS kind, NULL AS method, NULL AS path, day, SUM(n) AS n, SUM(errors) AS errors
+         FROM daily_paths GROUP BY day ORDER BY kind, day, n DESC`,
       ).bind(span).all();
+      const topPaths = ((chartRows || []) as any[]).filter(row => row.kind === 'path')
+        .map(({ method, path, n, errors }) => ({ method, path, n, errors }))
+        .sort((a, b) => Number(b.n) - Number(a.n) || String(a.method).localeCompare(String(b.method)) || String(a.path).localeCompare(String(b.path)));
+      const byDay = ((chartRows || []) as any[]).filter(row => row.kind === 'day')
+        .map(({ day, n, errors }) => ({ day, n, errors }));
       const { results: nets } = await c.env.DB.prepare(
         `SELECT as_org, asn, COUNT(*) AS n FROM api_log WHERE created_at >= datetime('now', ?) AND (as_org IS NOT NULL OR asn IS NOT NULL)
          GROUP BY as_org, asn ORDER BY n DESC LIMIT 40`,
@@ -405,7 +423,7 @@ app.get('/api/admin/api-log', async (c) => {
       stats = {
         total: Number(k?.total || 0), errors: Number(k?.errors || 0), auth_failures: Number(k?.auth_failures || 0),
         unique_ips: Number(k?.ips || 0), avg_ms: Number(k?.avg_ms || 0), risky_calls: risky,
-        top_paths: topPaths || [], retention_days: API_LOG_RETENTION_DAYS, range,
+        top_paths: topPaths, by_day: byDay, retention_days: API_LOG_RETENTION_DAYS, range,
       };
     } catch { stats = null; }
   }

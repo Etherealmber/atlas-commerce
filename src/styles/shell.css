@@ -4154,3 +4154,8 @@ html body .audit-detail-modal.audit-detail-modal--expanded {
 .ac-apilog-chart p { margin: 0 0 12px; color: var(--muted, #667085); }
 .ac-apilog-chart-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(50px, 1fr) auto; gap: 12px; align-items: center; margin-block: 8px; }
 .ac-apilog-chart-row code { overflow-wrap: anywhere; }
+.journal-quick-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-block: 12px; }
+.journal-quick-nav > span { color: var(--muted, #64748b); margin-inline-end: auto; }
+#journal-audit, #journal-api { scroll-margin-top: 90px; }
+.ac-apilog-charts { margin-block: 18px; }
+.ac-apilog-charts .ac-apilog-chart { margin-block: 0; }

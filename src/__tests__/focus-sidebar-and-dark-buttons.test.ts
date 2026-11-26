@@ -465,7 +465,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
       },
     } as any);
 
-    const apiSpy = vi.spyOn(api, 'getApiLog').mockResolvedValue({ data: [], meta: { has_more: false, stats: { total: 4 } } } as any);
+    const apiSpy = vi.spyOn(api, 'getApiLog').mockResolvedValue({ data: [{ id: 17, created_at: '2026-10-20 10:00:00', method: 'GET', path: '/api/test', status: 200, ms: 12 }], meta: { has_more: false, stats: { total: 4, errors: 1, unique_ips: 2, avg_ms: 12, by_day: [{ day: '2026-10-20', n: 4 }], top_paths: [{ method: 'GET', path: '/api/test', n: 4 }] } } } as any);
 
     await act(async () => {
       root.render(
@@ -485,6 +485,10 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(host.querySelectorAll('.ac-audit-range-pills')).toHaveLength(1);
     expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
     expect(host.querySelector('.ac-apilog-panel')).not.toBeNull();
+    expect(host.querySelector('#journal-audit')).not.toBeNull();
+    expect(host.querySelector('#journal-api')?.textContent).toContain('/api/test');
+    expect(host.querySelector('.journal-quick-nav')).not.toBeNull();
+    expect(host.querySelector('.ac-apilog-charts .ac-audit-bar-val')?.textContent).toBe('4');
     expect(host.querySelector('[aria-label="Type de journal"] button[aria-pressed="true"]')?.textContent).toBe('Tous les journaux');
     expect(host.querySelector('.ac-audit-charts-grid')).not.toBeNull();
     expect(host.querySelector('.ac-audit-table-panel')).not.toBeNull();
@@ -522,6 +526,8 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     await act(async () => { allButton.click(); });
     expect(host.querySelector('.ac-apilog-panel')).not.toBeNull();
     expect(host.querySelector('.ac-audit-kpis')).not.toBeNull();
+    expect(host.querySelector('button.ac-audit-hbar-btn.is-selected')).toBeNull();
+    expect(host.querySelector('.ac-apilog-status button[aria-pressed="true"]')?.textContent).toBe('Tous');
 
     // Visible first pages refresh after five minutes, without waiting for a tab switch.
     const oldCount = auditSpy.mock.calls.length;
