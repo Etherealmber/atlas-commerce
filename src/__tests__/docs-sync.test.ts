@@ -28,7 +28,7 @@ describe('documentation badge synchronization', () => {
     const apacheBefore = readFileSync(join(fixture, 'LICENSE-APACHE'), 'utf8');
     sync(2027);
     for (const [file, before] of [['LICENSE', mitBefore], ['LICENSE-APACHE', apacheBefore]]) {
-      expect(readFileSync(join(fixture, file), 'utf8')).toBe(before.replace('Copyright (c) 2026 Etherealmber', 'Copyright (c) 2026-2027 Etherealmber'));
+      expect(readFileSync(join(fixture, file), 'utf8')).toBe(before.replace('Copyright (c) 2026 Etherealmber', 'Copyright (c) 2026-2027 Etherealmber').replace('   Copyright 2026 Etherealmber', '   Copyright 2026-2027 Etherealmber'));
     }
     expect(sync(2027)).toContain('rien à changer');
     sync(2026); // a stale clock must never shorten a previously published range
@@ -62,5 +62,19 @@ describe('documentation badge synchronization', () => {
     expect(sync()).toContain('rien à changer');
     expect(readFileSync(join(fixture, 'README.md'), 'utf8')).toBe(readme);
     expect(readFileSync(join(fixture, 'SECURITY.md'), 'utf8')).toBe(security);
+  });
+});
+
+describe('Apache example year sync safety', () => {
+  it('does not shorten an example year and fails before writing if the example is missing', () => {
+    setup();
+    const apache = join(fixture, 'LICENSE-APACHE');
+    writeFileSync(apache, readFileSync(apache, 'utf8').replace('   Copyright 2026 Etherealmber', '   Copyright 2026-2030 Etherealmber'));
+    sync(2027);
+    expect(readFileSync(apache, 'utf8')).toContain('Copyright (c) 2026-2030 Etherealmber');
+    const mit = readFileSync(join(fixture, 'LICENSE'), 'utf8');
+    writeFileSync(apache, readFileSync(apache, 'utf8').replace('   Copyright 2026-2030 Etherealmber', '   missing'));
+    expect(() => sync(2031)).toThrow();
+    expect(readFileSync(join(fixture, 'LICENSE'), 'utf8')).toBe(mit);
   });
 });

@@ -167,6 +167,21 @@ describe('UI guards: Rapports modal close button & floating pill stability', () 
     expect(dropdown!.querySelectorAll('.ac-user-dropdown-sep').length).toBeGreaterThanOrEqual(2);
   });
 
+  it.each([
+    ['/whats-new', 'Nouveautés'], ['/about', 'À propos'], ['/settings?tab=audit', 'Paramètres'], ['/dashboard', 'Tableau de bord'],
+  ])('hides only the current destination from the user menu on %s', async (route, current) => {
+    await act(async () => {
+      root.render(createElement(MemoryRouter, { initialEntries: [route] }, createElement(TopbarUserMenu, {
+        displayName: 'Atlas', roleLabel: 'Owner', initials: 'AT', onLogout: () => {}, showDashboardLink: true,
+      })));
+    });
+    await act(async () => { host.querySelector<HTMLButtonElement>('.ac-topbar-user-btn')!.click(); });
+    const names = Array.from(document.body.querySelectorAll('.ac-user-dropdown-item b')).map(el => el.textContent);
+    expect(names).not.toContain(current);
+    expect(names).toContain('Langue');
+    for (const other of ['Nouveautés', 'À propos', 'Paramètres', 'Tableau de bord'].filter(item => item !== current)) expect(names).toContain(other);
+  });
+
   it('scopes desktop hover micro-animations away from mobile shell and keeps mobile theme transitions unified', () => {
     const darkForceCss = readFileSync(path.resolve(process.cwd(), 'src/styles/dark-force.css'), 'utf8');
     const phoneCss = readFileSync(path.resolve(process.cwd(), 'src/mobile/phone.css'), 'utf8');

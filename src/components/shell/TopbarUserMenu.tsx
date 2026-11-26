@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LogOut, Sparkles, Settings, Info, Plus, ChevronRight, LayoutDashboard, Languages } from 'lucide-react';
 import { LanguageSoonDialog } from '../LanguageSoonDialog';
 import { langMeta, useLang } from '../../i18n/core';
@@ -26,6 +26,7 @@ export const TopbarUserMenu: FC<Props> = ({
   showDashboardLink = false,
 }) => {
   const navigate = useNavigate();
+  const pathname = useLocation().pathname.replace(/\/+$/, '') || '/';
   const [open, setOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const uiLang = useLang();
@@ -167,7 +168,7 @@ export const TopbarUserMenu: FC<Props> = ({
                 </div>
               )}
               <div className="ac-user-dropdown-list">
-                {showDashboardLink && (
+                {showDashboardLink && pathname !== '/dashboard' && (
                   <button
                     type="button"
                     role="menuitem"
@@ -194,13 +195,13 @@ export const TopbarUserMenu: FC<Props> = ({
                   <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
                 </button>
                 <div className="ac-user-dropdown-sep" role="separator" />
-                <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/settings')}>
+                {pathname !== '/settings' && <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/settings')}>
                   <span className="ac-user-dropdown-ico" aria-hidden>
                     <Settings size={16} strokeWidth={1.9} />
                   </span>
                   <span><b>Paramètres</b><i>Compte et préférences</i></span>
                   <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
-                </button>
+                </button>}
                 <button
                   type="button"
                   role="menuitem"
@@ -213,20 +214,20 @@ export const TopbarUserMenu: FC<Props> = ({
                   <span><b>Langue</b><i className="notranslate" lang={uiLang} dir={langMeta(uiLang).dir}>{langMeta(uiLang).native}</i></span>
                   <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
                 </button>
-                <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/whats-new')}>
+                {pathname !== '/whats-new' && <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/whats-new')}>
                   <span className="ac-user-dropdown-ico" aria-hidden>
                     <Sparkles size={16} strokeWidth={1.9} />
                   </span>
                   <span><b>Nouveautés</b><i>Journal des versions</i></span>
                   <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
-                </button>
-                <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/about')}>
+                </button>}
+                {pathname !== '/about' && <button type="button" role="menuitem" className="ac-user-dropdown-item" onClick={() => go('/about')}>
                   <span className="ac-user-dropdown-ico" aria-hidden>
                     <Info size={16} strokeWidth={1.9} />
                   </span>
                   <span><b>À propos</b><i>Version et légal</i></span>
                   <ChevronRight className="ac-user-dropdown-chev" size={14} aria-hidden />
-                </button>
+                </button>}
                 <div className="ac-user-dropdown-sep" role="separator" />
                 <button type="button" role="menuitem" className="ac-user-dropdown-item ac-user-dropdown-item--danger ac-user-dropdown-logout" onClick={() => { setOpen(false); setLogoutAsk(true); }}>
                   <span className="ac-user-dropdown-ico" aria-hidden>

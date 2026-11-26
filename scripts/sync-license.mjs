@@ -21,14 +21,22 @@ export function syncLicenseYears(root) {
     if (matches.length !== 1) throw new Error(`sync-license: notice manquante ou dupliquée dans ${file}`);
     const endYear = matches[0][1] ? Number(matches[0][1]) : 2026;
     if (endYear < 2026) throw new Error(`sync-license: année finale invalide dans ${file}`);
-    return { file, path, text, endYear };
+    let exampleEnd = 2026;
+    if (file === 'LICENSE-APACHE') {
+      const example = [...text.matchAll(/^   Copyright 2026(?:-(\d{4}))? Etherealmber$/gm)];
+      if (example.length !== 1) throw new Error('sync-license: exemple Apache manquant ou dupliqué');
+      exampleEnd = example[0][1] ? Number(example[0][1]) : 2026;
+      if (exampleEnd < 2026) throw new Error('sync-license: année finale Apache invalide');
+    }
+    return { file, path, text, endYear: Math.max(endYear, exampleEnd) };
   });
   // Never shorten a previously published range when the clock is behind.
   const endYear = Math.max(currentYear, ...files.map((file) => file.endYear));
   const years = endYear === 2026 ? '2026' : `2026-${endYear}`;
   let changed = false;
   for (const { file, path, text } of files) {
-    const out = text.replace(/^Copyright \(c\) 2026(?:-\d{4})? Etherealmber$/m, `Copyright (c) ${years} Etherealmber`);
+    let out = text.replace(/^Copyright \(c\) 2026(?:-\d{4})? Etherealmber$/m, `Copyright (c) ${years} Etherealmber`);
+    if (file === 'LICENSE-APACHE') out = out.replace(/^   Copyright 2026(?:-\d{4})? Etherealmber$/m, `   Copyright ${years} Etherealmber`);
     if (out !== text) {
       writeFileSync(path, out);
       console.log(`sync-license: ${file} — copyright ${years}`);
