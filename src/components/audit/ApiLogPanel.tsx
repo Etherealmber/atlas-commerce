@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import { AuditRequestDetails } from './AuditRequestDetails';
 import { AuditAgentExplanation } from './AuditAgentExplanation';
 import { t, useLang } from '../../i18n/core';
+import TopPageActions from '../TopPageActions';
 
 const PAGE = 25;
 type Range = '24h' | '7d' | '30d';
@@ -30,12 +31,11 @@ function statusTone(st: number) {
  * for 30 days. Each row shows the city, country and operator (VPN flag),
  * with inspectable request details.
  */
-export default function ApiLogPanel() {
+export default function ApiLogPanel({ range }: { range: Range }) {
   useLang();
   const [rows, setRows] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [range, setRange] = useState<Range>('24h');
   const [status, setStatus] = useState<StatusFilter>('');
   const [q, setQ] = useState('');
   const [stack, setStack] = useState<(string | null)[]>([null]);
@@ -71,24 +71,13 @@ export default function ApiLogPanel() {
 
   return (
     <section className="ac-panel ac-apilog-panel" aria-label="Journal des appels API">
+      <TopPageActions><button type="button" className="secondary" title="Actualiser" aria-label="Actualiser" disabled={loading} onClick={() => void load(null, true)}><RefreshCw size={15} aria-hidden="true" /><span className="tpa-label">Actualiser</span></button></TopPageActions>
       <div className="ac-apilog-head">
         <div>
           <h3><Activity size={16} strokeWidth={2.2} aria-hidden="true" /> Journal des appels API</h3>
           <p className="ac-apilog-sub">{t('Requêtes enregistrées, y compris les échecs ; les vérifications QR en attente et certaines sondes sont exclues. Conservation : {n} jours.', { n: stats?.retention_days ?? 30 })}</p>
         </div>
-        <div className="ac-apilog-tools">
-          <div className="ac-dash-period-pills" role="group" aria-label="Période">
-            {(['24h', '7d', '30d'] as Range[]).map((r) => (
-              <button key={r} type="button" aria-pressed={range === r} className={`ac-seg-btn${range === r ? ' is-active' : ''}`} onClick={() => setRange(r)}>
-                {r === '24h' ? '24 h' : r === '7d' ? '7 j' : '30 j'}
-              </button>
-            ))}
-          </div>
-          <button type="button" className="secondary ac-audit-action-btn" disabled={loading} onClick={() => void load(null, true)}>
-            <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
-            <span>{loading ? 'Chargement…' : 'Actualiser'}</span>
-          </button>
-        </div>
+
       </div>
 
       <div className="ac-metric-grid ac-apilog-kpis">

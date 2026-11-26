@@ -4143,3 +4143,4 @@ html body .audit-detail-modal.audit-detail-modal--expanded {
 @media (max-width: 480px) {
   .catalog-dialog-actions > button { flex: 1 1 auto; }
 }
+.journal-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }

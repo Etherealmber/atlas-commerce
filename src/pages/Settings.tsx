@@ -289,7 +289,7 @@ export default function Settings() {
   const [auditCursorStack, setAuditCursorStack] = useState<(string | null)[]>([null]);
   const [auditMeta, setAuditMeta] = useState<{ limit: number; has_more: boolean; next_cursor: string | null; cursor: string | null } | null>(null);
   const [auditQ, setAuditQ] = useState('');
-  const [auditRange, setAuditRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
+  const [auditRange, setAuditRange] = useState<'24h' | '7d' | '30d'>('7d');
   const [auditAction, setAuditAction] = useState('');
   const [auditStats, setAuditStats] = useState<any>(null);
   const [payrollRates, setPayrollRates] = useState<any>(null);
@@ -2838,60 +2838,22 @@ if (loading && !settings) return (
 
         return (
           <div className="audit-panel settings-audit-full ac-audit-stack">
-            <div className="ac-panel ac-audit-header-panel">
-              <div className="ac-panel-head">
-                <div>
-                  <h3>
-                    <ShieldCheck className="as-icon" size={17} strokeWidth={2} aria-hidden="true" />
-                    <span>Journal d’audit &amp; Traçabilité</span>
-                  </h3>
-                  <p>Suivi complet des connexions, modifications et opérations sensibles (admin uniquement).</p>
-                </div>
+            {journalView === 'audit' && <div className="page-header ac-page-header dock-page-header">
+              <TopPageActions>
+                {journalView === 'audit' && <button type="button" className="secondary" title="Actualiser" aria-label="Actualiser" disabled={auditLoading} onClick={() => void loadAuditPage(null, auditQ, true)}><RefreshCw size={15} aria-hidden="true" /><span className="tpa-label">Actualiser</span></button>}
+                {journalView === 'audit' && <button type="button" className="secondary" title="Export CSV" aria-label="Export CSV" disabled={auditLoading} onClick={async () => { try { await api.exportAuditLog('csv', 500); flash('Export CSV téléchargé.'); } catch (e: any) { flash(e?.message || 'Échec export', 'error'); } }}><Download size={15} aria-hidden="true" /><span className="tpa-label">Export CSV</span></button>}
+              </TopPageActions>
+            </div>}
+            <div className="journal-toolbar">
+              <div className="journal-view-switch" role="group" aria-label="Type de journal">
+                <button type="button" className="secondary" aria-pressed={journalView === 'audit'} onClick={() => setJournalView('audit')}>Historique détaillé</button>
+                <button type="button" className="secondary" aria-pressed={journalView === 'api'} onClick={() => setJournalView('api')}>Journal des appels API</button>
               </div>
-                <div className="ac-audit-toolbar ac-audit-toolbar--head">
-                  <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période d’audit">
-                    {(['24h', '7d', '30d', 'all'] as const).map((rKey) => (
-                      <button
-                        key={rKey}
-                        type="button"
-                        className="ac-seg-btn"
-                        aria-pressed={auditRange === rKey}
-                        onClick={() => setAuditRange(rKey)}
-                      >
-                        {rangeShort[rKey]}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="ac-audit-toolbar-actions">
-                    <button
-                      type="button"
-                      className="secondary ac-audit-action-btn"
-                      disabled={auditLoading}
-                      onClick={() => loadAuditPage(null, auditQ, true)}
-                    >
-                      <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
-                      <span>{auditLoading ? 'Chargement…' : 'Actualiser'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary ac-audit-action-btn"
-                      disabled={auditLoading}
-                      onClick={async () => {
-                        try {
-                          await api.exportAuditLog('csv', 500);
-                          flash('Export CSV téléchargé.');
-                        } catch (e: any) {
-                          flash(e?.message || 'Échec export', 'error');
-                        }
-                      }}
-                    >
-                      <Download size={14} strokeWidth={2} aria-hidden="true" />
-                      <span>Export CSV</span>
-                    </button>
-                  </div>
-                </div>
+              <div className="ac-dash-period-pills ac-audit-range-pills" role="group" aria-label="Période">
+                {(['24h', '7d', '30d'] as const).map((rKey) => <button key={rKey} type="button" className="ac-seg-btn" aria-pressed={auditRange === rKey} onClick={() => setAuditRange(rKey)}>{rangeShort[rKey]}</button>)}
+              </div>
             </div>
-
+            {journalView === 'audit' && <>
             <div className="ac-metric-grid ac-audit-kpis">
               <article className="ac-metric">
                 <div className="as-label">
@@ -3026,13 +2988,8 @@ if (loading && !settings) return (
               </section>
             </div>
 
+            </>}
             <div className="ac-panel journal-history" aria-label="Historique détaillé">
-              <div className="journal-history-heading"><h3>Historique détaillé</h3>
-                <div className="journal-view-switch" role="group" aria-label="Type de journal">
-                  <button type="button" className="secondary" aria-pressed={journalView === 'audit'} onClick={() => setJournalView('audit')}>Historique détaillé</button>
-                  <button type="button" className="secondary" aria-pressed={journalView === 'api'} onClick={() => setJournalView('api')}>Journal des appels API</button>
-                </div>
-              </div>
             {journalView === 'audit' ? <section className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
               <div className="ac-panel-head" style={{ marginBottom: 12 }}>
                 <div>
@@ -3233,7 +3190,7 @@ if (loading && !settings) return (
                 </table>
               </div>
 
-            </section> : <ApiLogPanel />}
+            </section> : <ApiLogPanel range={auditRange} />}
             </div>
           </div>
         );
