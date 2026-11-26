@@ -5,6 +5,7 @@ import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import { waitForVisualReady } from './visual-wait.mjs';
 import { findVisibleFrenchCandidates } from './visual-i18n-observer.mjs';
+import { visualDialogsForPage } from './visual-dialogs.mjs';
 
 const BASE = 'http://127.0.0.1:5173';
 const OUT = 'artifacts/visual-review';
@@ -96,9 +97,13 @@ try {
             await page.keyboard.press('Escape');
           }
         }
-        const dialogs = device !== 'desktop' ? [] : code === '15-settings-categories'
-          ? ['category-create', 'category-edit', 'unit-create', 'unit-edit']
-          : code === '16-settings-users' ? ['user-create'] : [];
+        if (device === 'desktop' && code === '16-settings-users') {
+          await page.waitForSelector('[data-visual-review="demo-user-create-disabled"]', { visible: true, timeout: 15000 });
+          if (await page.$('[data-visual-review="user-create"]')) {
+            throw new Error('Demo must not offer user creation');
+          }
+        }
+        const dialogs = visualDialogsForPage(code, device);
         for (const dialog of dialogs) {
           const selector = `[data-visual-review="${dialog}"]`;
           // fullPage screenshots can trigger responsive re-renders; reload the
