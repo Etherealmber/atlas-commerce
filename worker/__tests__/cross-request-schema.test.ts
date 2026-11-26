@@ -20,13 +20,24 @@ describe('request-owned initialization', () => {
     await schemaOnceForDb(a, 'test', run); await schemaOnceForDb(a, 'test', run); await schemaOnceForDb(b, 'test', run);
     expect(run).toHaveBeenCalledTimes(2);
   });
+  it('fails closed after bounded waiting if a migration never completes', async () => {
+    vi.useFakeTimers();
+    try {
+      const database = db(); let release!: () => void;
+      const first = schemaOnceForDb(database, 'offline_ops_schema_v20', () => new Promise<void>(resolve => { release = resolve; }));
+      const second = schemaOnceForDb(database, 'offline_ops_schema_v20', async () => {});
+      const rejected = expect(second).rejects.toThrow('busy');
+      await vi.advanceTimersByTimeAsync(3100);
+      await rejected; release(); await first;
+    } finally { vi.useRealTimers(); }
+  });
   it('does not overlap potentially destructive legacy migrations', async () => {
     const database = db(); let release!: () => void;
     const first = schemaOnceForDb(database, 'offline_ops_schema_v20', () => new Promise<void>(resolve => { release = resolve; }));
     const run = vi.fn(async () => {});
-    await expect(schemaOnceForDb(database, 'offline_ops_schema_v20', run)).rejects.toThrow('busy');
-    expect(run).not.toHaveBeenCalled(); release(); await first;
-    await schemaOnceForDb(database, 'offline_ops_schema_v20', run); expect(run).not.toHaveBeenCalled();
+    const second = schemaOnceForDb(database, 'offline_ops_schema_v20', run);
+    expect(run).not.toHaveBeenCalled(); release(); await Promise.all([first, second]);
+    expect(run).not.toHaveBeenCalled();
   });
 });
 

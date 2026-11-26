@@ -48,8 +48,13 @@ export async function schemaOnceForDb(db: D1Database, key: string, fn: () => Pro
   if (EXCLUSIVE_SCHEMA_KEYS.has(key)) {
     active = _exclusiveDbSchema.get(root);
     if (!active) { active = new Set<string>(); _exclusiveDbSchema.set(root, active); }
-    // Fail closed instead of running a destructive rebuild concurrently or
-    // awaiting a promise owned by another request. Caller can retry.
+    // Wait using timers owned by this request, never the other request's I/O.
+    // A bounded wait avoids hanging forever if the initializing request died;
+    // fail closed rather than overlap a potentially destructive rebuild.
+    for (let i = 0; active.has(key) && i < 150; i++) {
+      await new Promise<void>(resolve => setTimeout(resolve, 20));
+    }
+    if (_dbSchemaDone.get(root)?.has(key)) return;
     if (active.has(key)) throw new Error('Schema initialization busy; retry request');
     active.add(key);
   }
