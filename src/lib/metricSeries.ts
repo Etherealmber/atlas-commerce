@@ -36,6 +36,21 @@ let fetchedAt = 0;
 /** Last completed network load (unlike `fetchedAt`, never reset by writes). */
 let lastLoadAt = 0;
 let inflight: Promise<void> | null = null;
+let cacheToken: string | null = null;
+
+// Never show one session's financial metrics to a subsequent session.
+function syncSession(): string | null {
+  const token = getToken();
+  if (token !== cacheToken) {
+    cacheToken = token;
+    state = { data: null, loading: false, error: false };
+    fetchedAt = 0;
+    lastLoadAt = 0;
+    inflight = null;
+    if (writeReloadTimer) { clearTimeout(writeReloadTimer); writeReloadTimer = null; }
+  }
+  return token;
+}
 const listeners = new Set<(s: State) => void>();
 
 function publish(next: State) {
@@ -44,20 +59,25 @@ function publish(next: State) {
 }
 
 export function loadMetricSeries(force = false): Promise<void> {
-  if (!getToken()) return Promise.resolve();
+  const previousToken = cacheToken;
+  const token = syncSession();
+  if (previousToken !== token) publish(state);
+  if (!token) return Promise.resolve();
   if (inflight) return inflight;
   if (!force && state.data && Date.now() - fetchedAt < TTL_MS) return Promise.resolve();
   publish({ ...state, loading: true });
-  inflight = Promise.resolve()
+  const request = Promise.resolve()
     .then(() => api.getMetricsDaily(7))
     .then((r) => {
+      if (getToken() !== token || cacheToken !== token) return;
       fetchedAt = Date.now();
       lastLoadAt = fetchedAt;
       publish({ data: normalizeMetricsDaily(r?.data), loading: false, error: false });
     })
-    .catch(() => publish({ ...state, loading: false, error: true }))
-    .finally(() => { inflight = null; });
-  return inflight;
+    .catch(() => { if (getToken() === token && cacheToken === token) publish({ ...state, loading: false, error: true }); })
+    .finally(() => { if (inflight === request) inflight = null; });
+  inflight = request;
+  return request;
 }
 
 /** Writes come in bursts (a scanning session, a multi-line invoice): coalesce
@@ -87,11 +107,16 @@ function bindRefresh() {
   refreshBound = true;
   // Any successful business write (see api.ts) makes the next read recompute.
   window.addEventListener('atlas-lists-refresh', scheduleMetricReloadAfterWrite);
+  // Keep the last snapshot visible while refreshing after returning to the app.
+  const refreshVisible = () => { if (listeners.size && document.visibilityState !== 'hidden') void loadMetricSeries(); };
+  window.addEventListener('focus', refreshVisible);
+  document.addEventListener?.('visibilitychange', refreshVisible);
 }
 
 /** Subscribe to the shared series (loads it if stale); returns the unsubscribe. */
 export function subscribeMetricSeries(fn: (s: State) => void): () => void {
   bindRefresh();
+  syncSession();
   listeners.add(fn);
   fn(state);
   void loadMetricSeries();
@@ -99,13 +124,14 @@ export function subscribeMetricSeries(fn: (s: State) => void): () => void {
 }
 
 export function useMetricSeries(): State {
-  const [snap, setSnap] = useState<State>(state);
+  const [snap, setSnap] = useState<State>(() => getToken() === cacheToken ? state : { data: null, loading: false, error: false });
   useEffect(() => subscribeMetricSeries(setSnap), []);
   return snap;
 }
 
 /** Test hook: reset the module cache. */
 export function __resetMetricSeries(next?: MetricsDaily | null) {
+  cacheToken = getToken();
   state = { data: next ?? null, loading: false, error: false };
   fetchedAt = next ? Date.now() : 0;
   lastLoadAt = fetchedAt;

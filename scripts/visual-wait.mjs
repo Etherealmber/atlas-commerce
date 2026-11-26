@@ -1,6 +1,6 @@
 /** Wait until visible loading placeholders have been absent continuously.
  * Returning false marks an incomplete capture instead of presenting it as ready. */
-export async function waitForVisualReady(page, { timeout = 20000, stableMs = 1000 } = {}) {
+export async function waitForVisualReady(page, { timeout = 45000, stableMs = 4000 } = {}) {
   await page.evaluate(() => { delete window.__atlasVisualReadySince; });
   try {
     await page.waitForFunction((stable) => {

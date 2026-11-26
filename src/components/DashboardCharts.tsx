@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { getLang, intlLocale, useLang } from '../i18n/core';
 
 type SeriesPoint = {
   key: string;
@@ -28,13 +29,13 @@ function longMonthLabel(s: { key?: string; label?: string }) {
   const k = String(s.key || '');
   if (/^\d{4}-\d{2}/.test(k)) {
     const [y, m] = k.split('-').map(Number);
-    const fr = [
-      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-    ];
-    if (m >= 1 && m <= 12) return `${fr[m - 1]} ${y}`;
+    if (m >= 1 && m <= 12) return new Intl.DateTimeFormat(intlLocale(), { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, 1)));
   }
   return String(s.label || k || '—');
+}
+
+function suffix(kind: 'k' | 'M' | 'B'): string {
+  return getLang() === 'ar' ? ({ k: ' ألف', M: ' مليون', B: ' مليار' } as const)[kind] : kind;
 }
 
 function trimCompactDecimal(num: number): string {
@@ -46,19 +47,20 @@ function trimCompactDecimal(num: number): string {
  * or space is tight, keeping full exact numbers when there is plenty of room.
  */
 export function formatCompactNum(v: number, unit = '', compactFrom = 100_000): string {
+  if (/^(MAD|DH)$/i.test(unit)) unit = getLang() === 'ar' ? 'درهم' : getLang() === 'en' ? 'MAD' : 'DH';
   const n = Number(v || 0);
   if (!Number.isFinite(n) || n === 0) return unit ? `0 ${unit}` : '0';
   const sign = n < 0 ? '-' : '';
   const abs = Math.abs(n);
   let body: string;
   if (abs >= compactFrom && abs >= 1_000_000_000) {
-    body = `${sign}${trimCompactDecimal(abs / 1_000_000_000)}B`;
+    body = `${sign}${trimCompactDecimal(abs / 1_000_000_000)}${suffix('B')}`;
   } else if (abs >= compactFrom && abs >= 1_000_000) {
-    body = `${sign}${trimCompactDecimal(abs / 1_000_000)}M`;
+    body = `${sign}${trimCompactDecimal(abs / 1_000_000)}${suffix('M')}`;
   } else if (abs >= compactFrom && abs >= 1_000) {
-    body = `${sign}${trimCompactDecimal(abs / 1_000)}k`;
+    body = `${sign}${trimCompactDecimal(abs / 1_000)}${suffix('k')}`;
   } else {
-    body = Math.round(n).toLocaleString('fr-FR');
+    body = Math.round(n).toLocaleString(intlLocale());
   }
   return unit ? `${body} ${unit}` : body;
 }
@@ -68,12 +70,12 @@ export function formatAxisVal(v: number, span: number) {
   const abs = Math.abs(v);
   if (abs === 0) return '0';
   const sign = v < 0 ? '-' : '';
-  if (span >= 1_000_000_000) return `${sign}${trimCompactDecimal(abs / 1_000_000_000)}B`;
-  if (span >= 1_000_000) return `${sign}${trimCompactDecimal(abs / 1_000_000)}M`;
-  if (span >= 20_000) return `${sign}${Math.round(abs / 1000)}k`;
+  if (span >= 1_000_000_000) return `${sign}${trimCompactDecimal(abs / 1_000_000_000)}${suffix('B')}`;
+  if (span >= 1_000_000) return `${sign}${trimCompactDecimal(abs / 1_000_000)}${suffix('M')}`;
+  if (span >= 20_000) return `${sign}${Math.round(abs / 1000)}${suffix('k')}`;
   if (span >= 1000) {
     const k = abs / 1000;
-    return `${sign}${Number.isInteger(k) ? k : k.toFixed(1)}k`;
+    return `${sign}${Number.isInteger(k) ? k : k.toFixed(1)}${suffix('k')}`;
   }
   return `${sign}${Math.round(abs)}`;
 }
@@ -224,6 +226,7 @@ export function AreaChart({
   showNetDelta?: boolean;
   emptyLabel?: string;
 }) {
+  useLang();
   const { ref, width } = useChartWidth(740);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
@@ -498,6 +501,7 @@ export function BarChart({
   unit?: string;
   secondaryUnit?: string;
 }) {
+  useLang();
   const { ref, width } = useChartWidth(620);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
@@ -783,6 +787,7 @@ export function HBarChart({
   /** Categories drawn at 0 when there is no data yet, so the chart always shows. */
   placeholder?: string[];
 }) {
+  useLang();
   const { ref, width } = useChartWidth(420);
   if (!items.length) {
     if (!placeholder?.length) {
@@ -849,6 +854,7 @@ export function DonutChart({
   centerValue: string;
   unit?: string;
 }) {
+  useLang();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const sum = segments.reduce((a, s) => a + Math.max(0, s.value), 0);
   const hasValues = sum > 0;

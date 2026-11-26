@@ -34,3 +34,15 @@ test('reports a timeout instead of claiming a loading page is ready', async () =
   busy.getBoundingClientRect = () => ({ width: 200, height: 20 }); document.body.append(busy);
   assert.equal(await waitForVisualReady(fakePage(), { timeout: 40, stableMs: 10 }), false);
 });
+
+test('a late skeleton resets the quiet period', async () => {
+  const window = new Window(); globalThis.window = window; globalThis.document = window.document; globalThis.getComputedStyle = window.getComputedStyle.bind(window);
+  const skeleton = document.createElement('div'); skeleton.className = 'skeleton';
+  skeleton.getBoundingClientRect = () => ({ width: 100, height: 20 });
+  const started = Date.now();
+  const result = waitForVisualReady(fakePage(), { timeout: 500, stableMs: 60 });
+  setTimeout(() => document.body.append(skeleton), 20);
+  setTimeout(() => skeleton.remove(), 100);
+  assert.equal(await result, true);
+  assert.ok(Date.now() - started >= 150);
+});

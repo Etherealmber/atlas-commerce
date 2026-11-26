@@ -11,25 +11,29 @@
  */
 import { useMemo, useState } from 'react';
 import { useMetricSeries } from '../lib/metricSeries';
+import { getLang, intlLocale, useLang } from '../i18n/core';
 import type { FinanceMonthly } from './financeTypes';
 
 const nb = (s: string) => s.replace(/\u202f/g, '\u00a0');
-const intFmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
-export const fmtInt = (n: number) => nb(intFmt.format(Math.round(n)));
+export const fmtInt = (n: number) => nb(new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 0 }).format(Math.round(n)));
 /** 1 250 → « 1,3 k », 2 400 000 → « 2,4 M ». */
 export function compactMoney(n: number): string {
   const a = Math.abs(n);
-  if (a >= 1_000_000) return `${nb((n / 1_000_000).toLocaleString('fr-FR', { maximumFractionDigits: 1 }))} M`;
-  if (a >= 10_000) return `${nb(Math.round(n / 1000).toLocaleString('fr-FR'))} k`;
-  if (a >= 1_000) return `${nb((n / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 }))} k`;
+  const suffix = (en: string, ar: string) => getLang() === 'ar' ? ar : en;
+  if (a >= 1_000_000_000) return `${nb((n / 1_000_000_000).toLocaleString(intlLocale(), { maximumFractionDigits: 1 }))} ${suffix('B', 'مليار')}`;
+  if (a >= 1_000_000) return `${nb((n / 1_000_000).toLocaleString(intlLocale(), { maximumFractionDigits: 1 }))} ${suffix('M', 'مليون')}`;
+  if (a >= 10_000) return `${nb(Math.round(n / 1000).toLocaleString(intlLocale()))} ${suffix('k', 'ألف')}`;
+  if (a >= 1_000) return `${nb((n / 1000).toLocaleString(intlLocale(), { maximumFractionDigits: 1 }))} ${suffix('k', 'ألف')}`;
   return fmtInt(n);
 }
+const displayCurrency = (currency: string) => /^(MAD|DH)$/i.test(currency) ? (getLang() === 'ar' ? 'درهم' : getLang() === 'en' ? 'MAD' : 'DH') : currency;
 const dayLabel = (iso: string) => {
   const d = new Date(`${iso}T12:00:00`);
   return Number.isNaN(d.getTime()) ? iso.slice(5) : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
 };
 
 export function PhoneInOutChart({ currency = 'MAD', days = 14 }: { currency?: string; days?: number }) {
+  useLang();
   const { data } = useMetricSeries();
   const [pick, setPick] = useState<number | null>(null);
   const model = useMemo(() => {
@@ -56,13 +60,13 @@ export function PhoneInOutChart({ currency = 'MAD', days = 14 }: { currency?: st
     <section className="ph-panel ph-chart" aria-label="Encaissements et décaissements">
       <div className="ph-chart-head">
         <div><h2>Entrées &amp; sorties</h2><p>{model.dates.length} derniers jours</p></div>
-        <span className={`ph-chart-net ${net >= 0 ? 'is-up' : 'is-down'}`}>{net >= 0 ? '+' : '−'}{compactMoney(Math.abs(net))} {currency}</span>
+        <span className={`ph-chart-net ${net >= 0 ? 'is-up' : 'is-down'}`}>{net >= 0 ? '+' : '−'}{compactMoney(Math.abs(net))} {displayCurrency(currency)}</span>
       </div>
       <div className="ph-chart-legend">
         <span><i className="sw sw-in" />Encaissé <b>{compactMoney(model.totalIn)}</b></span>
         <span><i className="sw sw-out" />Décaissé <b>{compactMoney(model.totalOut)}</b></span>
       </div>
-      <svg className="ph-chart-svg" viewBox={`0 0 ${W} ${H + 18}`} role="img" aria-label={`Encaissé ${fmtInt(model.totalIn)} ${currency}, décaissé ${fmtInt(model.totalOut)} ${currency}`}>
+      <svg className="ph-chart-svg" viewBox={`0 0 ${W} ${H + 18}`} role="img" aria-label={`Encaissé ${fmtInt(model.totalIn)} ${displayCurrency(currency)}, décaissé ${fmtInt(model.totalOut)} ${displayCurrency(currency)}`}>
         <line x1="0" x2={W} y1={H} y2={H} className="ph-chart-axis" />
         {model.dates.map((d, i) => {
           const x = i * slot + slot / 2;
@@ -80,7 +84,7 @@ export function PhoneInOutChart({ currency = 'MAD', days = 14 }: { currency?: st
       </svg>
       <p className="ph-chart-pick" aria-live="polite">
         {sel !== null
-          ? <>{dayLabel(model.dates[sel])} · encaissé <b>{fmtInt(model.ins[sel])} {currency}</b> · décaissé <b>{fmtInt(model.outs[sel])} {currency}</b></>
+          ? <>{dayLabel(model.dates[sel])} · encaissé <b>{fmtInt(model.ins[sel])} {displayCurrency(currency)}</b> · décaissé <b>{fmtInt(model.outs[sel])} {displayCurrency(currency)}</b></>
           : 'Touchez un jour pour voir le détail.'}
       </p>
     </section>
@@ -88,6 +92,7 @@ export function PhoneInOutChart({ currency = 'MAD', days = 14 }: { currency?: st
 }
 
 export function PhoneStockDonut({ onOpen }: { onOpen?: () => void }) {
+  useLang();
   const { data } = useMetricSeries();
   const [pick, setPick] = useState<number | null>(null);
   const parts = useMemo(() => {
@@ -154,6 +159,7 @@ export function PhoneStockDonut({ onOpen }: { onOpen?: () => void }) {
 }
 
 export function PhoneMonthFlow({ finance, currency = 'MAD' }: { finance: FinanceMonthly; currency?: string }) {
+  useLang();
   const rows = [
     { k: 'in', label: 'Ventes encaissées', v: Number(finance.sales_received) || 0 },
     { k: 'exp', label: 'Dépenses', v: Number(finance.expenses) || 0 },
@@ -175,7 +181,7 @@ export function PhoneMonthFlow({ finance, currency = 'MAD' }: { finance: Finance
       ))}
       <div className={`ph-flow-net ${net >= 0 ? 'is-up' : 'is-down'}`}>
         <span>Résultat de trésorerie</span>
-        <b>{net >= 0 ? '+' : '−'}{fmtInt(Math.abs(net))} {currency}</b>
+        <b>{net >= 0 ? '+' : '−'}{fmtInt(Math.abs(net))} {displayCurrency(currency)}</b>
       </div>
     </div>
   );

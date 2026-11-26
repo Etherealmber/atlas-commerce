@@ -5,6 +5,20 @@
  * Missing entries simply stay in French — run `npm run i18n:missing` to list them.
  */
 export const MESSAGES: ReadonlyArray<readonly [string, string, string]> = [
+  ["Entrées & sorties", "Income & expenses", "المدخول والمصروفات"],
+  ["Encaissements et décaissements", "Receipts and disbursements", "المقبوضات والمدفوعات"],
+  ["Encaissé", "Received", "المقبوض"],
+  ["Décaissé", "Paid out", "المدفوع"],
+  ["encaissé", "received", "المقبوض"],
+  ["décaissé", "paid out", "المدفوع"],
+  ["Touchez un jour pour voir le détail.", "Tap a day to see details.", "اضغط على يوم لعرض التفاصيل."],
+  ["{n} derniers jours", "Last {n} days", "آخر {n} أيام"],
+  ["{n} références suivies", "{n} tracked products", "{n} منتج متابع"],
+  ["Code (environnement local) :", "Code (local environment):", "الرمز (البيئة المحلية):"],
+  ["Cet appareil", "This device", "هذا الجهاز"],
+  ["actuel", "current", "الحالي"],
+  ["Rechercher (chemin, utilisateur, IP, opérateur, ville…)", "Search (path, user, IP, operator, city…)", "بحث (المسار، المستخدم، عنوان IP، المشغل، المدينة…)"],
+  ["appels depuis un réseau anonymisant", "requests from an anonymizing network", "طلبات من شبكة تخفي الهوية"],
   ["Langues : traduction élargie en arabe et en anglais, avec des améliorations de la mise en page de droite à gauche.", "Languages: expanded Arabic and English translations, with improvements to right-to-left layouts.", "اللغات: توسيع الترجمة العربية والإنجليزية وتحسين التخطيط من اليمين إلى اليسار."],
   ["Navigation : calendrier et pagination améliorés, et davantage de place pour les pages lorsque Atlas Agent est ouvert.", "Navigation: an improved calendar and pagination, with more space for pages when Atlas Agent is open.", "التنقل: تحسين التقويم وترقيم الصفحات وتوفير مساحة أكبر للصفحات عند فتح Atlas Agent."],
   ["Pour tous : Atlas Commerce se rapproche de sa sortie de bêta. Merci de nous accompagner !", "For everyone: Atlas Commerce is getting closer to leaving beta. Thank you for being with us!", "للجميع: يقترب أطلس للتجارة من الخروج من المرحلة التجريبية. شكراً لمرافقتكم لنا!"],
