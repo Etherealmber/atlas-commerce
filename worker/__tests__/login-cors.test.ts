@@ -22,6 +22,16 @@ describe('cross-origin login configuration', () => {
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe(origin);
     expect(await res.json()).toMatchObject({ data: { enabled: true, site_key: 'test-site', native_skip: false } });
   });
+  it('serves public widget configuration even when database migrations fail', async () => {
+    const db = { prepare() { throw new Error('D1 unavailable'); } };
+    const res = await worker.fetch(new Request('https://stock.afmarbre.com/api/auth/turnstile-config?client=web'), { ...env, DB: db }, ctx);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ data: { enabled: true, site_key: 'test-site' } });
+    const login = await worker.fetch(new Request('https://stock.afmarbre.com/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'someone', password: 'invalid' }),
+    }), { ...env, DB: db }, ctx);
+    expect(login.status).toBeGreaterThanOrEqual(500);
+  });
   it('does not approve an untrusted origin', async () => {
     const res = await worker.fetch(new Request('https://stock.afmarbre.com/api/auth/login', {
       method: 'OPTIONS', headers: { Origin: 'https://example.invalid', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'x-atlas-client' },
