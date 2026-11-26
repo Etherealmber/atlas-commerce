@@ -4212,24 +4212,24 @@ if (loading && !settings) return (
               <dl className="audit-detail-dl">
                 <div>
                   <dt>Heure</dt>
-                  <dd>{auditDetailRow.created_at || '—'}</dd>
+                  <dd><bdi dir="ltr" translate="no">{auditDetailRow.created_at || '—'}</bdi></dd>
                 </div>
                 <div>
                   <dt>Action</dt>
                   <dd>
-                    <code>{auditDetailRow.action || '—'}</code>
+                    <code dir="ltr" translate="no">{auditDetailRow.action || '—'}</code>
                   </dd>
                 </div>
                 <div>
                   <dt>Ressource</dt>
                   <dd>
-                    {[auditDetailRow.entity, auditDetailRow.entity_id].filter(Boolean).join(' · ') || '—'}
+                    <bdi dir="auto" translate="no">{[auditDetailRow.entity, auditDetailRow.entity_id].filter(Boolean).join(' · ') || '—'}</bdi>
                   </dd>
                 </div>
                 <div>
                   <dt>Acteur</dt>
                   <dd>
-                    {formatAuditActor(auditDetailRow).title}
+                    <bdi dir="auto" translate="no">{formatAuditActor(auditDetailRow).title}</bdi>
                     {' — '}
                     {formatAuditActor(auditDetailRow).sub}
                   </dd>

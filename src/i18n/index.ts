@@ -7,6 +7,7 @@ import { installDomTranslator } from './dom';
 import { MESSAGES } from './messages';
 
 export * from './core';
+export * from './plural';
 export { retranslateAll } from './dom';
 
 export function buildDicts() {

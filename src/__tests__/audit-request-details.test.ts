@@ -8,6 +8,7 @@ describe('audit request details', () => {
     const html = renderToStaticMarkup(createElement(AuditRequestDetails, { kind: 'api', row: { ip: '192.0.2.1', country: 'JP', city: 'Tokyo', as_org: 'Example ISP', ua: 'Example UA' } }));
     expect(html).toContain('Example ISP');
     expect(html).toContain('Example UA');
+    expect(html).toContain('<bdi dir="ltr" translate="no">192.0.2.1</bdi>');
     expect(html).toContain('Navigation privée');
     expect(html).toContain('Non disponible');
     expect(html).not.toContain('China Standard Time');
