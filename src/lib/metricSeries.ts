@@ -124,7 +124,7 @@ export function subscribeMetricSeries(fn: (s: State) => void): () => void {
 }
 
 export function useMetricSeries(): State {
-  const [snap, setSnap] = useState<State>(() => getToken() === cacheToken ? state : { data: null, loading: false, error: false });
+  const [snap, setSnap] = useState<State>(() => typeof localStorage !== 'undefined' && getToken() === cacheToken ? state : { data: null, loading: false, error: false });
   useEffect(() => subscribeMetricSeries(setSnap), []);
   return snap;
 }

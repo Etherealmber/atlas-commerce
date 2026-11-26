@@ -89,6 +89,23 @@ describe('i18n core', () => {
     expect(field.placeholder).toContain('Décrivez');
   });
 
+  it('translates recent mobile, attendance and employee labels without touching user data', async () => {
+    document.body.innerHTML = '<button aria-label="Filtrer les produits">Panier vide</button><p>Le nom du produit est obligatoire</p><span>Pointage du jour</span><span data-user-data>Nom de famille</span><select><option value="CDI">CDI — Contrat à durée indéterminée</option></select>';
+    setLang('ar'); retranslateAll(); await tick();
+    expect(document.querySelector('button')!.textContent).toBe('السلة فارغة');
+    expect(document.querySelector('button')!.getAttribute('aria-label')).toBe('تصفية المنتجات');
+    expect(document.querySelector('p')!.textContent).toBe('اسم المنتج مطلوب');
+    expect(document.querySelector('[data-user-data]')!.textContent).toBe('Nom de famille');
+    expect(document.querySelector('option')!.value).toBe('CDI');
+    expect(document.querySelector('option')!.textContent).toContain('عقد غير محدد المدة');
+    setLang('en'); await tick();
+    expect(document.querySelector('button')!.textContent).toBe('Empty cart');
+    expect(document.querySelector('span')!.textContent).toBe("Today's attendance");
+    setLang('fr'); await tick();
+    expect(document.querySelector('button')!.textContent).toBe('Panier vide');
+    expect(document.querySelector('option')!.value).toBe('CDI');
+  });
+
   it('translates screenshot labels while keeping option values unchanged', async () => {
     document.body.innerHTML = '<p>Votre espace de gestion natif pour Windows, macOS et Linux — caisse, stock et facturation au comptoir.</p><select><option value="Fournitures de bureau">Fournitures de bureau</option></select><button>Téléchargements</button>';
     setLang('ar'); retranslateAll(); await tick();
