@@ -2894,5 +2894,19 @@
   "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte.": "الوضع التجريبي: يتزامن العد التنازلي مع الجلسة ويعرض أطلس إيجنت رسالة عند بلوغ حد التجربة.",
   "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées.": "الإعدادات: تظل علامات التبويب المفتوحة متاحة أثناء التحديث، وتستخدم نماذج الإدارة نوافذ مخصصة.",
   "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe.": "الأمان: تتوفر رسائل تسجيل الدخول وتأكيد حذف محادثات أطلس إيجنت بالفرنسية والإنجليزية والعربية.",
-  "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés.": "سجل الوكيل: تُشفّر المحادثات القديمة ذات التنسيق المدعوم عند الرد التالي؛ وتبقى التنسيقات غير المعروفة محمية."
+  "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés.": "سجل الوكيل: تُشفّر المحادثات القديمة ذات التنسيق المدعوم عند الرد التالي؛ وتبقى التنسيقات غير المعروفة محمية.",
+  "Explication avec Atlas Agent": "شرح باستخدام أطلس إيجنت",
+  "Sur demande, des catégories d’événement et indicateurs agrégés peuvent être envoyés au fournisseur IA. Aucun nom, adresse IP ou détail brut n’est envoyé.": "عند الطلب، قد تُرسل فئات الأحداث والمؤشرات المجمّعة إلى مزود الذكاء الاصطناعي. لا تُرسل أسماء أو عناوين IP أو تفاصيل خام.",
+  "Analyser à nouveau": "إعادة التحليل",
+  "Expliquer avec Atlas Agent": "شرح باستخدام أطلس إيجنت",
+  "Explication indisponible. Réessayez.": "الشرح غير متاح. حاول مرة أخرى.",
+  "Explication automatique sans IA.": "شرح تلقائي بدون ذكاء اصطناعي.",
+  "Explication générée par IA.": "شرح أنشأه الذكاء الاصطناعي.",
+  "Vérifiez les faits avant toute action.": "تحقق من الوقائع قبل اتخاذ أي إجراء.",
+  "0.9.4 — Aperçu en préparation": "0.9.4 — معاينة قيد الإعداد",
+  "Ces notes sont provisoires ; la version 0.9.4 n’est pas encore publiée.": "هذه الملاحظات مؤقتة؛ لم يُنشر الإصدار 0.9.4 بعد.",
+  "Détail de l’entrée": "تفاصيل السجل",
+  "Suspect": "مريب",
+  "À surveiller": "يحتاج إلى متابعة",
+  "Normal": "عادي"
 }

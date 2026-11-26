@@ -10,6 +10,7 @@ import { useProfileWarm, useProfileTick } from '../lib/useProfileWarm';
 import { TopbarUserMenu } from './shell/TopbarUserMenu';
 import { LanguageSoonDialog } from './LanguageSoonDialog';
 import { useLang, t as tr } from '../i18n/core';
+import { openSection } from '../lib/sectionAnchor';
 
 
 /* ------------------------------------------------------------------ */
@@ -358,11 +359,11 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
         ) : (
           <div className="pn-links" style={{ gap: 2, margin: '0 auto', minWidth: 0, overflow: 'hidden' }}>
             {links.map((l) => (
-              <a key={l.href} href={l.href} style={linkSt()}>{l.label}</a>
+              <a key={l.href} href={l.href} onClick={e => { if (l.href.startsWith('#')) openSection(e, l.href.slice(1)); }} style={linkSt()}>{l.label}</a>
             ))}
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flex: '0 0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginInlineStart: loggedIn && !classic ? 'auto' : 0, flex: '0 0 auto' }}>
           <div className="pn-main-actions"><PublicLanguageButton /><PublicThemeToggle />{isLoggedIn() ? <PublicProfileChip /> : cta}</div>
           <button
             type="button"
@@ -403,7 +404,7 @@ export function PublicNav({ links, cta, classic = false }: { links: NavLink[]; c
               key={l.href}
               className="pn-mobile-link"
               href={l.href}
-              onClick={() => setMenu(false)}
+              onClick={e => { setMenu(false); if (l.href.startsWith('#')) openSection(e, l.href.slice(1)); }}
               style={{ display: 'block', padding: '11px 14px', borderRadius: 12, color: c.ghostInk, textDecoration: 'none', fontSize: 14, fontWeight: 600 }}
             >
               {l.label}

@@ -53,6 +53,7 @@ import GithubReportsPanel from '../components/settings/GithubReportsPanel';
 import ApiLogPanel from '../components/audit/ApiLogPanel';
 import AuditIpCell from '../components/audit/AuditIpCell';
 import { AuditRequestDetails } from '../components/audit/AuditRequestDetails';
+import { AuditAgentExplanation } from '../components/audit/AuditAgentExplanation';
 import BackupStatusStrip from '../components/settings/BackupStatusStrip';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
@@ -4198,7 +4199,7 @@ if (loading && !settings) return (
             onClick={() => setAuditDetailRow(null)}
           >
             <div
-              className="audit-detail-modal card"
+              className="audit-detail-modal audit-detail-modal--expanded card"
               role="dialog"
               aria-modal="true"
               aria-labelledby="audit-detail-title"
@@ -4211,24 +4212,24 @@ if (loading && !settings) return (
               <dl className="audit-detail-dl">
                 <div>
                   <dt>Heure</dt>
-                  <dd>{auditDetailRow.created_at || '—'}</dd>
+                  <dd><bdi dir="ltr" translate="no">{auditDetailRow.created_at || '—'}</bdi></dd>
                 </div>
                 <div>
                   <dt>Action</dt>
                   <dd>
-                    <code>{auditDetailRow.action || '—'}</code>
+                    <code dir="ltr" translate="no">{auditDetailRow.action || '—'}</code>
                   </dd>
                 </div>
                 <div>
                   <dt>Ressource</dt>
                   <dd>
-                    {[auditDetailRow.entity, auditDetailRow.entity_id].filter(Boolean).join(' · ') || '—'}
+                    <bdi dir="auto" translate="no">{[auditDetailRow.entity, auditDetailRow.entity_id].filter(Boolean).join(' · ') || '—'}</bdi>
                   </dd>
                 </div>
                 <div>
                   <dt>Acteur</dt>
                   <dd>
-                    {formatAuditActor(auditDetailRow).title}
+                    <bdi dir="auto" translate="no">{formatAuditActor(auditDetailRow).title}</bdi>
                     {' — '}
                     {formatAuditActor(auditDetailRow).sub}
                   </dd>
@@ -4238,10 +4239,11 @@ if (loading && !settings) return (
                   <dd><AuditIpCell ip={auditDetailRow.ip} geo={auditDetailRow.geo} /></dd>
                 </div>
                 <div>
-                  <dt>Détail</dt>
+                  <dt>Détail enregistré</dt>
                   <dd className="audit-detail-full" translate="no" dir="auto">{auditDetailRow.detail || '—'}</dd>
                 </div>
               </dl>
+              {Number(auditDetailRow.id) > 0 && <AuditAgentExplanation key={auditDetailRow.id} id={Number(auditDetailRow.id)} />}
               <h4>Détails de la connexion</h4>
               <AuditRequestDetails row={auditDetailRow} kind="audit" />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>

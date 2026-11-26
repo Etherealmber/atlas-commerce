@@ -12,3 +12,11 @@ test('validates placeholders, keys, duplicates and JSON', () => {
   assert.match(validateCatalogs({fr, en: '{"x":"one","x":"two"}', ar}).join(), /duplicate key/);
   assert.match(validateCatalogs({fr, en: '{', ar}).join(), /invalid JSON/);
 });
+
+ test('allows only explicitly pending absent translations, while validating present values', () => {
+  const fr = '{"Bonjour {name}":"Bonjour {name}"}';
+  const key = 'Bonjour {name}';
+  assert.deepEqual(validateCatalogs({ fr, en: '{}', ar: '{}' }, [key]), []);
+  assert.match(validateCatalogs({ fr, en: '{"Bonjour {name}":"Hello"}', ar: '{}' }, [key]).join(), /placeholder mismatch/);
+  assert.match(validateCatalogs({ fr, en: '{}', ar: '{}' }, ['unknown']).join(), /unknown key/);
+ });

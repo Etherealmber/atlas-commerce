@@ -40,17 +40,17 @@ export default function AuditIpCell({ ip, geo, compact = false }: { ip?: string 
   ].filter(Boolean).join('\n');
   return (
     <span className={`ac-ip-cell${compact ? ' is-compact' : ''}`} title={title}>
-      <code className="ac-ip-addr" translate="no">{ip}</code>
+      <code className="ac-ip-addr" translate="no" dir="ltr">{ip}</code>
       {geo && (place || geo.as_org) ? (
         <span className="ac-ip-meta">
           {geo.country ? <span className="ac-ip-flag" aria-hidden="true">{flagEmoji(geo.country)}</span> : null}
-          {place ? <span className="ac-ip-place" translate="no">{place}</span> : null}
+          {place ? <bdi className="ac-ip-place" translate="no" dir="auto">{place}</bdi> : null}
         </span>
       ) : null}
       {geo?.label ? (
         <span className={`ac-ip-net ac-ip-net--${tone}`}>
           <Icon size={11} strokeWidth={2.2} aria-hidden="true" />
-          <span>{geo.risky ? geo.label : geo.as_org ? geo.as_org.slice(0, 28) : geo.label}</span>
+          <bdi dir="auto">{geo.risky ? geo.label : geo.as_org ? geo.as_org.slice(0, 28) : geo.label}</bdi>
         </span>
       ) : null}
     </span>

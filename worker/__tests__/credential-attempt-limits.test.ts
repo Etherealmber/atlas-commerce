@@ -58,6 +58,14 @@ describe('persistent account-aware credential admission', () => {
     expect(denied).toEqual({ allowed: false, retryAfter: 60 });
     expect((await reserve('another-account', '203.0.113.2')).allowed).toBe(true);
   });
+  it('uses fixed minute windows and resets at the boundary', async () => {
+    const endOfMinute = NOW + 59_000;
+    for (let i = 0; i < CREDENTIAL_ATTEMPT_LIMITS.ipMinute; i++) {
+      expect((await reserve(`boundary-${i}`, '203.0.113.1', 'password', endOfMinute)).allowed).toBe(true);
+    }
+    expect(await reserve('boundary-denied', '203.0.113.1', 'password', endOfMinute)).toEqual({ allowed: false, retryAfter: 1 });
+    expect((await reserve('boundary-next', '203.0.113.1', 'password', NOW + 60_000)).allowed).toBe(true);
+  });
   it('retains a sustained IP ceiling across minute windows', async () => {
     // Five bursts in separate minutes consume 300 admissions, below 60/min.
     const bursts = Array.from({ length: 5 }, (_, minute) => Promise.all(Array.from({ length: 60 }, (entry, i) => reserve(`u-${minute}-${i}`, '203.0.113.1', 'password', NOW + minute * 60_000))));

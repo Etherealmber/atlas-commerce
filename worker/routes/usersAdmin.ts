@@ -416,7 +416,7 @@ app.get('/api/admin/api-log', async (c) => {
 app.post('/api/admin/audit/explain', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
-  const body = (await c.req.json().catch(() => ({}))) as { kind?: string; id?: unknown };
+  const body = (await c.req.json().catch(() => ({}))) as { kind?: string; id?: unknown; language?: string };
   const kind = body.kind === 'api' ? 'api' : 'audit';
   const id = Math.floor(Number(body.id));
   if (!Number.isFinite(id) || id <= 0) return c.json({ success: false, error: 'Ligne introuvable.' }, 400);
@@ -445,7 +445,7 @@ app.post('/api/admin/audit/explain', async (c) => {
     } catch { /* */ }
   }
   const explanation = await explainLogLine(c.env as any, {
-    kind, id, ...row, ip_recent_failures: recent.failures, ip_recent_users: recent.users,
+    kind, id, ...row, language: body.language === 'ar' || body.language === 'en' ? body.language : 'fr', ip_recent_failures: recent.failures, ip_recent_users: recent.users,
   });
   return c.json({ success: true, data: { ...explanation, network: classifyNetwork(row.as_org, row.asn, row.ip) } });
 });

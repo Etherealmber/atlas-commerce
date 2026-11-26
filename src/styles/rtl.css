@@ -208,8 +208,7 @@ html[dir="rtl"] .home-landing .hm-live .hl-tot :is(i, b) { text-align: right; }
 html[dir="rtl"] .home-landing .hm-live .hl-currency { direction: rtl; unicode-bidi: isolate; }
 html[dir="rtl"] .home-landing .hm-release-link { float: right; }
 html[dir="rtl"] .home-landing .hm-hero-copy { clear: both; }
-/* Give the public wordmark breathing room within the navigation pill. */
-html[dir="rtl"] .home-landing header nav > a:first-child { margin-inline-start: 10px; }
+
 /* Clear rows and selection state in the language chooser, without altering focus. */
 html body .ac-lang-list > li > button.ac-lang-row:not(#lang-g):not(#lang-h):not(#lang-i) { min-height: 54px !important; padding: 10px 14px !important; }
 html body .ac-lang-list > li > button.ac-lang-row.is-current:not(#lang-g):not(#lang-h):not(#lang-i) { background: rgba(196, 92, 38, .08) !important; }
@@ -230,3 +229,6 @@ html[dir="rtl"] .home-landing .hm-live .hl-tot bdi { white-space: nowrap; }
 html[dir="rtl"] .ac-dp-nav svg { transform: scaleX(-1); }
 html[dir="rtl"] .payroll-settings-modal .modal-head > div { min-width: 0; padding-inline-end: 36px; }
 html[dir="rtl"] .atlas-brand-row { gap: 6px; }
+
+/* Translation preview note can grow in either direction without clipping. */
+.ac-lang-preview-note { margin: 4px 0 12px; padding: 10px 12px; border-inline-start: 3px solid #c45c26; line-height: 1.5; font-size: 13px; }
