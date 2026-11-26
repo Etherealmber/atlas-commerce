@@ -1,4 +1,5 @@
 import type { AtlasApp } from './types';
+import { DEMO_USERNAME } from '../lib/demo/policy';
 import { API_LOG_RETENTION_DAYS, classifyNetwork, ensureApiLogTable, geoForIps } from '../lib/apiLog';
 import { explainLogLine } from '../lib/auditExplain';
 import { listArchivedApiCalls, readArchivedApiCall } from '../lib/journalArchive';
@@ -110,6 +111,9 @@ app.post('/api/admin/users', async (c) => {
   }
   if (!/^[a-z0-9._-]+$/.test(username)) {
     return c.json({ success: false, error: 'Nom d\'utilisateur: lettres minuscules, chiffres, . _ - uniquement' }, 400);
+  }
+  if (username === DEMO_USERNAME) {
+    return c.json({ success: false, error: 'Ce nom est réservé au compte de démonstration.', code: 'USERNAME_RESERVED' }, 400);
   }
   if (username === getOwnerUsername(c.env)) {
     return c.json({ success: false, error: 'Ce nom est réservé à l\'administrateur principal' }, 400);

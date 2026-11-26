@@ -530,8 +530,11 @@ export default function Login() {
     const client = isPwaLogin() ? 'pwa' : isMobileLogin() ? 'mobile-web' : 'web';
     void (async () => {
       try {
-        const response = await fetch(`${getApiBase()}/api/auth/turnstile-config`, {
-          headers: { 'X-Atlas-Client': client }, signal: controller.signal, cache: 'no-store',
+        // A query hint avoids a non-simple cross-origin request just to fetch
+        // public widget configuration. Login itself still uses the server's
+        // existing client policy and sends the verification token.
+        const response = await fetch(`${getApiBase()}/api/auth/turnstile-config?client=${encodeURIComponent(client)}`, {
+          signal: controller.signal, cache: 'no-store',
         });
         if (response.ok === false) throw new Error('config unavailable');
         const json = await response.json() as { data?: { enabled?: boolean; site_key?: string } };

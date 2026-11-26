@@ -283,6 +283,9 @@ const DEMO_OFF_LIMITS: { method: string; re: RegExp }[] = [
 
 export function demoOffLimitsResponse(pathname: string, method: string): Response | null {
   const m = method.toUpperCase();
+  if (m === 'POST' && pathname === '/api/admin/users') {
+    return json({ success: false, code: 'DEMO_DISABLED', error: 'La création d’utilisateurs est indisponible en mode démo.' }, 403);
+  }
   if (!DEMO_OFF_LIMITS.some((r) => r.method === m && r.re.test(pathname))) return null;
   return json({
     success: false,
