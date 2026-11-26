@@ -2894,5 +2894,5 @@
   "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte.": "الوضع التجريبي: يتزامن العد التنازلي مع الجلسة ويعرض أطلس إيجنت رسالة عند بلوغ حد التجربة.",
   "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées.": "الإعدادات: تظل علامات التبويب المفتوحة متاحة أثناء التحديث، وتستخدم نماذج الإدارة نوافذ مخصصة.",
   "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe.": "الأمان: تتوفر رسائل تسجيل الدخول وتأكيد حذف محادثات أطلس إيجنت بالفرنسية والإنجليزية والعربية.",
-  "Historique Agent : les anciennes conversations illisibles sont protégées contre le remplacement ; leur récupération nécessite une migration séparée.": "سجل الوكيل: تُحمى المحادثات القديمة غير القابلة للقراءة من الاستبدال؛ وتحتاج استعادتها إلى ترحيل منفصل."
+  "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés.": "سجل الوكيل: تُشفّر المحادثات القديمة ذات التنسيق المدعوم عند الرد التالي؛ وتبقى التنسيقات غير المعروفة محمية."
 }

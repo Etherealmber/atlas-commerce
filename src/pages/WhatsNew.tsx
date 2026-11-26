@@ -48,7 +48,7 @@ export const UPCOMING_RELEASE_094: Release = {
       { id: '094i6', platforms: ['web', 'server'], text: "Mode démo : le compte à rebours est synchronisé avec la session et Atlas Agent affiche un message lorsque la limite de démo est atteinte." },
       { id: '094i7', platforms: ['web'], text: "Paramètres : les onglets déjà ouverts restent disponibles pendant le rafraîchissement et les formulaires de gestion utilisent des fenêtres dédiées." },
       { id: '094i8', platforms: ['server'], text: "Sécurité : les e-mails de connexion et de confirmation de suppression des conversations Atlas Agent sont disponibles en français, anglais et arabe." },
-      { id: '094i9', platforms: ['server'], text: "Historique Agent : les anciennes conversations illisibles sont protégées contre le remplacement ; leur récupération nécessite une migration séparée." },
+      { id: '094i9', platforms: ['server'], text: "Historique Agent : les anciennes conversations au format pris en charge sont chiffrées lors de la prochaine réponse ; les formats non reconnus restent protégés." },
     ] },
   ],
 };

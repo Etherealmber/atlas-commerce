@@ -63,7 +63,7 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
     const r2Get = vi.fn(async (key: string) => {
       const bytes = store.get(key);
       if (!bytes) return null;
-      return { arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
+      return { etag: Buffer.from(bytes).toString('base64'), arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
     });
     const r2List = vi.fn(async ({ prefix }: { prefix: string }) => {
       const objects = [...store.keys()]
@@ -71,8 +71,13 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
         .map((k) => ({ key: k }));
       return { objects, truncated: false };
     });
-    const r2Put = vi.fn(async (key: string, data: Uint8Array) => {
+    const r2Put = vi.fn(async (key: string, data: Uint8Array, options: any) => {
+      const current = store.get(key);
+      const condition = options?.onlyIf;
+      if (condition instanceof Headers && condition.get('If-None-Match') === '*' && current) return null;
+      if (condition?.etagMatches && (!current || Buffer.from(current).toString('base64') !== condition.etagMatches)) return null;
       store.set(key, new Uint8Array(data));
+      return { etag: Buffer.from(data).toString('base64') };
     });
 
     const { registerAssistRoutes } = await import('../routes/assist');
@@ -149,13 +154,71 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
       expect(store.get(key)).toEqual(bytes);
       expect(r2Put).toHaveBeenCalledTimes(2);
     }
+    const legacy = 'U|2025-01-01T12:00:00.000Z|Private old question\nA|2025-01-01T12:00:01.000Z|Private old answer\n';
+    store.set(key, new TextEncoder().encode(legacy));
+    const noSecret = await app.request('/api/assist/chat', {
+      method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Bonjour', thread_id: 'mobile-thread-1' }),
+    }, { ...env, BACKUP_ENCRYPTION_KEY: '' } as any);
+    expect(noSecret.status).toBe(502);
+    expect(new TextDecoder().decode(store.get(key))).toBe(legacy);
+    r2Put.mockResolvedValueOnce(null); // failed conditional migration
+    const conflict = await app.request('/api/assist/chat', {
+      method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Bonjour', thread_id: 'mobile-thread-1' }),
+    }, env as any);
+    expect(conflict.status).toBe(502);
+    expect(new TextDecoder().decode(store.get(key))).toBe(legacy);
+    const migrated = await app.request('/api/assist/chat', {
+      method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Bonjour', thread_id: 'mobile-thread-1' }),
+    }, env as any);
+    expect(migrated.status).toBe(200);
+    const encrypted = store.get(key)!;
+    expect(new TextDecoder().decode(encrypted.slice(0, 4))).toBe('ACH2');
+    expect(new TextDecoder().decode(encrypted)).not.toContain('Private old');
+    const read = await app.request('/api/assist/transcripts/get?key=' + encodeURIComponent(key), {
+      headers: { Authorization: 'Bearer tok' },
+    }, env as any);
+    const readData: any = await read.json();
+    expect(readData.data.raw).toContain(legacy);
+    expect(readData.data.raw).toContain('Bonjour');
+    // Wrong key must not reinterpret ciphertext as legacy or replace it.
+    const wrongKey = await app.request('/api/assist/chat', {
+      method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Bonjour', thread_id: 'mobile-thread-1' }),
+    }, { ...env, BACKUP_ENCRYPTION_KEY: 'different-secret' } as any);
+    expect(wrongKey.status).toBe(502);
+    expect(store.get(key)).toEqual(encrypted);
+    // A concurrent change after the read refuses the append rather than overwriting it.
+    r2Put.mockResolvedValueOnce(null);
+    const appendConflict = await app.request('/api/assist/chat', {
+      method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Bonjour', thread_id: 'mobile-thread-1' }),
+    }, env as any);
+    expect(appendConflict.status).toBe(502);
+    expect(store.get(key)).toEqual(encrypted);
+    // A streaming reply uses the same migration and appends the new turn.
+    const streamKey = 'agent-chats/v2/admin/stream-legacy.conv';
+    store.set(streamKey, new TextEncoder().encode(legacy));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('data: {"choices":[{"delta":{"content":"Stream answer"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })));
+    const stream = await app.request('/api/assist/chat/stream', {
+      method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Bonjour', thread_id: 'stream-legacy' }),
+    }, env as any);
+    expect(await stream.text()).toContain('event: done');
+    const streamRead = await app.request('/api/assist/transcripts/get?key=' + encodeURIComponent(streamKey), { headers: { Authorization: 'Bearer tok' } }, env as any);
+    const streamData: any = await streamRead.json();
+    expect(streamData.data.raw).toContain(legacy);
+    expect(streamData.data.raw).toContain('Stream answer');
+    const putCount = r2Put.mock.calls.length;
     r2List.mockRejectedValueOnce(new Error('storage unavailable'));
     const failedRead = await app.request('/api/assist/chat', {
       method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: 'Nouveau tour', thread_id: 'mobile-thread-1' }),
     }, env as any);
     expect(failedRead.status).toBe(502);
-    expect(r2Put).toHaveBeenCalledTimes(2);
+    expect(r2Put).toHaveBeenCalledTimes(putCount);
   });
 
   it('POST /api/cron/backup-execute skips redundant D1 table dumps when no business mutation occurred', async () => {

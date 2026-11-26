@@ -491,42 +491,62 @@ function agentConvKey(username: string, threadId: string): string {
   return `agent-chats/v2/${u}/${t}.conv`;
 }
 
-/* v233 — token-cheap conversation memory: last turns, heavily truncated, from the encrypted R2 transcript */
+/** Accept only the historical line format; plaintext has no authenticity guarantee. */
+function legacyAgentTranscript(bytes: ArrayBuffer): string | null {
+  const raw = new Uint8Array(bytes);
+  if (!raw.length || raw.length > 380_000 || new TextDecoder().decode(raw.slice(0, 4)) === 'ACH2') return null;
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(raw);
+    const lines = text.endsWith('\n') ? text.slice(0, -1).split('\n') : text.split('\n');
+    if (!lines.length || lines.some(line => !/^[UA]\|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\|[^\r\n]*$/.test(line))) return null;
+    return text;
+  } catch { return null; }
+}
+
+/* Recent conversation context; legacy plaintext is migrated before use. */
 async function loadCompactHistoryWithTranscript(
   env: Env,
   username: string,
   thread: string,
   maxTurns = 6,
-): Promise<{ history: string; existingPlain: string }> {
-  if (!env.IMAGES) return { history: '', existingPlain: '' };
+): Promise<{ history: string; existingPlain: string; etag: string | null }> {
+  if (!env.IMAGES) return { history: '', existingPlain: '', etag: null };
   const key = agentConvKey(username, thread);
   try {
-    // Avoid emitting an R2 NoSuchKey (10007) error span when a brand-new thread has no transcript yet.
     if (typeof (env.IMAGES as any).list === 'function') {
-      const listed = await (env.IMAGES as any).list({ prefix: key, limit: 1 });
-      if (!listed?.objects?.some((o: any) => o.key === key)) {
-        return { history: '', existingPlain: '' };
-      }
+      const listed = await env.IMAGES.list({ prefix: key, limit: 1 });
+      if (!listed.objects.some(o => o.key === key)) return { history: '', existingPlain: '', etag: null };
     }
     const obj = await env.IMAGES.get(key);
-    if (!obj) return { history: '', existingPlain: '' };
+    if (!obj) return { history: '', existingPlain: '', etag: null };
+    if (!obj.etag) throw new Error('Missing transcript version');
     const buf = await obj.arrayBuffer();
-    const plain = await decryptAgentConv(env, buf);
-    if (plain === null || plain.trimStart().startsWith('{')) throw new Error('Agent transcript unavailable');
+    let plain = await decryptAgentConv(env, buf);
+    let etag = obj.etag;
+    if (plain === null) {
+      plain = legacyAgentTranscript(buf);
+      if (plain === null) throw new Error('Unknown or unauthenticated transcript');
+      const encrypted = await encryptAgentConv(env, plain);
+      if (!encrypted || await decryptAgentConv(env, encrypted) !== plain) throw new Error('Transcript encryption unavailable');
+      // Replace only the exact object read. A concurrent reply or deletion wins.
+      const migrated = await env.IMAGES.put(key, encrypted, {
+        onlyIf: { etagMatches: etag },
+        httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
+        customMetadata: { username: username.slice(0, 64), thread: thread.slice(0, 80), fmt: 'ACH2' },
+      });
+      if (!migrated?.etag) throw new Error('Transcript changed during migration');
+      etag = migrated.etag;
+    }
+    if (plain.trimStart().startsWith('{')) throw new Error('Unsupported transcript');
     const lines = plain.split('\n').filter((l) => l.startsWith('U|') || l.startsWith('A|'));
-    if (!lines.length) return { history: '', existingPlain: plain };
-    const history = lines
-      .slice(-maxTurns * 2)
-      .map((l) => {
-        const parts = l.split('|');
-        const who = parts[0] === 'U' ? 'U' : 'A';
-        const txt = String(parts.slice(2).join('|')).trim();
-        return `${who}: ${txt.slice(0, who === 'U' ? 160 : 200)}`;
-      })
-      .join('\n');
-    return { history, existingPlain: plain };
+    const history = lines.slice(-maxTurns * 2).map((l) => {
+      const parts = l.split('|');
+      const who = parts[0] === 'U' ? 'U' : 'A';
+      const txt = String(parts.slice(2).join('|')).trim();
+      return `${who}: ${txt.slice(0, who === 'U' ? 160 : 200)}`;
+    }).join('\n');
+    return { history, existingPlain: plain, etag };
   } catch {
-    // Never treat a read or authentication failure as a missing transcript.
     throw new Error('Agent transcript unavailable');
   }
 }
@@ -541,7 +561,8 @@ async function putAgentChatTurn(
     tools?: string;
     model?: string;
     thread_id?: string;
-    prefetchedPlain?: string;
+    prefetchedPlain: string;
+    etag: string | null;
   },
 ) {
   try {
@@ -551,23 +572,7 @@ async function putAgentChatTurn(
     const ts = new Date().toISOString();
     const userLine = `U|${ts}|${String(row.message || '').replace(/\|/g, '/').replace(/\n/g, ' ').slice(0, 4000)}`;
     const asstLine = `A|${ts}|${String(row.reply || '').replace(/\|/g, '/').replace(/\n/g, ' ').slice(0, 8000)}`;
-    let body = typeof row.prefetchedPlain === 'string' ? row.prefetchedPlain : '';
-    if (row.prefetchedPlain === undefined) {
-      try {
-        let shouldGet = true;
-        if (typeof (env.IMAGES as any).list === 'function') {
-          const listed = await (env.IMAGES as any).list({ prefix: key, limit: 1 });
-          shouldGet = Boolean(listed?.objects?.some((o: any) => o.key === key));
-        }
-        const existing = shouldGet ? await env.IMAGES.get(key) : null;
-        if (existing) {
-          const buf = await existing.arrayBuffer();
-          const prev = await decryptAgentConv(env, buf);
-          if (prev === null || prev.trimStart().startsWith('{')) return;
-          body = prev;
-        }
-      } catch { return; /* preserve an object we could not read */ }
-    }
+    let body = row.prefetchedPlain;
     if (body && !body.endsWith('\n')) body += '\n';
     body += userLine + '\n' + asstLine + '\n';
     // Cap file size (~400KB plain) — drop oldest lines
@@ -579,8 +584,9 @@ async function putAgentChatTurn(
       if (!body.endsWith('\n')) body += '\n';
     }
     const enc = await encryptAgentConv(env, body);
-    if (!enc) return;
-    await env.IMAGES.put(key, enc, {
+    if (!enc) throw new Error('Transcript encryption unavailable');
+    const written = await env.IMAGES.put(key, enc, {
+      onlyIf: row.etag ? { etagMatches: row.etag } : new Headers({ 'If-None-Match': '*' }),
       httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
       customMetadata: {
         username: String(row.username).slice(0, 64),
@@ -589,8 +595,9 @@ async function putAgentChatTurn(
         role: String(row.role || '').slice(0, 32),
       },
     });
+    if (!written) throw new Error('Transcript changed during reply');
   } catch {
-    /* never break chat */
+    throw new Error('Agent transcript could not be saved');
   }
 }
 
@@ -1008,6 +1015,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     const userMessage = String(body.user_message || body.userMessage || '').trim().slice(0, 2500) || message;
   
     const task = String(body.task || 'general').toLowerCase();
+    const threadId = String(body?.thread_id || body?.threadId || 'live').slice(0, 80);
     // v0.7 — client-selected response language (Android app language): allowlisted
     // here, enforced in the shared system prompt below. Unknown/absent → legacy rule.
     const responseLanguage = normalizeResponseLanguage((body as any).response_language ?? (body as any).responseLanguage);
@@ -1021,23 +1029,23 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     // and only when French is acceptable (the canned hints are French; en/ar go
     // through the LLM so quick prompts honor the selected language too).
     if (!isGreeting && (task === 'general' || !task) && (responseLanguage === null || responseLanguage === 'fr')) {
-      try {
-        const snap = await loadQuickSnap(c.env);
-        const quick = quickAssistHint(userMessage, snap);
-        if (quick) {
-          return c.json({
-            success: true,
-            data: { reply: quick, model: 'local', provider: 'local', tool_trace: [], proposals: [], task },
-          });
+      let quick: string | null = null;
+      try { quick = quickAssistHint(userMessage, await loadQuickSnap(c.env)); } catch { /* fall through to LLM */ }
+      if (quick) {
+        try {
+          const { existingPlain, etag } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
+          await putAgentChatTurn(c.env, { username, role, message, reply: quick, thread_id: threadId, prefetchedPlain: existingPlain, etag });
+        } catch {
+          return c.json({ success: false, error: tr(uiLang, 'agent_upstream'), code: 'assist_upstream' }, 502);
         }
-      } catch { /* fall through to LLM */ }
+        return c.json({ success: true, data: { reply: quick, model: 'local', provider: 'local', tool_trace: [], proposals: [], task } });
+      }
     }
   
     const tz = String(body.timezone || body.tz || 'Africa/Casablanca').slice(0, 64);
     const source = String(body.source || body.client || c.req.header('x-atlas-client') || 'web').slice(0, 32);
     const sourceRefined = source;
     const model = String(body.model || (c.env as any).GROQ_MODEL || 'openai/gpt-oss-20b').slice(0, 80);
-    const threadId = String((body as any)?.thread_id || (body as any)?.threadId || 'live').slice(0, 80);
 
     if (task === 'description') {
       const descInput = extractProductDescriptionInput(body, message);
@@ -1101,7 +1109,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
       const system =
         atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined, responseLanguage }) + knowSection;
       // v233 — compact memory: the agent reads its recent conversation without replaying full turns
-      const { history, existingPlain } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
+      const { history, existingPlain, etag } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
       const finalMessage = (history
         ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
         : message) + docSection;
@@ -1134,7 +1142,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
       }
       await auditAssist(c.env, { username, role, message, tools: 'groq', ok: true });
       await putAgentChatTurn(c.env, {
-        username, role, message, reply: replyGq, tools: 'groq', model: outGq.model, thread_id: threadId, prefetchedPlain: existingPlain,
+        username, role, message, reply: replyGq, tools: 'groq', model: outGq.model, thread_id: threadId, prefetchedPlain: existingPlain, etag,
       });
       await writeAudit(c.env.DB, {
         username, role, action: 'assist.chat', entity: 'atlas_agent', detail: 'groq', ip: clientIp(c),
@@ -1232,15 +1240,15 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
         try {
           // v0.7.8 — raccourci local identique au jumeau bufferisé (hint déterministe)
           if (!isGreeting && (task === 'general' || !task) && (responseLanguage === null || responseLanguage === 'fr')) {
-            try {
-              const snap = await loadQuickSnap(c.env);
-              const quick = quickAssistHint(userMessage, snap);
-              if (quick) {
-                send('token', { t: quick });
-                send('done', { reply: quick, model: 'local', provider: 'local', usage: null, documents: docsMeta, thread_id: threadId, tool_trace: [], proposals: [], task, history_turns: 0 });
-                return;
-              }
-            } catch { /* fall through to LLM */ }
+            let quick: string | null = null;
+            try { quick = quickAssistHint(userMessage, await loadQuickSnap(c.env)); } catch { /* fall through to LLM */ }
+            if (quick) {
+              const { existingPlain, etag } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
+              await putAgentChatTurn(c.env, { username, role, message, reply: quick, thread_id: threadId, prefetchedPlain: existingPlain, etag });
+              send('token', { t: quick });
+              send('done', { reply: quick, model: 'local', provider: 'local', usage: null, documents: docsMeta, thread_id: threadId, tool_trace: [], proposals: [], task, history_turns: 0 });
+              return;
+            }
           }
           // v0.7.7 — même savoir persistant que le jumeau bufferisé
           const knowledge = await loadAgentKnowledge(c.env.DB, username).catch(() => null);
@@ -1248,7 +1256,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
           const system =
             atlasAgentSystem({ role, username, timezone: tz, source, responseLanguage }) + knowSection;
-          const { history, existingPlain } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
+          const { history, existingPlain, etag } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
           const finalMessage = (history
             ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
             : message) + docSection;
@@ -1290,7 +1298,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           }
           await auditAssist(c.env, { username, role, message, tools: 'groq-stream', ok: true });
           await putAgentChatTurn(c.env, {
-            username, role, message, reply, tools: 'groq-stream', model: usedModel, thread_id: threadId, prefetchedPlain: existingPlain,
+            username, role, message, reply, tools: 'groq-stream', model: usedModel, thread_id: threadId, prefetchedPlain: existingPlain, etag,
           });
           await writeAudit(c.env.DB, {
             username, role, action: 'assist.chat.stream', entity: 'atlas_agent', detail: 'groq', ip: clientIp(c),
