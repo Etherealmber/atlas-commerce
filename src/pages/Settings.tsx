@@ -272,6 +272,7 @@ export default function Settings() {
   const [catalogDialogError, setCatalogDialogError] = useState('');
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [auditDetailRow, setAuditDetailRow] = useState<any | null>(null);
+  const [journalView, setJournalView] = useState<'audit' | 'api'>('audit');
   useEffect(() => {
     if (!auditDetailRow) return;
     const prev = document.body.style.overflow;
@@ -893,28 +894,6 @@ if (loading && !settings) return (
     setPwOpen(true);
   };
 
-
-  const formatAuditSummary = (row: any): string => {
-    const action = String(row.action || '');
-    const detail = String(row.detail || '').trim();
-    if (action === 'backup.restore') {
-      // Minimal: filename only if entity_id looks like a file
-      const id = String(row.entity_id || '').split('/').pop() || '';
-      if (detail && detail.length < 80 && !detail.includes('tables=products')) return detail;
-      return id ? `Restauration · ${id}` : 'Restauration de sauvegarde';
-    }
-    if (action === 'settings.update') {
-      const m = detail.match(/champs=([^;]+)/);
-      if (m) {
-        const n = m[1].split(',').filter(Boolean).length;
-        return n ? `${n} champ${n > 1 ? 's' : ''} modifié${n > 1 ? 's' : ''}` : 'Paramètres mis à jour';
-      }
-      return 'Paramètres mis à jour';
-    }
-    if (action.startsWith('assist.')) return detail.slice(0, 48) || 'Atlas Agent';
-    if (detail.length > 64) return detail.slice(0, 61) + '…';
-    return detail || '—';
-  };
 
   const formatAuditActor = (row: any): { title: string; sub: string } => {
     const u = String(row.username || '').trim();
@@ -3045,7 +3024,14 @@ if (loading && !settings) return (
               </section>
             </div>
 
-            <section className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
+            <div className="ac-panel journal-history" aria-label="Historique détaillé">
+              <div className="journal-history-heading"><h3>Historique détaillé</h3>
+                <div className="journal-view-switch" role="group" aria-label="Type de journal">
+                  <button type="button" className="secondary" aria-pressed={journalView === 'audit'} onClick={() => setJournalView('audit')}>Historique détaillé</button>
+                  <button type="button" className="secondary" aria-pressed={journalView === 'api'} onClick={() => setJournalView('api')}>Journal des appels API</button>
+                </div>
+              </div>
+            {journalView === 'audit' ? <section className="ac-panel ac-audit-table-panel" aria-label="Événements du journal">
               <div className="ac-panel-head" style={{ marginBottom: 12 }}>
                 <div>
                   <h3>
@@ -3188,7 +3174,6 @@ if (loading && !settings) return (
                     )}
                     {auditLog.map((row: any) => {
                       const actor = formatAuditActor(row);
-                      const summary = formatAuditSummary(row);
                       const tone = auditPillTone(row.action);
                       const resource = (() => {
                         const ent = String(row.entity || '');
@@ -3229,13 +3214,13 @@ if (loading && !settings) return (
                             <button
                               type="button"
                               className="ac-audit-detail-link ac-audit-detail-btn"
-                              aria-label={`Inspecter : ${summary}`}
+                              aria-label="Détails"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setAuditDetailRow(row);
                               }}
                             >
-                              <span className="ac-audit-detail-text">{summary}</span>
+                              <span className="ac-audit-detail-text">Détails</span>
                               <ChevronRight className="ac-audit-detail-chev" size={14} strokeWidth={2} aria-hidden="true" />
                             </button>
                           </td>
@@ -3246,8 +3231,8 @@ if (loading && !settings) return (
                 </table>
               </div>
 
-            </section>
-            <ApiLogPanel />
+            </section> : <ApiLogPanel />}
+            </div>
           </div>
         );
       })()}

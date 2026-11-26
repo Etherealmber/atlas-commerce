@@ -34,13 +34,14 @@ type Release = {
 };
 
 
-// Draft for the next release. Keep unpublished until the 0.9.4 release is ready.
+// 0.9.4 release notes; publication happens when this branch is deployed.
 export const UPCOMING_RELEASE_094: Release = {
   version: '0.9.4',
-  date: '',
+  date: '27 novembre 2026',
   sections: [
     { kind: 'improvements', items: [
       { id: '094i1', platforms: ['web', 'android'], text: 'Langues : traduction élargie en arabe et en anglais, avec des améliorations de la mise en page de droite à gauche.' },
+      { id: '094i10', platforms: ['web', 'android'], text: 'Les langues arabe et anglaise sont en cours de développement et nécessitent encore des améliorations.' },
       { id: '094i2', platforms: ['web'], text: 'Navigation : calendrier et pagination améliorés, et davantage de place pour les pages lorsque Atlas Agent est ouvert.' },
       { id: '094i3', platforms: ['web'], text: 'Pour tous : Atlas Commerce se rapproche de sa sortie de bêta. Merci de nous accompagner !' },
       { id: '094i4', platforms: ['desktop'], text: 'À suivre : une application bureau inspirée du site, avec des fonctionnalités, un cache et un démarrage avec votre ordinateur. Nous visons une expérience plus légère que Chrome ; les performances restent à mesurer.' },
@@ -54,6 +55,7 @@ export const UPCOMING_RELEASE_094: Release = {
 };
 
 export const RELEASES: Release[] = [
+  UPCOMING_RELEASE_094,
   {
     version: '0.9.3',
     date: '25 novembre 2026',
@@ -1430,14 +1432,6 @@ export default function WhatsNew() {
       >
         Nouveautés
       </motion.h1>
-
-      <details className="wn-upcoming">
-        <summary><strong>0.9.4 — Nouveautés ajoutées jusqu’à présent</strong></summary>
-        <p>La version 0.9.4 n’est pas encore publiée.</p>
-        {UPCOMING_RELEASE_094.sections.map(section => <ul key={section.kind} className="wn-list">
-          {section.items.map(item => <li key={item.id}>{item.text}</li>)}
-        </ul>)}
-      </details>
 
       <motion.section
         className="wn-thanks-card"

@@ -6,7 +6,7 @@ import { useLang } from '../../i18n/core';
 type Result = Awaited<ReturnType<typeof api.explainLogLine>>['data'];
 
 /** Only requests an explanation after an explicit click; never sends raw row data from the browser. */
-export function AuditAgentExplanation({ id }: { id: number }) {
+export function AuditAgentExplanation({ id, kind = 'audit' }: { id: number; kind?: 'audit' | 'api' }) {
   const lang = useLang();
   const [result, setResult] = useState<Result | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -14,12 +14,12 @@ export function AuditAgentExplanation({ id }: { id: number }) {
   useEffect(() => {
     setResult(null); setStatus('idle');
     return () => { generation.current += 1; };
-  }, [id, lang]);
+  }, [id, kind, lang]);
   async function explain() {
     const current = ++generation.current;
     setStatus('loading');
     try {
-      const response = await api.explainLogLine('audit', id, lang);
+      const response = await api.explainLogLine(kind, id, lang);
       if (current === generation.current) { setResult(response.data); setStatus('idle'); }
     } catch { if (current === generation.current) setStatus('error'); }
   }
@@ -32,7 +32,7 @@ export function AuditAgentExplanation({ id }: { id: number }) {
     {status === 'error' && <p role="alert">Explication indisponible. Réessayez.</p>}
     {result && <div className="audit-agent-result" aria-live="polite">
       <strong>{result.risk === 'suspect' ? 'Suspect' : result.risk === 'à surveiller' ? 'À surveiller' : 'Normal'}</strong>
-      <p dir="auto">{result.summary}</p><p dir="auto">{result.advice}</p>
+      <p className="audit-agent-summary" dir="auto">{result.summary}</p><p className="audit-agent-advice" dir="auto">{result.advice}</p>
       <small>{result.source === 'rules' ? 'Explication automatique sans IA.' : 'Explication générée par IA.'} Vérifiez les faits avant toute action.</small>
     </div>}
   </section>;

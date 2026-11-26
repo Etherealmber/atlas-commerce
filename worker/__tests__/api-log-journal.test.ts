@@ -121,6 +121,14 @@ describe('API journal', () => {
     expect(requestBody).not.toContain('185.1.1.1');
     expect(requestBody).not.toContain('/api/auth/login');
     expect(requestBody).not.toContain('Amsterdam');
+    const auditFetcher = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ summary: 'Agent event.', risk: 'normal', advice: 'Review.' }) } }] }), { status: 200 }));
+    await explainLogLine({ GROQ_API_KEY: 'k' }, { kind: 'audit', id: 44, action: 'assist.chat.stream', ip: '192.0.2.4', detail: 'sensitive', status: 200 }, auditFetcher);
+    const auditBody = JSON.parse(String(auditFetcher.mock.calls[0][1].body));
+    const data = JSON.parse(auditBody.messages[1].content);
+    expect(data).toMatchObject({ kind: 'audit', action: 'assist.chat.stream', status: null, method: null });
+    expect(JSON.stringify(auditBody)).not.toContain('192.0.2.4');
+    expect(JSON.stringify(auditBody)).not.toContain('sensitive');
+    expect(auditBody.messages[0].content).toContain('ne dis jamais que la requête a réussi ou échoué');
     const arabicRules = await explainLogLine({}, { ...line, language: 'ar' });
     const englishRules = await explainLogLine({}, { ...line, language: 'en' });
     expect(arabicRules.summary).toContain('الحدث');

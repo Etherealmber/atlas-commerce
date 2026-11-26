@@ -50,7 +50,7 @@ export default function AuditIpCell({ ip, geo, compact = false }: { ip?: string 
       {geo?.label ? (
         <span className={`ac-ip-net ac-ip-net--${tone}`}>
           <Icon size={11} strokeWidth={2.2} aria-hidden="true" />
-          <bdi dir="auto">{geo.risky ? geo.label : geo.as_org ? geo.as_org.slice(0, 28) : geo.label}</bdi>
+          <bdi dir="auto">{geo.risky ? geo.label : geo.as_org ? geo.as_org : geo.label}</bdi>
         </span>
       ) : null}
     </span>
