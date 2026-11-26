@@ -55,17 +55,20 @@ describe('groqChatStreamWithTools (lib)', () => {
 
     const tokens: string[] = [];
     const tools: any[] = [];
+    const activity: string[] = [];
     const out = await groqChatStreamWithTools({
       apiKey: 'k',
       system: 'sys',
       message: 'stock ?',
       tools: [{ type: 'function', function: { name: 'warehouse_stock' } }],
-      executor: async (name, args) => ({ ok: true, data: { name, args, qty: 42 } }),
+      executor: async (name, args) => { activity.push('execute'); return { ok: true, data: { name, args, qty: 42 } }; },
       onToken: (t) => tokens.push(t),
-      onTool: (t) => tools.push(t),
+      onToolStart: () => activity.push('start'),
+      onTool: (t) => { activity.push('done'); tools.push(t); },
       fetchImpl,
     });
 
+    expect(activity).toEqual(['start', 'execute', 'done']);
     expect(tokens.join('')).toBe('Stock: 42 unités'); // flux vivant conservé
     expect(tools).toEqual([{ name: 'warehouse_stock', ok: true, error: undefined, data: { name: 'warehouse_stock', args: { warehouse: 'A' }, qty: 42 } }]);
     expect(out.tool_trace).toHaveLength(1);
@@ -277,6 +280,8 @@ describe('POST /api/assist/chat/stream — parité outils (v0.7.8)', () => {
     expect(names).toContain('get_dashboard_snapshot');
     expect(names).toContain('list_unpaid_invoices'); // money tools allowed for owner
     expect(groqBodies[0]).toMatchObject({ stream: true, tool_choice: 'auto' });
+    expect(r.text).toContain('event: tool_start');
+    expect(r.text.indexOf('event: tool_start')).toBeLessThan(r.text.indexOf('event: tool\n'));
     expect(r.text).toContain('event: tool');
     expect(r.text).toContain('get_dashboard_snapshot');
     expect(r.text).toContain('event: token');

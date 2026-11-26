@@ -9,6 +9,7 @@
  */
 import type { Env } from '../../env';
 import { DEMO_PASSWORD, DEMO_USERNAME } from './policy';
+import { isDemoD1 } from './demoD1';
 
 /** Non-secret `vars` copied as-is (see wrangler.jsonc). */
 const SAFE_VARS = [
@@ -85,6 +86,8 @@ async function sha256Hex(s: string): Promise<string> {
 }
 
 export async function buildDemoEnv(env: Env, db: D1Database, sandboxKey: string): Promise<Env> {
+  // Never allow a misconfigured caller to hand the demo a real D1 binding.
+  if (!isDemoD1(db)) throw new Error('DEMO_ISOLATION_INVALID');
   const demo: Record<string, unknown> = {};
   for (const name of SAFE_VARS) {
     const v = (env as any)[name];

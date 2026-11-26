@@ -5,6 +5,7 @@ export type WorkStatusSource = {
   error?: string | null;
 };
 
+import { readAgentStream } from './lib/agentStream';
 import { getToken, clearToken, refreshSessionRole, getRefreshedTokenFor } from './auth';
 import { getLang } from './i18n/core';
 import { getCachedFingerprint } from './fingerprint';
@@ -42,7 +43,7 @@ function cacheTtlForPath(path: string): number {
   return GET_CACHE_TTL[base] ?? 0;
 }
 
-async function requestRaw<T>(path: string, options?: RequestInit & { silent?: boolean }): Promise<T> {
+async function requestRaw<T>(path: string, options?: RequestInit & { silent?: boolean; onAgentEvent?: (event: string, data: any) => void }): Promise<T> {
   const token = getToken();
   let requestToken = token;
   const fp = await getCachedFingerprint().catch(() => 'none');
@@ -84,7 +85,7 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
       }
       break;
     } catch (e) {
-      if ((e as any)?.roleRefreshFailure) throw e;
+      if ((e as any)?.roleRefreshFailure || (e as any)?.name === 'AbortError') throw e;
       if (isIdempotentGet && attempt < maxAttempts - 1) {
         await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
         continue;
@@ -104,6 +105,13 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
   if (requestToken && getToken() !== requestToken) {
     throw new Error('La session a changé. Réessayez.');
   }
+  if (res.ok && options?.onAgentEvent && res.headers.get('content-type')?.includes('text/event-stream') && res.body) {
+    const data = await readAgentStream(res.body, options.onAgentEvent, () => {
+      if (requestToken && getToken() !== requestToken) throw new Error('La session a changé. Réessayez.');
+    });
+    return { data } as T;
+  }
+  if (res.ok && options?.onAgentEvent) throw new Error('Le flux de l’agent est indisponible. Réessayez.');
   const text = await res.text();
   if (requestToken && getToken() !== requestToken) throw new Error('La session a changé. Réessayez.');
   let data: any = {};
@@ -250,7 +258,7 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
  * - GET: in-flight dedupe + optional short TTL cache for reference data
  * - Mutations: invalidate related GET caches
  */
-async function request<T>(path: string, options?: RequestInit & { silent?: boolean }): Promise<T> {
+async function request<T>(path: string, options?: RequestInit & { silent?: boolean; onAgentEvent?: (event: string, data: any) => void }): Promise<T> {
   const method = (options?.method || 'GET').toUpperCase();
   if (method === 'GET') {
     // Explicit refreshes must not reuse a request that started before a mutation.
@@ -464,6 +472,8 @@ export const api = {
       page_title?: string;
       exec_mode?: string;
       agent_perm_mode?: string;
+      signal?: AbortSignal;
+      onAgentEvent?: (event: string, data: any) => void;
       images?: string[];
       product?: {
         name: string;
@@ -485,8 +495,10 @@ export const api = {
         tool_trace?: { name: string; ok: boolean; error?: string; data?: unknown }[];
         proposals?: Array<Record<string, unknown> & { proposal_id?: string | null }>;
       };
-    }>('/api/assist/chat', {
+    }>(opts?.onAgentEvent ? '/api/assist/chat/stream' : '/api/assist/chat', {
       method: 'POST',
+      signal: opts?.signal,
+      onAgentEvent: opts?.onAgentEvent,
       body: JSON.stringify({
         message,
         user_message: opts?.user_message || message,

@@ -12,6 +12,7 @@ export type ErrorCode =
   | 'VALIDATION'
   | 'INTERNAL'
   | 'SERVICE_UNAVAILABLE'
+  | 'DB_QUOTA_EXCEEDED'
   | 'DB_CORRUPT'
   | 'TIMEOUT';
 
@@ -25,6 +26,7 @@ const STATUS: Record<ErrorCode, number> = {
   VALIDATION: 422,
   INTERNAL: 500,
   SERVICE_UNAVAILABLE: 503,
+  DB_QUOTA_EXCEEDED: 503,
   DB_CORRUPT: 503,
   TIMEOUT: 504,
 };
@@ -40,6 +42,7 @@ const SAFE_DEFAULTS: Record<ErrorCode, string> = {
   VALIDATION: 'Données invalides',
   INTERNAL: 'Erreur interne — réessayez plus tard',
   SERVICE_UNAVAILABLE: 'Service temporairement indisponible',
+  DB_QUOTA_EXCEEDED: 'La limite quotidienne de la base de données est atteinte. Réessayez après minuit UTC ou contactez l’administrateur.',
   DB_CORRUPT: 'Base de données D1 corrompue (SQLITE_CORRUPT) — aucune écriture n’est possible tant qu’une restauration Cloudflare (TimeTravel / backup) n’a pas été faite. Contactez l’administrateur puis réessayez.',
   TIMEOUT: 'Délai dépassé — réessayez',
 };
@@ -92,6 +95,13 @@ export function toClientError(err: unknown, options?: { log?: boolean }): {
 
     if (name === 'AbortError' || /aborted|timeout|timed out/i.test(msg)) {
       return { status: 504, code: 'TIMEOUT', error: SAFE_DEFAULTS.TIMEOUT };
+    }
+
+    // Match Cloudflare's documented quota error precisely; never infer quota
+    // exhaustion from generic D1 failures or expose the raw driver message.
+    if (/your account has exceeded D1.s free tier daily row (?:read|write) limit/i.test(msg)) {
+      if (options?.log !== false) console.error('[db-quota-exceeded]');
+      return { status: 503, code: 'DB_QUOTA_EXCEEDED', error: SAFE_DEFAULTS.DB_QUOTA_EXCEEDED };
     }
 
     if (DB_CORRUPT_RE.test(msg)) {

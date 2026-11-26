@@ -21,6 +21,10 @@ export interface Env {
   /** Optional private R2 shadow journal; never bind the public image bucket. */
   JOURNAL_ARCHIVE?: R2Bucket;
   JOURNAL_ARCHIVE_MODE?: string;
+  /** Optional best-effort audit shadow, disabled unless explicitly enabled. */
+  JOURNAL_AUDIT_SHADOW?: string;
+  JOURNAL_AUDIT_NAMESPACE?: string;
+  JOURNAL_AUDIT_TARGET_NAMESPACE?: string;
   /** Dedicated base64-encoded 32-byte secret, never stored in source. */
   JOURNAL_ENCRYPTION_KEY?: string;
   /** Cloudflare Secret — never commit */

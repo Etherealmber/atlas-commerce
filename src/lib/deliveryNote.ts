@@ -13,6 +13,14 @@ export function deliveryNotePrintUrl(id: number | string): string {
   return `${BASE}/api/delivery-notes/${id}/print?token=${encodeURIComponent(getToken() || '')}`;
 }
 
+/** Reopen a previously created note without issuing a create request. */
+export function openExistingDeliveryNote(id: number): void {
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Bon de livraison invalide.');
+  const tab = window.open(deliveryNotePrintUrl(id), '_blank');
+  if (!tab) throw new Error('Autorisez les fenêtres contextuelles pour ouvrir le bon de livraison, puis réessayez.');
+  try { tab.opener = null; } catch { /* ignore */ }
+}
+
 /** Opens an empty tab right now (inside the click) for a BL created later. */
 export function reserveDeliveryNoteTab(): Window | null {
   try { return window.open('', '_blank'); } catch { return null; }

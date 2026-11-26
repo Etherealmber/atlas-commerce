@@ -1,4 +1,5 @@
 import { otpCopy } from './lib/otpCopy';
+import { withAuditShadow } from './lib/auditShadow';
 import { REPORT_TICKET_PATHS, mintScopedReportTicket, verifyScopedReportTicket, verifyScopedPrintTicket } from './lib/report-ticket';
 import { withLedgerCreators } from './lib/documentCreators';
 import { verifyArchiveIdentity } from './lib/finance-report-archive-validation';
@@ -691,7 +692,16 @@ app.use('*', async (c, next) => {
       }
     }
   }
-  await next();
+  if (c.env.JOURNAL_AUDIT_SHADOW === '1' && c.env.ATLAS_DEMO !== '1') {
+    // Some test/embedded callers have no ExecutionContext. Do not break the
+    // request when shadow scheduling is unavailable; emit a fixed diagnostic.
+    let executionCtx: { waitUntil(promise: Promise<unknown>): void } | undefined;
+    try { executionCtx = c.executionCtx; } catch { console.error('audit_shadow_context_unavailable'); }
+    if (executionCtx) await withAuditShadow(c.env, executionCtx, () => next());
+    else await next();
+  } else {
+    await next();
+  }
 });
 
 app.use('/api/*', async (c, next) => {

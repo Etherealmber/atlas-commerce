@@ -44,6 +44,21 @@ function IconRetry({ size = 14 }: { size?: number }) {
 
 
 type ToolTrace = { name: string; ok?: boolean; error?: string; data?: unknown };
+const TOOL_LABELS: Record<string, string> = {
+  get_dashboard_snapshot: 'Consulter le tableau de bord', search_products: 'Rechercher des produits',
+  get_product: 'Consulter un produit', list_actions_pending: 'Consulter les actions en attente',
+  list_open_quotes: 'Consulter les devis', list_unpaid_invoices: 'Consulter les factures impayées',
+  warehouse_stock: 'Consulter le stock', list_low_stock: 'Consulter les stocks bas',
+  search_clients: 'Rechercher des clients', list_recent_invoices: 'Consulter les factures',
+  get_invoice_brief: 'Consulter une facture', list_warehouses: 'Consulter les entrepôts',
+  summarize_pending_actions: 'Résumer les actions en attente', draft_day_close_report: 'Préparer un rapport',
+  draft_client_message: 'Préparer un message client', propose_inventory_adjustment: 'Préparer un ajustement de stock',
+  propose_quote_lines: 'Préparer un devis', create_client: 'Créer un client', create_product: 'Créer un produit',
+  update_client: 'Modifier un client', update_product: 'Modifier un produit',
+  create_invoice_draft: 'Préparer une facture', create_quote_draft: 'Préparer un devis',
+};
+function toolLabel(name: string): string { return TOOL_LABELS[name] || name.replace(/_/g, ' '); }
+
 type Msg = {
   role: 'user' | 'assistant';
   text: string;
@@ -707,6 +722,9 @@ export default function AtlasAgent() {
     return saved.length ? saved : [WELCOME];
   });
   const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
+  const [liveTools, setLiveTools] = useState<ToolTrace[]>([]);
+  const [activeTool, setActiveTool] = useState('');
+  const [receivingReply, setReceivingReply] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevPath = useRef(location.pathname);
   const abortRef = useRef<AbortController | null>(null);
@@ -1280,6 +1298,9 @@ export default function AtlasAgent() {
       }
 
       setBusy(true);
+      setLiveTools([]);
+      setActiveTool('');
+      setReceivingReply(false);
       abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
@@ -1314,6 +1335,16 @@ export default function AtlasAgent() {
           images: files.filter((f) => (f.type || '').startsWith('image/')).map((f) => sanitizeImageDataUrl(f.data_url)).filter(Boolean).slice(0, 4),
           exec_mode: execMode,
           agent_perm_mode: agentPermMode,
+          signal: ac.signal,
+          onAgentEvent: (event, data) => {
+            if (ac.signal.aborted) return;
+            if (event === 'tool_start' && typeof data?.name === 'string') {
+              setActiveTool(data.name);
+            } else if (event === 'tool' && typeof data?.name === 'string') {
+              setActiveTool('');
+              setLiveTools((items) => [...items, { name: data.name, ok: data.ok !== false }]);
+            } else if (event === 'token') setReceivingReply(true);
+          },
         });
         if (ac.signal.aborted) return;
         const ms = Math.round(performance.now() - t0);
@@ -1336,7 +1367,7 @@ export default function AtlasAgent() {
         if (ac.signal.aborted) {
           setMsgs((m) => [
             ...m,
-            { role: 'assistant', text: 'Requête arrêtée.', ms: Math.round(performance.now() - t0) },
+            { role: 'assistant', text: 'Réception arrêtée. Une action déjà lancée peut se poursuivre.', ms: Math.round(performance.now() - t0) },
           ]);
           return;
         }
@@ -1344,7 +1375,7 @@ export default function AtlasAgent() {
           ...m,
           {
             role: 'assistant',
-            text: (friendlyError(e) || 'Je ne peux pas répondre pour le moment.') + '\n\n💡 Exemples de demandes que je sais traiter : « Résumé stock bas », « Rapport des ventes du jour », « Créer un client », « Ajouter une dépense de 200 DH », « Combien d\'actions en attente ? », « Que faire sur cette page ? ».',
+            text: friendlyError(e) || 'Je ne peux pas répondre pour le moment.',
             ms: Math.round(performance.now() - t0),
             failed: true,
             prompt: q,
@@ -1352,6 +1383,9 @@ export default function AtlasAgent() {
         ]);
       } finally {
         setBusy(false);
+        setLiveTools([]);
+        setActiveTool('');
+        setReceivingReply(false);
         abortRef.current = null;
       }
     },
@@ -1364,7 +1398,6 @@ export default function AtlasAgent() {
       window.clearInterval(streamTimer.current);
       streamTimer.current = null;
     }
-    setBusy(false);
     setMsgs((m) =>
       m.map((x) => (x.streaming ? { ...x, streaming: false } : x)),
     );
@@ -1433,9 +1466,10 @@ export default function AtlasAgent() {
           }}
         />
         <header className="atlas-agent-head">
-          <div>
-            <strong>Atlas Agent</strong>
-            <span>Je suis là pour vous aider sur Atlas Commerce</span>
+          <div className="atlas-agent-identity">
+            <span className="atlas-agent-identity-mark" aria-hidden="true">✦</span>
+            <div><strong>Atlas Agent</strong>
+            <span>Je suis là pour vous aider sur Atlas Commerce</span></div>
           </div>
           {!isPhoneShell && (
           <div className="atlas-agent-head-actions">
@@ -1525,10 +1559,11 @@ export default function AtlasAgent() {
           </div>
         )}
 
-        <div className="atlas-agent-body">
+        <div className="atlas-agent-body" role="log" aria-label="Conversation Atlas Agent" aria-live="polite" aria-relevant="additions">
           {loadingThread && !msgs.some((m) => m.role === 'user') && <AtlasAgentShimmerBody rows={2} />}
           {!(loadingThread && !msgs.some((m) => m.role === 'user')) && msgs.filter((m) => !(m.streaming && !String(m.text || '').trim())).map((m, i) => (
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
+              <span className="atlas-agent-msg-label">{m.role === 'assistant' ? 'Atlas Agent' : 'Vous'}</span>
               <div className="atlas-agent-bubble">
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
                 {m.role === 'user' && ((m as any).fileNames || []).length ? (
@@ -1660,16 +1695,17 @@ export default function AtlasAgent() {
                   <button
                     type="button"
                     className="atlas-agent-tools-toggle"
+                    aria-expanded={!!expandedTools[i]}
                     onClick={() => setExpandedTools((s) => ({ ...s, [i]: !s[i] }))}
                   >
-                    {expandedTools[i] ? '▾' : '▸'} {m.tools.length} outil{m.tools.length > 1 ? 's' : ''}
+                    {expandedTools[i] ? '▾' : '▸'} Activité · {m.tools.length} outil{m.tools.length > 1 ? 's' : ''}
                   </button>
                   {expandedTools[i] && (
                     <ul className="atlas-agent-tools-list">
                       {m.tools.map((t, j) => (
                         <li key={j} className={t.ok ? 'ok' : 'bad'}>
-                          <code>{t.name}</code>
-                          <span>{t.ok ? 'OK' : t.error || 'échec'}</span>
+                          <span>{toolLabel(t.name)}</span>
+                          <span>{t.ok ? 'Terminé' : 'Échec'}</span>
                         </li>
                       ))}
                     </ul>
@@ -1764,10 +1800,12 @@ export default function AtlasAgent() {
           ))}
           {busy && (
             <div className="atlas-agent-msg assistant">
-              <div className="atlas-agent-bubble thinking atlas-agent-thinking-row">
+              <span className="atlas-agent-msg-label">Atlas Agent</span>
+              <div className="atlas-agent-bubble thinking atlas-agent-thinking-row" role="status">
+
                 <LatticeLoader
                   status="working"
-                  label="Réflexion"
+                  label={receivingReply ? 'Préparation de la réponse' : 'Réflexion'}
                   doneLabel="Terminé en"
                   errorLabel="Échec après"
                   pattern="orbit"
@@ -1783,10 +1821,15 @@ export default function AtlasAgent() {
                   idleOpacity={0.15}
                   showTimer
                 />
-                <button type="button" className="atlas-agent-stop secondary" onClick={stop}>
+                <button type="button" className="atlas-agent-stop secondary" onClick={stop} title="Arrêter la réception ; une action déjà lancée peut se poursuivre">
                   Arrêter
                 </button>
               </div>
+              {(liveTools.length > 0 || activeTool) && <div className="atlas-agent-live-activity" aria-label="Activité des outils">
+                <strong>Activité</strong>
+                {liveTools.map((tool, index) => <div key={index}><span>{toolLabel(tool.name)}</span><span>{tool.ok ? 'Terminé' : 'Échec'}</span></div>)}
+                {activeTool && <div><span>{toolLabel(activeTool)}</span><span>En cours…</span></div>}
+              </div>}
               {!isPhoneShell && !msgs.some((m) => m.streaming && String(m.text || '').trim()) && (
                 <div className="atlas-agent-shimmer-reply" aria-hidden="true">
                   <div className="skeleton" style={{ height: 10, width: '88%', marginBottom: 8 }} />

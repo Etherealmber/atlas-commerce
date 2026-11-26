@@ -1317,6 +1317,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
               tools: chatTools,
               executor: agentKnowledgeExecutor(c, username, role, chatTools),
               onToken: (delta) => send('token', { t: delta }),
+              onToolStart: (name) => send('tool_start', { name }),
               onTool: (t) => send('tool', t),
             });
             toolTrace = out.tool_trace || [];

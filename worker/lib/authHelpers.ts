@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Env } from '../env';
+import { enqueueAuditShadow } from './auditShadow';
 import { schemaOnce, addColumnIfMissing } from './schema';
 import { normalizeIp } from './security';
 import { reserveCredentialAttempt, type CredentialAttemptPurpose } from './credential-attempt-limits';
@@ -356,7 +357,7 @@ export async function writeAudit(
 ) {
   try {
     await ensureSecurityTables(db);
-    await db.prepare(
+    const result = await db.prepare(
       `INSERT INTO audit_log (username, role, action, entity, entity_id, detail, ip) VALUES (?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       opts.username || null,
@@ -367,7 +368,12 @@ export async function writeAudit(
       opts.detail || null,
       opts.ip || null
     ).run();
-  } catch { /* never break business flow */ }
+    enqueueAuditShadow(db, result?.meta?.last_row_id);
+  } catch {
+    // Preserve the existing business-flow contract, but make missing audit writes
+    // observable without logging user data, IP addresses, or raw database errors.
+    console.error('audit_journal_write_failed');
+  }
 }
 
 export async function makeSessionProof(
