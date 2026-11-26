@@ -28,8 +28,9 @@ on:
           - list
           - apply
           - setup-target
+          - journal-setup
       confirm:
-        description: 'Type APPLY to confirm (needed for apply and setup-target)'
+        description: 'Type APPLY for D1 changes, or CREATE-JOURNAL to provision a new private journal bucket'
         required: false
         default: ''
         type: string
@@ -43,6 +44,7 @@ concurrency:
 
 jobs:
   migrations:
+    if: inputs.action != 'journal-setup'
     name: D1 migrations — ${{ inputs.action }} (production)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -154,3 +156,46 @@ jobs:
             echo '```'
             echo "Next: redeploy the Worker (it binds atlas-db by name), then open Paramètres › Base de données — the panel detects DB_TARGET."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  journal-setup:
+    if: inputs.action == 'journal-setup'
+    name: Provision private journal bucket (no deployment)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+    steps:
+      - name: Require explicit confirmation
+        if: inputs.confirm != 'CREATE-JOURNAL'
+        run: echo '::error::Confirmation required; no resource was modified.' && exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Resolve account
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo '::error::Cloudflare token missing'; exit 1; }
+          id="${CLOUDFLARE_ACCOUNT_ID:-}"
+          if [ -z "$id" ] && [ -n "$CF_ZONE_ID" ]; then
+            id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID" | jq -r '.result.account.id // empty')
+          fi
+          test -n "$id" || { echo '::error::Cloudflare account ID not resolved'; exit 1; }
+          echo "::add-mask::$id"
+          echo "CLOUDFLARE_ACCOUNT_ID=$id" >> "$GITHUB_ENV"
+      - name: Create new private bucket and set 30-day retention
+        run: |
+          set -euo pipefail
+          bucket=atlas-commerce-private-api-journal-1
+          # Create only; never modify an existing bucket whose privacy is unknown.
+          npx wrangler r2 bucket create "$bucket"
+          npx wrangler r2 bucket lifecycle add "$bucket" journal-expire-30d api-journal/ --expire-days 30 --force
+          npx wrangler r2 bucket lifecycle list "$bucket"
+          npx wrangler r2 bucket dev-url get "$bucket"
+          npx wrangler r2 bucket domain list "$bucket"
+          echo 'Created bucket and requested 30-day expiry. Verify the output confirms the bucket has no public domain or dev URL before binding it. No Worker secret or deployment was changed.' >> "$GITHUB_STEP_SUMMARY"
