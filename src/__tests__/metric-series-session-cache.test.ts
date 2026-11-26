@@ -27,3 +27,17 @@ it('keeps stale data visible during refresh but never across sessions', async ()
   expect(seen.at(-1).data).toBeNull();
   off();
 });
+
+ it('notifies existing subscribers immediately when a new subscriber observes logout', async () => {
+  mocks.get.mockResolvedValueOnce(payload(100));
+  const first: any[] = [];
+  const offFirst = subscribeMetricSeries((s) => first.push(s));
+  await loadMetricSeries();
+  expect(first.at(-1).data.series.money_in).toEqual([100]);
+  mocks.token = null;
+  const second: any[] = [];
+  const offSecond = subscribeMetricSeries((s) => second.push(s));
+  expect(first.at(-1).data).toBeNull();
+  expect(second.at(-1).data).toBeNull();
+  offFirst(); offSecond();
+});

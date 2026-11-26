@@ -4541,3 +4541,9 @@ html[data-theme="dark"] body .ph-donut-legend button.is-sel:not(#ph-dn-g):not(#p
 html[data-theme="dark"] .ph-flow-lbl { color: #a1a1aa; }
 html[data-theme="dark"] .ph-chart-net.is-up, html[data-theme="dark"] .ph-flow-net.is-up { background: rgba(34, 197, 94, .14); color: #4ade80; }
 html[data-theme="dark"] .ph-chart-net.is-down, html[data-theme="dark"] .ph-flow-net.is-down { background: rgba(239, 68, 68, .14); color: #f87171; }
+
+/* Keep long drafts scrollable without consuming the space above the keyboard. */
+html.phone-shell .ph-agent-composer textarea.ph-agent-input {
+  max-height: max(56px, min(120px, calc(var(--ph-agent-visible-height, 100dvh) * .3))) !important;
+  overflow-y: auto;
+}

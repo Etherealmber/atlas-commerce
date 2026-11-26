@@ -52,7 +52,7 @@ import PageSkeleton, { DesktopTableSkeleton } from '../components/PageSkeleton';
 import GithubReportsPanel from '../components/settings/GithubReportsPanel';
 import ApiLogPanel from '../components/audit/ApiLogPanel';
 import AuditIpCell from '../components/audit/AuditIpCell';
-import ExplainLogDialog, { ExplainButton } from '../components/audit/ExplainLogDialog';
+import { AuditRequestDetails } from '../components/audit/AuditRequestDetails';
 import BackupStatusStrip from '../components/settings/BackupStatusStrip';
 import { AlertsPanel } from '../components/atlas-v209-panels';
 import AgentPermissionsPanel from '../components/AgentPermissionsPanel';
@@ -268,14 +268,15 @@ export default function Settings() {
   const [catalogDialogError, setCatalogDialogError] = useState('');
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [auditDetailRow, setAuditDetailRow] = useState<any | null>(null);
-  const [auditExplain, setAuditExplain] = useState<{ kind: 'audit' | 'api'; id: number; title?: string } | null>(null);
-  const closeAuditExplain = useCallback(() => setAuditExplain(null), []);
   useEffect(() => {
     if (!auditDetailRow) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setAuditDetailRow(null); };
+    window.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
     };
   }, [auditDetailRow]);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -2613,7 +2614,7 @@ if (loading) return (
             </div>
           </div>
           <button type="button" data-visual-review="category-create" onClick={() => { closeCategoryDialog(); setCategoryDialogOpen(true); }}>+ Ajouter une catégorie</button>
-          {categoryDialogOpen && <SettingsUserDialog titleId="category-dialog-title" onClose={closeCategoryDialog}>
+          {categoryDialogOpen && <SettingsUserDialog titleId="category-dialog-title" dismissDisabled={catSaving} onClose={closeCategoryDialog}>
           <h2 id="category-dialog-title">{editingCat ? 'Modifier la catégorie' : 'Ajouter une catégorie'}</h2>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
             <label htmlFor="category-dialog-name">Nom de la catégorie *</label>
@@ -2647,8 +2648,10 @@ if (loading) return (
                     flash('Catégorie créée.');
                   }
                   closeCategoryDialog();
-                  const r = await api.getCategories();
-                  setCategories(r.data || []);
+                  try {
+                    const r = await api.getCategories();
+                    setCategories(r.data || []);
+                  } catch { toast('Enregistré, mais actualisation des catégories impossible. Actualisez la page.', 'error'); }
                 } catch (e: any) { setCatalogDialogError(e.message || 'Enregistrement impossible.'); }
                 finally { setCatSaving(false); }
               }}
@@ -2692,9 +2695,9 @@ if (loading) return (
                         onConfirm={async () => {
                           try {
                             await api.deleteCategory(cat.id || 'by-name', '', cat.name);
-                            const r = await api.getCategories();
-                            setCategories(r.data || []);
                             flash('Catégorie supprimée.');
+                            try { const r = await api.getCategories(); setCategories(r.data || []); }
+                            catch { toast('Supprimé, mais actualisation des catégories impossible. Actualisez la page.', 'error'); }
                           } catch (err: any) {
                             flash(err?.message || 'Suppression impossible', 'error');
                           }
@@ -2715,7 +2718,7 @@ if (loading) return (
             Ex. unité, kg, carton — modifiables et supprimables par l&apos;admin.
           </p>
           <button type="button" data-visual-review="unit-create" onClick={() => { closeUnitDialog(); setUnitDialogOpen(true); }}>+ Ajouter unité</button>
-          {unitDialogOpen && <SettingsUserDialog titleId="unit-dialog-title" onClose={closeUnitDialog}>
+          {unitDialogOpen && <SettingsUserDialog titleId="unit-dialog-title" dismissDisabled={catSaving} onClose={closeUnitDialog}>
           <h2 id="unit-dialog-title">{editingUnit ? 'Modifier l’unité' : 'Ajouter une unité'}</h2>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
             <label htmlFor="unit-dialog-name">Nom de l&apos;unité *</label>
@@ -2734,8 +2737,10 @@ if (loading) return (
                   flash('Unité créée.');
                 }
                 closeUnitDialog();
-                const r = await api.getUnits();
-                setUnits(r.data || []);
+                try {
+                  const r = await api.getUnits();
+                  setUnits(r.data || []);
+                } catch { toast('Enregistré, mais actualisation des unités impossible. Actualisez la page.', 'error'); }
               } catch (e: any) { setCatalogDialogError(e.message || 'Enregistrement impossible.'); }
               finally { setCatSaving(false); }
             }}>{editingUnit ? 'Enregistrer' : '+ Ajouter unité'}</button>
@@ -2761,9 +2766,9 @@ if (loading) return (
                             onConfirm={async () => {
                               try {
                                 await api.deleteUnit(u.id || 'by-name', '', u.name);
-                                const r = await api.getUnits();
-                                setUnits(r.data || []);
                                 flash('Unité supprimée.');
+                                try { const r = await api.getUnits(); setUnits(r.data || []); }
+                                catch { toast('Supprimé, mais actualisation des unités impossible. Actualisez la page.', 'error'); }
                               } catch (err: any) {
                                 flash(err?.message || 'Suppression impossible', 'error');
                               }
@@ -3197,7 +3202,6 @@ if (loading) return (
                               <span className="ac-audit-detail-text">{summary}</span>
                               <ChevronRight className="ac-audit-detail-chev" size={14} strokeWidth={2} aria-hidden="true" />
                             </button>
-                            {row.id ? <ExplainButton onClick={() => setAuditExplain({ kind: 'audit', id: Number(row.id), title: `${row.action || ''} · ${actor.title}` })} /> : null}
                           </td>
                         </tr>
                       );
@@ -3208,7 +3212,6 @@ if (loading) return (
 
             </section>
             <ApiLogPanel />
-            <ExplainLogDialog target={auditExplain} onClose={closeAuditExplain} />
           </div>
         );
       })()}
@@ -4166,9 +4169,10 @@ if (loading) return (
               aria-labelledby="audit-detail-title"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 id="audit-detail-title" style={{ marginTop: 0 }}>
-                Détail de l’entrée
-              </h3>
+              <div className="audit-detail-heading">
+                <h3 id="audit-detail-title">Détail de l’entrée</h3>
+                <button type="button" className="secondary" aria-label="Fermer" onClick={() => setAuditDetailRow(null)}>×</button>
+              </div>
               <dl className="audit-detail-dl">
                 <div>
                   <dt>Heure</dt>
@@ -4200,20 +4204,12 @@ if (loading) return (
                 </div>
                 <div>
                   <dt>Détail</dt>
-                  <dd className="audit-detail-full">{auditDetailRow.detail || '—'}</dd>
+                  <dd className="audit-detail-full" translate="no" dir="auto">{auditDetailRow.detail || '—'}</dd>
                 </div>
               </dl>
+              <h4>Détails de la connexion</h4>
+              <AuditRequestDetails row={auditDetailRow} kind="audit" />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-                {auditDetailRow.id ? (
-                  <ExplainButton
-                    label="Expliquer avec l’IA"
-                    onClick={() => {
-                      const r = auditDetailRow;
-                      setAuditDetailRow(null);
-                      setAuditExplain({ kind: 'audit', id: Number(r.id), title: `${r.action || ''} · ${formatAuditActor(r).title}` });
-                    }}
-                  />
-                ) : null}
                 <button type="button" className="secondary" onClick={() => setAuditDetailRow(null)}>
                   Fermer
                 </button>

@@ -59,6 +59,7 @@ import AtlasAgentMascot from './AtlasAgentMascot';
 import { AtlasLoader } from '../components/brand/AtlasLoader';
 import { getScanPreference, phoneScanFeedback } from './phoneScanPreferences';
 import { PhoneKpiStrip, SCAN_KPIS } from './PhoneKpis';
+import { keyboardInset } from './keyboardViewport';
 import Select from '../components/ui/Select';
 
 
@@ -1459,9 +1460,16 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
   useEffect(() => {
     const viewport = window.visualViewport; const shell = shellRef.current;
     if (!viewport || !shell) return;
-    const update = () => shell.style.setProperty('--ph-agent-keyboard-inset', `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`);
-    update(); viewport.addEventListener('resize', update); viewport.addEventListener('scroll', update);
-    return () => { viewport.removeEventListener('resize', update); viewport.removeEventListener('scroll', update); };
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        shell.style.setProperty('--ph-agent-keyboard-inset', `${keyboardInset(window.innerHeight, viewport.height, viewport.offsetTop, viewport.scale)}px`);
+        shell.style.setProperty('--ph-agent-visible-height', `${viewport.height}px`);
+      });
+    };
+    update(); viewport.addEventListener('resize', update); viewport.addEventListener('scroll', update); window.addEventListener('resize', update);
+    return () => { cancelAnimationFrame(frame); viewport.removeEventListener('resize', update); viewport.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, []);
 
   // Archive only on explicit navigation; preserve the current cache format for existing users.

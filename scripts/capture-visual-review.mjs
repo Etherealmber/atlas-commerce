@@ -1,11 +1,21 @@
 // Captures the actual test/test demo against localhost only. Never use real data.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import { waitForVisualReady } from './visual-wait.mjs';
 
 const BASE = 'http://127.0.0.1:5173';
 const OUT = 'artifacts/visual-review';
+// Screenshot-only font substitution: use the same families from local Fontsource
+// packages while all other external requests remain blocked.
+function localFontCss(packageName, cssFile) {
+  const base = `node_modules/${packageName}`;
+  return readFileSync(`${base}/${cssFile}`, 'utf8')
+    .replaceAll('DM Sans Variable', 'DM Sans')
+    .replace(/url\(\.\/files\/([^)]*\.woff2)\)/g, (_, file) => `url(data:font/woff2;base64,${readFileSync(`${base}/files/${file}`).toString('base64')})`)
+    .replace(/,\s*url\(\.\/files\/[^)]*\.woff\)\s*format\('woff'\)/g, '');
+}
+const fontCss = [localFontCss('@fontsource-variable/dm-sans', 'index.css'), localFontCss('@fontsource-variable/dm-sans', 'wght-italic.css'), localFontCss('@fontsource/spline-sans-mono', '500.css'), localFontCss('@fontsource/spline-sans-mono', '600.css')].join('\n');
 const fingerprint = `visual-review-${Date.now()}`;
 const res = await fetch(`${BASE}/api/auth/login`, {
   method: 'POST', headers: { 'content-type': 'application/json', 'x-device-fingerprint': fingerprint },
@@ -21,7 +31,7 @@ const pages = [
   ['10-vendors', '/vendors'], ['11-payroll', '/payroll'], ['12-inventory', '/inventory-ops'],
   ['13-reports', '/reports'], ['14-settings-profile', '/settings?tab=profile'],
   ['15-settings-categories', '/settings?tab=categories'], ['16-settings-users', '/settings?tab=admin'],
-  ['17-settings-agent', '/settings?tab=agent'], ['18-whats-new', '/whats-new'],
+  ['17-settings-agent', '/settings?tab=agent'], ['18-whats-new', '/whats-new'], ['19-audit', '/settings?tab=audit'],
 ];
 const mobile = [ ['M01-home', '/m'], ['M02-products', '/m/products'], ['M03-balance', '/m/balance'], ['M04-employees', '/m/employees'], ['M05-settings', '/m/settings'], ['M06-agent', '/m/agent'] ];
 const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || await chromium.executablePath(), args: [...chromium.args, '--no-sandbox'], headless: true });
@@ -35,7 +45,8 @@ try {
       await page.setRequestInterception(true);
       page.on('request', (request) => {
         const url = request.url();
-        if (url.startsWith(`${BASE}/`) || url.startsWith('data:') || url.startsWith('blob:')) void request.continue();
+        if (url.startsWith('https://fonts.googleapis.com/css2?')) void request.respond({ status: 200, contentType: 'text/css', body: fontCss });
+        else if (url.startsWith(`${BASE}/`) || url.startsWith('data:') || url.startsWith('blob:')) void request.continue();
         else void request.abort();
       });
       await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
@@ -48,14 +59,37 @@ try {
       }, auth, lang, fingerprint);
       for (const [code, path] of (device === 'desktop' ? pages : mobile).filter(([id]) => !process.env.VISUAL_FILTER || id.includes(process.env.VISUAL_FILTER))) {
         await page.goto(BASE + path, { waitUntil: 'networkidle2', timeout: 60000 });
-        const ready = await waitForVisualReady(page);
+        const fontsReady = await page.evaluate(async () => {
+          const faces = await Promise.all([document.fonts.load('400 16px "DM Sans"'), document.fonts.load('500 14px "Spline Sans Mono"')]);
+          await document.fonts.ready;
+          return faces.every((loaded) => loaded.length > 0);
+        });
+        if (!fontsReady) throw new Error('Local screenshot fonts failed to load');
+        let ready = await waitForVisualReady(page);
         if (!ready) console.warn(`${code} (${lang}, ${device}): loading did not finish; screenshot marked loading`);
         const current = new URL(page.url());
         if (current.pathname === '/login' || current.pathname === '/welcome') throw new Error(`${code}: redirected to ${current.pathname}; demo session unavailable`);
+        // Audit screenshot stays in the viewport: full-page resize remounts Settings.
+        if (code === '19-audit') {
+          await page.$eval('.ac-audit-table-wrap', (el) => el.scrollIntoView({ block: 'center' }));
+          ready = (await waitForVisualReady(page)) && ready;
+        }
         const filename = `${code}--${lang}--${device}--light${ready ? '' : '--loading'}.png`;
-        await page.screenshot({ path: `${OUT}/${filename}`, fullPage: true });
+        await page.screenshot({ path: `${OUT}/${filename}`, fullPage: code !== '19-audit' });
         manifest.push(`- **${code}** — ${lang}, ${device}: [${filename}](${filename}) (${path})${ready ? '' : ' — loading did not finish'}`);
         console.log(filename);
+        if (code === '19-audit') {
+          const auditRow = await page.$('.ac-audit-detail-btn');
+          if (auditRow) {
+            await auditRow.click();
+            await page.waitForSelector('#audit-detail-title', { timeout: 10000 });
+            const modalReady = await waitForVisualReady(page);
+            const modalFile = `${code}-detail--${lang}--${device}--light${modalReady ? '' : '--loading'}.png`;
+            await page.screenshot({ path: `${OUT}/${modalFile}` });
+            manifest.push(`- **${code}-detail** — ${lang}, ${device}: [${modalFile}](${modalFile})${modalReady ? '' : ' — loading did not finish'}`);
+            await page.keyboard.press('Escape');
+          }
+        }
         const dialogs = device !== 'desktop' ? [] : code === '15-settings-categories'
           ? ['category-create', 'category-edit', 'unit-create', 'unit-edit']
           : code === '16-settings-users' ? ['user-create'] : [];
@@ -82,4 +116,4 @@ try {
     }
   }
 } finally { await browser.close(); }
-writeFileSync(`${OUT}/README.md`, `# Visual review screenshots\n\nIsolated local test/test demo; no production data. Names include page code, language and device. Send the filename and the area needing refinement. Light theme, full-page captures; overlays and every possible state are not covered. Files marked --loading still had visible loading indicators after 20 seconds.\n\n${manifest.join('\n')}\n`);
+writeFileSync(`${OUT}/README.md`, `# Visual review screenshots\n\nIsolated local test/test demo; no production data. Names include page code, language and device. Send the filename and the area needing refinement. Light theme; most captures are full-page, audit is a viewport capture; overlays and every possible state are not covered. Files marked --loading still had visible loading indicators after 45 seconds.\n\n${manifest.join('\n')}\n`);

@@ -53,7 +53,7 @@ function translateDisplay(src: string, lang: Lang) {
     return out.replace(/\b(?:MAD|DH)\b/g, 'درهم').replace(/\bm²/g, 'م²').replace(/\bm³/g, 'م³')
       .replace(/\bWindows\b/g, 'ويندوز').replace(/\bmacOS\b/gi, 'ماك أو إس').replace(/\bLinux\b/g, 'لينكس').replace(/\bAndroid\b/g, 'أندرويد')
       .replace(/(\d)\s*(m²|m³|mL|kg|cm|pce|bte|ctn|paq|g|L|m|u|j)(?![A-Za-zÀ-ÿ0-9])/g, (_, digit: string, unit: string) => `${digit} ${units[unit]}`)
-      .replace(/([-+]?\d(?:[\d\u00a0\u202f ,.]*\d)?(?:[–-]\d+)?)\s*(درهم|م²|م³|كغ|غ|لتر|مل|م|سم|وحدة|قطعة|علبة|كرتون|عبوة|يوم|ألف)(?![\u0621-\u064a])/g, (_, number: string, unit: string) => `\u2067\u2066${number.replace(/(?<=\d)[ \u202f]+(?=\d)/g, '\u00a0')}\u2069\u00a0${unit}\u2069`);
+      .replace(/([-+]?\d(?:[\d\u00a0\u202f ,.]*\d)?(?:[–-]\d+)?)\s*(درهم|م²|م³|كغ|غ|لتر|مل|م|سم|وحدة|قطعة|علبة|كرتون|عبوة|يوم|ألف|مليون|مليار)(?![\u0621-\u064a])/g, (_, number: string, unit: string) => `\u2067\u2066${number.replace(/(?<=\d)[ \u202f]+(?=\d)/g, '\u00a0')}\u2069\u00a0${unit}\u2069`);
   }
   if (lang === 'en') return out.replace(/\bDH\b/g, 'MAD');
   return out.replace(/\bMAD\b/g, 'DH');

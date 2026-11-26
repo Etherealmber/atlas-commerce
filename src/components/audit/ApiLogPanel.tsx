@@ -3,7 +3,8 @@ import { Activity, AlertTriangle, Globe2, RefreshCw, Search, ShieldAlert, Timer 
 import { api } from '../../api';
 import { ListPager } from '../ui/ListPager';
 import AuditIpCell from './AuditIpCell';
-import ExplainLogDialog, { ExplainButton } from './ExplainLogDialog';
+import { createPortal } from 'react-dom';
+import { AuditRequestDetails } from './AuditRequestDetails';
 
 const PAGE = 25;
 type Range = '24h' | '7d' | '30d';
@@ -25,7 +26,7 @@ function statusTone(st: number) {
 /**
  * « Journal des appels API »: every /api/* call, including failures, kept
  * for 30 days. Each row shows the city, country and operator (VPN flag),
- * plus an « Expliquer » button (Groq).
+ * with inspectable request details.
  */
 export default function ApiLogPanel() {
   const [rows, setRows] = useState<any[]>([]);
@@ -36,8 +37,13 @@ export default function ApiLogPanel() {
   const [q, setQ] = useState('');
   const [stack, setStack] = useState<(string | null)[]>([null]);
   const [next, setNext] = useState<string | null>(null);
-  const [explain, setExplain] = useState<{ kind: 'api'; id: number; title?: string } | null>(null);
-  const closeExplain = useCallback(() => setExplain(null), []);
+  const [detail, setDetail] = useState<any | null>(null);
+  useEffect(() => {
+    if (!detail) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setDetail(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [detail]);
 
   const load = useCallback(async (cursor: string | null, reset: boolean, query = q) => {
     setLoading(true);
@@ -139,7 +145,7 @@ export default function ApiLogPanel() {
                   <AuditIpCell ip={r.ip} geo={{ country: r.country, city: r.city, region: r.region, asn: r.asn, as_org: r.as_org, ...r.network }} />
                 </td>
                 <td className="ac-apilog-actions">
-                  <ExplainButton onClick={() => setExplain({ kind: 'api', id: Number(r.id), title: `${r.method} ${r.path} · ${r.status}` })} />
+                  <button type="button" className="secondary" onClick={() => setDetail(r)}>Détails</button>
                 </td>
               </tr>
             ))}
@@ -165,7 +171,14 @@ export default function ApiLogPanel() {
           }}
         />
       </div>
-      <ExplainLogDialog target={explain} onClose={closeExplain} />
+      {detail && createPortal(<div className="audit-detail-modal-backdrop" role="presentation" onClick={() => setDetail(null)}>
+        <div className="audit-detail-modal card" role="dialog" aria-modal="true" aria-labelledby="api-log-detail-title" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setDetail(null); }}>
+          <div className="audit-detail-heading"><h3 id="api-log-detail-title">Détails de la requête</h3><button type="button" className="secondary" aria-label="Fermer" onClick={() => setDetail(null)}>×</button></div>
+          <p><bdi dir="ltr" translate="no">{detail.method} {detail.path} · {detail.status} · {detail.ms} ms</bdi></p>
+          <AuditRequestDetails row={detail} kind="api" />
+          <button type="button" className="secondary" onClick={() => setDetail(null)}>Fermer</button>
+        </div>
+      </div>, document.body)}
     </section>
   );
 }

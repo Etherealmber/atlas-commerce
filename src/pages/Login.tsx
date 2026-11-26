@@ -1061,7 +1061,7 @@ export default function Login() {
                   onFocus={() => setIsTyping(true)}
                   onBlur={() => setIsTyping(false)}
                   placeholder="Votre identifiant"
-                  autoFocus
+                  autoFocus={!isMobileLogin() && !isNativeClient() && !isPwaLogin()}
                   autoComplete="username"
                   disabled={loading || formLocked}
                 />

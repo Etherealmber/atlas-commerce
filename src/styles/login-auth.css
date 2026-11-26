@@ -958,3 +958,15 @@ html.atlas-login-page body .atlas-login.atlas-login--auth7:not(.atlas-login--pho
 html.atlas-login-page body .atlas-login.atlas-login--auth7:not(.atlas-login--phone) .atlas-login-submit :is(span, svg) {
   color: #111827 !important; stroke: #111827 !important;
 }
+
+/* Compact normal phone view; retain scrolling for tiny viewports, zoom, errors,
+   keyboard and challenge content rather than clipping security controls. */
+@media (max-height: 740px) {
+  html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone { gap: 6px !important; padding-block: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) !important; }
+  html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero { min-height: 48px; }
+  html.atlas-login-page body .atlas-login--phone .atlas-login-phone-hero .atlas-lockup.atlas-login-phone-lockup { --lk-h: 42px; }
+  html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-form-wrap { padding: 14px !important; }
+  html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-header { margin-bottom: 10px !important; }
+  html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-auth7-form { gap: 9px !important; }
+  html.atlas-login-page body .atlas-login.atlas-login--auth7.atlas-login--phone .atlas-login-page-foot { padding-block: 2px !important; }
+}

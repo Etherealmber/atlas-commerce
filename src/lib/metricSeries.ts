@@ -116,7 +116,9 @@ function bindRefresh() {
 /** Subscribe to the shared series (loads it if stale); returns the unsubscribe. */
 export function subscribeMetricSeries(fn: (s: State) => void): () => void {
   bindRefresh();
-  syncSession();
+  const previousToken = cacheToken;
+  const token = syncSession();
+  if (previousToken !== token) publish(state);
   listeners.add(fn);
   fn(state);
   void loadMetricSeries();

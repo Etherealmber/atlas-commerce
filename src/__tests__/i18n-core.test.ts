@@ -62,7 +62,7 @@ describe('i18n core', () => {
   });
 
   it('localises currency labels in Arabic without changing user data, and restores them', async () => {
-    document.body.innerHTML = '<div><span class="amount">1 260 MAD</span><span data-user-data>Model MAD 12</span><span class="dh">42 DH</span><span class="area">42 m²</span><span class="mass">-2,5 kg</span><span class="volume">3 m³</span></div>';
+    document.body.innerHTML = '<div><span class="amount">1 260 MAD</span><span data-user-data>Model MAD 12</span><span class="dh">42 DH</span><span class="area">42 m²</span><span class="mass">-2,5 kg</span><span class="volume">3 m³</span><span class="million">2 مليون MAD</span></div>';
     retranslateAll(); await tick();
     expect(document.querySelector('.amount')!.textContent).toBe('1 260 DH');
     setLang('ar'); retranslateAll(); await tick();
@@ -71,6 +71,7 @@ describe('i18n core', () => {
     expect(document.querySelector('.area')!.textContent).toBe('\u2067\u206642\u2069\u00a0م²\u2069');
     expect(document.querySelector('.mass')!.textContent).toBe('\u2067\u2066-2,5\u2069\u00a0كغ\u2069');
     expect(document.querySelector('.volume')!.textContent).toBe('\u2067\u20663\u2069\u00a0م³\u2069');
+    expect(document.querySelector('.million')!.textContent).toContain('\u2067\u20662\u2069\u00a0مليون\u2069');
     expect(document.querySelector('[data-user-data]')!.textContent).toBe('Model MAD 12');
     setLang('en'); await tick();
     expect(document.querySelector('.amount')!.textContent).toBe('1 260 MAD');

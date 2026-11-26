@@ -675,7 +675,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     }
   });
 
-  it('records invoice deletion actor for stock movements with Système fallback, enables authenticated Étiquette modal, and unifies Settings Bento + dark palette', () => {
+  it('records invoice deletion actor for stock movements with unknown-author fallback, enables authenticated Étiquette modal, and unifies Settings Bento + dark palette', () => {
     const ledgerSrc = readFileSync(path.resolve(process.cwd(), 'worker/lib/ledgerHelpers.ts'), 'utf8');
     const invWriteSrc = readFileSync(path.resolve(process.cwd(), 'worker/routes/invoicesWrite.ts'), 'utf8');
     const prodHistSrc = readFileSync(path.resolve(process.cwd(), 'src/pages/ProductHistory.tsx'), 'utf8');
@@ -685,12 +685,12 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     const focusCss = readFileSync(path.resolve(process.cwd(), 'src/styles/focus-sidebar.css'), 'utf8');
     const overridesCss = readFileSync(path.resolve(process.cwd(), 'src/styles/overrides-final.css'), 'utf8');
 
-    // 1. Movement deletion actor & Système fallback
+    // 1. Movement deletion actor & unknown-author fallback
     expect(ledgerSrc).toContain('cascadeDeleteInvoice(\n  db: D1Database,\n  invoiceId: string | number,\n  opts?: { createdBy?: string }');
     expect(ledgerSrc).toContain("createdBy: opts?.createdBy || undefined");
     expect(invWriteSrc).toContain('cascadeDeleteInvoice(c.env.DB, id, { createdBy: gate.username || undefined })');
     expect(prodHistSrc).not.toContain('non renseigné');
-    expect(prodHistSrc).toContain("actor(m.created_by, 'Système')");
+    expect(prodHistSrc).toContain("actor(m.created_by, 'Auteur inconnu')");
 
     // 2. Étiquette uses authenticated ProductLabelModal (not unauthenticated window.open)
     expect(apiSrc).toContain('fetchLabelSvg:');
