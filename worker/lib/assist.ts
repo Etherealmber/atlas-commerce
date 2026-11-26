@@ -381,6 +381,7 @@ export async function groqChatStreamWithTools(opts: {
   executor: (name: string, args: Record<string, unknown>) => Promise<AgentToolResult>;
   maxRounds?: number;
   onToken: (delta: string) => void;
+  onToolStart?: (name: string) => void;
   onTool?: (t: AgentToolTrace) => void;
   fetchImpl?: typeof fetch;
 }): Promise<{
@@ -494,6 +495,7 @@ export async function groqChatStreamWithTools(opts: {
       let args: Record<string, unknown> = {};
       try { args = JSON.parse(call.args || '{}'); } catch { args = {}; }
       let out: AgentToolResult = { ok: false, error: 'Outil inconnu.' };
+      try { opts.onToolStart?.(call.name); } catch { /* consumer went away */ }
       try {
         out = await opts.executor(call.name, args);
       } catch (e: any) {

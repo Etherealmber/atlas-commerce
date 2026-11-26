@@ -1,3 +1,4 @@
+import DeliveryNotesPanel from '../components/DeliveryNotesPanel';
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
 import { ArrowRight, Ban, CheckCircle2, CreditCard, FileCheck2, FilePlus2, Pencil, RotateCcw, Truck } from 'lucide-react';
@@ -501,6 +502,7 @@ export default function Invoices() {
           <button title="Créer une facture" onClick={() => { setDocMode('invoice'); setShowModal(true); }}><FilePlus2 size={16} aria-hidden="true" /><span className="tpa-label">Créer une facture</span></button>
         </TopPageActions>
       </div>
+      <DeliveryNotesPanel />
       {clientFilter && <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>Filtré par client #{clientFilter}</p>}
 
       

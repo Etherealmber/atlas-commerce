@@ -25,3 +25,14 @@ describe('delivery note window', () => {
     await expect(openDeliveryNote(4, null)).rejects.toThrow('sans identifiant');
   });
 });
+
+it('reopens an existing delivery note without creating a second one', async () => {
+  const { openExistingDeliveryNote } = await import('../lib/deliveryNote');
+  const tab = { opener: window } as unknown as Window;
+  const open = vi.spyOn(window, 'open').mockReturnValue(tab);
+  openExistingDeliveryNote(12);
+  expect(open).toHaveBeenCalledWith('/api/delivery-notes/12/print?token=session', '_blank');
+  expect(tab.opener).toBeNull();
+  expect(createDeliveryNote).not.toHaveBeenCalled();
+  expect(() => openExistingDeliveryNote(0)).toThrow('invalide');
+});
