@@ -44,7 +44,19 @@ it('opens on demand, traps keyboard focus and restores focus on Escape', async (
 
 it('keeps the creation fields conditional and marks the password as a new password', () => {
   const settings = readFileSync('src/pages/Settings.tsx', 'utf8');
-  expect(settings).toContain('{userCreateOpen && <SettingsUserDialog');
+  expect(settings).toContain('{userCreateOpen && !pwOpen && <SettingsUserDialog');
   expect(settings).toContain('name="team-new-secret" autoComplete="new-password"');
   expect(settings).toContain('closeUserCreate();');
+});
+
+
+it('uses dialogs for editing users and managing categories and units', () => {
+  const settings = readFileSync('src/pages/Settings.tsx', 'utf8');
+  for (const id of ['edit-team-user-title', 'category-dialog-title', 'unit-dialog-title']) {
+    expect(settings).toContain(`titleId="${id}"`);
+    expect(settings).toContain(`id="${id}"`);
+  }
+  expect(settings).toContain('editingUser && !pwOpen');
+  expect(settings).toContain('d.name === cat.name && d.description === cat.description');
+  expect(settings).toContain('translate(cat.name, uiLang) : cat.name');
 });

@@ -1,0 +1,44 @@
+name: Visual review screenshots
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: visual-review-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  screenshots:
+    name: Local demo screenshots (Arabic, English, French)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Start isolated test/test demo and capture pages
+        run: |
+          node scripts/visual-demo-worker.mjs
+          npx wrangler dev --local --config .arena/visual-worker.json --ip 127.0.0.1 --port 8787 > /tmp/visual-worker.log 2>&1 &
+          WORKER=$!
+          npx vite --config scripts/vite-visual.config.mjs > /tmp/visual-vite.log 2>&1 &
+          VITE=$!
+          trap 'kill "$WORKER" "$VITE" 2>/dev/null || true' EXIT
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:5173/api/demo/config >/dev/null 2>&1; then break; fi
+            if ! kill -0 "$WORKER" 2>/dev/null || ! kill -0 "$VITE" 2>/dev/null; then cat /tmp/visual-worker.log /tmp/visual-vite.log; exit 1; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5173/api/demo/config >/dev/null
+          node scripts/capture-visual-review.mjs
+      - name: Upload screenshot artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: visual-review-${{ github.run_id }}
+          path: artifacts/visual-review/
+          if-no-files-found: warn
+          retention-days: 14

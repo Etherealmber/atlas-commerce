@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 /** Team creation is not mounted until requested, so browsers cannot fill it at startup. */
-export default function SettingsUserDialog({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+export default function SettingsUserDialog({ children, onClose, titleId = 'create-team-user-title' }: { children: ReactNode; onClose: () => void; titleId?: string }) {
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -10,7 +10,7 @@ export default function SettingsUserDialog({ children, onClose }: { children: Re
     return () => { if (previous?.isConnected) previous.focus(); };
   }, []);
   return createPortal(<div className="modal-overlay" onClick={onClose}>
-    <div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby="create-team-user-title" onClick={e => e.stopPropagation()} onKeyDown={e => {
+    <div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={e => e.stopPropagation()} onKeyDown={e => {
       if (e.key === 'Escape') { e.preventDefault(); onClose(); }
       if (e.key !== 'Tab') return;
       const nodes = Array.from(dialog.current?.querySelectorAll<HTMLElement>('input:not(:disabled), select:not(:disabled), button:not(:disabled)') || []);

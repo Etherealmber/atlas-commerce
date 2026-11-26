@@ -403,3 +403,12 @@ html body .ac-timed-delete-btn:not(.is-armed):active:not(#td-g):not(#td-h):not(#
   background: rgba(239, 68, 68, 0.24) !important;
   background-color: rgba(239, 68, 68, 0.24) !important;
 }
+
+/* Team accounts and permission columns align consistently in all languages. */
+html body .settings-main table.ac-team-users-table :is(th, td):not(#tb-g):not(#tb-h):not(#tb-i),
+html body .settings-main table.ac-role-matrix :is(th, td):not(:first-child):not(#tb-g):not(#tb-h):not(#tb-i) {
+  text-align: center;
+}
+html body .settings-main table.ac-team-users-table .row-actions-cell:not(#tb-g):not(#tb-h):not(#tb-i) {
+  text-align: center;
+}

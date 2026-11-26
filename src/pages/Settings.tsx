@@ -1,4 +1,5 @@
-import { langMeta, useLang } from '../i18n/core';
+import { langMeta, translate, useLang } from '../i18n/core';
+import { DEFAULT_CATEGORIES, DEFAULT_UNITS } from '../../worker/lib/product-defaults';
 import QrLoginPanel from '../components/settings/QrLoginPanel';
 import { LanguageSoonDialog } from '../components/LanguageSoonDialog';
 import SettingsUserDialog from '../components/SettingsUserDialog';
@@ -255,11 +256,16 @@ export default function Settings() {
   const [units, setUnits] = useState<any[]>([]);
   const [unitName, setUnitName] = useState('');
   const [editingCat, setEditingCat] = useState<any>(null);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const closeCategoryDialog = () => { setCategoryDialogOpen(false); setEditingCat(null); setCatName(''); setCatDesc(''); setCatalogDialogError(''); };
+  const closeUnitDialog = () => { setUnitDialogOpen(false); setEditingUnit(null); setUnitName(''); setCatalogDialogError(''); };
   const [editingUnit, setEditingUnit] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [catName, setCatName] = useState('');
   const [catDesc, setCatDesc] = useState('');
   const [catSaving, setCatSaving] = useState(false);
+  const [catalogDialogError, setCatalogDialogError] = useState('');
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [auditDetailRow, setAuditDetailRow] = useState<any | null>(null);
   const [auditExplain, setAuditExplain] = useState<{ kind: 'audit' | 'api'; id: number; title?: string } | null>(null);
@@ -289,11 +295,11 @@ export default function Settings() {
   const AUDIT_PAGE = 80;
 
   const roleLabel = (r: string) => {
-    if (r === 'owner') return 'Propriétaire';
-    if (r === 'admin') return 'Admin';
-    if (r === 'secretaire') return 'Secrétaire';
-    if (r === 'stock') return 'Magasinier (scan & stock)';
-    return 'Utilisateur';
+    if (r === 'owner') return translate('Propriétaire', uiLang);
+    if (r === 'admin') return translate('Admin', uiLang);
+    if (r === 'secretaire') return translate('Secrétaire', uiLang);
+    if (r === 'stock') return translate('Magasinier (scan & stock)', uiLang);
+    return translate('Utilisateur', uiLang);
   };
 
   const flash = (msg: string, type: 'success' | 'error' = 'success') => {
@@ -2606,24 +2612,30 @@ if (loading) return (
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+          <button type="button" data-visual-review="category-create" onClick={() => { closeCategoryDialog(); setCategoryDialogOpen(true); }}>+ Ajouter une catégorie</button>
+          {categoryDialogOpen && <SettingsUserDialog titleId="category-dialog-title" onClose={closeCategoryDialog}>
+          <h2 id="category-dialog-title">{editingCat ? 'Modifier la catégorie' : 'Ajouter une catégorie'}</h2>
+          <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
+            <label htmlFor="category-dialog-name">Nom de la catégorie *</label>
             <input
+              id="category-dialog-name"
               placeholder="Nom de la catégorie *"
               value={catName}
               onChange={(e) => setCatName(e.target.value)}
-              style={{ flex: '1 1 180px' }}
             />
+            <label htmlFor="category-dialog-description">Description (optionnel)</label>
             <input
+              id="category-dialog-description"
               placeholder="Description (optionnel)"
               value={catDesc}
               onChange={(e) => setCatDesc(e.target.value)}
-              style={{ flex: '2 1 220px' }}
             />
             <button
               type="button"
               disabled={catSaving}
               onClick={async () => {
-                if (!catName.trim()) { flash('Nom obligatoire.', 'error'); return; }
+                if (!catName.trim()) { setCatalogDialogError('Nom obligatoire.'); return; }
+                setCatalogDialogError('');
                 setCatSaving(true);
                 try {
                   if (editingCat?.id) {
@@ -2634,21 +2646,18 @@ if (loading) return (
                     await api.createCategory({ name: catName.trim(), description: catDesc });
                     flash('Catégorie créée.');
                   }
-                  setCatName(''); setCatDesc('');
+                  closeCategoryDialog();
                   const r = await api.getCategories();
                   setCategories(r.data || []);
-                } catch (e: any) { flash(e.message, 'error'); }
+                } catch (e: any) { setCatalogDialogError(e.message || 'Enregistrement impossible.'); }
                 finally { setCatSaving(false); }
               }}
             >
               {catSaving ? '…' : editingCat ? 'Enregistrer' : '+ Ajouter'}
             </button>
-            {editingCat && (
-              <button type="button" className="secondary" onClick={() => { setEditingCat(null); setCatName(''); setCatDesc(''); }}>
-                Annuler
-              </button>
-            )}
-          </div>
+            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
+            <button type="button" className="secondary" disabled={catSaving} onClick={closeCategoryDialog}>Annuler</button>
+          </div></SettingsUserDialog>}
           <div className="table-wrap">
             <table>
               <thead>
@@ -2657,16 +2666,18 @@ if (loading) return (
               <tbody>
                 {categories.map((cat: any) => (
                   <tr key={cat.id ?? cat.name}>
-                    <td><strong>{cat.name}</strong></td>
-                    <td style={{ color: 'var(--muted)', fontSize: 13 }}>{cat.description || '—'}</td>
+                    <td><strong data-user-data dir="auto">{DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.name, uiLang) : cat.name}</strong></td>
+                    <td data-user-data dir="auto" style={{ color: 'var(--muted)', fontSize: 13 }}>{DEFAULT_CATEGORIES.some((d) => d.name === cat.name && d.description === cat.description) ? translate(cat.description, uiLang) : cat.description || '—'}</td>
                     <td style={{ fontSize: 12 }}>{cat.from_products ? 'Utilisée sur produits' : 'Définie'}</td>
                     <td className="row-actions-cell">
                       {cat.id ? (
                         <button
                           type="button"
                           className="secondary"
+                          data-visual-review="category-edit"
                           onClick={() => {
                             setEditingCat(cat);
+                            setCategoryDialogOpen(true);
                             setCatName(cat.name || '');
                             setCatDesc(cat.description || '');
                           }}
@@ -2703,10 +2714,15 @@ if (loading) return (
           <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
             Ex. unité, kg, carton — modifiables et supprimables par l&apos;admin.
           </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-            <input placeholder="Nom de l&apos;unité *" value={unitName} onChange={(e) => setUnitName(e.target.value)} style={{ flex: '1 1 180px' }} />
+          <button type="button" data-visual-review="unit-create" onClick={() => { closeUnitDialog(); setUnitDialogOpen(true); }}>+ Ajouter unité</button>
+          {unitDialogOpen && <SettingsUserDialog titleId="unit-dialog-title" onClose={closeUnitDialog}>
+          <h2 id="unit-dialog-title">{editingUnit ? 'Modifier l’unité' : 'Ajouter une unité'}</h2>
+          <div style={{ display: 'flex', gap: 10, flexDirection: 'column', marginTop: 16 }}>
+            <label htmlFor="unit-dialog-name">Nom de l&apos;unité *</label>
+            <input id="unit-dialog-name" placeholder="Nom de l&apos;unité *" value={unitName} onChange={(e) => setUnitName(e.target.value)} />
             <button type="button" disabled={catSaving} onClick={async () => {
-              if (!unitName.trim()) { flash('Nom obligatoire.', 'error'); return; }
+              if (!unitName.trim()) { setCatalogDialogError('Nom obligatoire.'); return; }
+              setCatalogDialogError('');
               setCatSaving(true);
               try {
                 if (editingUnit?.id) {
@@ -2717,25 +2733,26 @@ if (loading) return (
                   await api.createUnit({ name: unitName.trim() });
                   flash('Unité créée.');
                 }
-                setUnitName('');
+                closeUnitDialog();
                 const r = await api.getUnits();
                 setUnits(r.data || []);
-              } catch (e: any) { flash(e.message, 'error'); }
+              } catch (e: any) { setCatalogDialogError(e.message || 'Enregistrement impossible.'); }
               finally { setCatSaving(false); }
             }}>{editingUnit ? 'Enregistrer' : '+ Ajouter unité'}</button>
-            {editingUnit && <button type="button" className="secondary" onClick={() => { setEditingUnit(null); setUnitName(''); }}>Annuler</button>}
-          </div>
+            {catalogDialogError && <p role="alert">{catalogDialogError}</p>}
+            <button type="button" className="secondary" disabled={catSaving} onClick={closeUnitDialog}>Annuler</button>
+          </div></SettingsUserDialog>}
           <div className="table-wrap">
             <table>
               <thead><tr><th>Nom</th><th></th></tr></thead>
               <tbody>
                 {units.map((u: any) => (
                   <tr key={u.id ?? u.name}>
-                    <td><strong>{u.name}</strong></td>
+                    <td><strong data-user-data dir="auto">{DEFAULT_UNITS.some((d) => d.name === u.name && d.symbol === u.symbol) ? translate(u.name, uiLang) : u.name}</strong></td>
                     <td className="row-actions-cell">
                       {u.id ? (
-                          <button type="button" className="secondary"
-                            onClick={() => { setEditingUnit(u); setUnitName(u.name || ''); }}>Modifier</button>
+                          <button type="button" className="secondary" data-visual-review="unit-edit"
+                            onClick={() => { setEditingUnit(u); setUnitName(u.name || ''); setUnitDialogOpen(true); }}>Modifier</button>
                       ) : null}
                           <TimedUndoDelete iconOnly width="34px"
                             deleteLabel="Supprimer"
@@ -3772,8 +3789,8 @@ if (loading) return (
               Les suppressions (facture, produit, etc.) demandent une simple confirmation — la session et le code OTP protègent déjà le compte.
               Seul le compte propriétaire voit cet onglet.
             </p>
-            <button type="button" onClick={() => setUserCreateOpen(true)}>+ Ajouter un utilisateur</button>
-            {userCreateOpen && <SettingsUserDialog onClose={closeUserCreate}><form autoComplete="off" onSubmit={e => { e.preventDefault(); createUser(); }}>
+            <button type="button" data-visual-review="user-create" onClick={() => setUserCreateOpen(true)}>+ Ajouter un utilisateur</button>
+            {userCreateOpen && !pwOpen && <SettingsUserDialog onClose={closeUserCreate}><form autoComplete="off" onSubmit={e => { e.preventDefault(); createUser(); }}>
               <h2 id="create-team-user-title">Créer un utilisateur</h2>
             <div className="grid grid-2" style={{ marginBottom: 12 }}>
               <div className="form-row">
@@ -3795,10 +3812,10 @@ if (loading) return (
               <div className="form-row">
                 <label>Rôle</label>
                 <Select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
-                  <option value="stock">Magasinier (scan, stock, proposer produit · pas de caisse)</option>
-                  <option value="secretaire">Secrétaire (tout le métier · pas admin serveur)</option>
-                  <option value="admin">Admin (stock &amp; ventes)</option>
-                  <option value="user">Lecture limitée</option>
+                  <option value="stock">{translate('Magasinier (scan, stock, proposer produit · pas de caisse)', uiLang)}</option>
+                  <option value="secretaire">{translate('Secrétaire (tout le métier · pas admin serveur)', uiLang)}</option>
+                  <option value="admin">{translate('Admin (stock & ventes)', uiLang)}</option>
+                  <option value="user">{translate('Lecture limitée', uiLang)}</option>
                 </Select>
               </div>
             </div>
@@ -3806,9 +3823,9 @@ if (loading) return (
             <div className="modal-actions"><button type="button" className="secondary" onClick={closeUserCreate}>Annuler</button><button type="submit">Créer l&apos;utilisateur</button></div>
             </form></SettingsUserDialog>}
 
-            {editingUser && (
-              <div className="atlas-card" style={{ marginTop: 16 }}>
-                <h3 style={{ fontSize: 15, marginBottom: 10 }}>Modifier « {editingUser.username} »</h3>
+            {editingUser && !pwOpen && (
+              <SettingsUserDialog titleId="edit-team-user-title" onClose={() => setEditingUser(null)}>
+                <h3 id="edit-team-user-title" style={{ fontSize: 15, marginBottom: 10 }}>Modifier « <bdi data-user-data>{editingUser.username}</bdi> »</h3>
                 <div className="grid grid-2" style={{ marginBottom: 12 }}>
                   <div className="form-row" data-settings-anchor="display_name">
                     <label>Nom affiché</label>
@@ -3817,10 +3834,10 @@ if (loading) return (
                   <div className="form-row">
                     <label>Rôle</label>
                     <Select value={editingUser.role || 'secretaire'} onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}>
-                      <option value="stock">Magasinier (scan, stock, proposer produit · pas de caisse)</option>
-                      <option value="secretaire">Secrétaire (tout le métier · pas admin serveur)</option>
-                      <option value="admin">Admin (stock &amp; ventes)</option>
-                      <option value="user">Lecture limitée</option>
+                      <option value="stock">{translate('Magasinier (scan, stock, proposer produit · pas de caisse)', uiLang)}</option>
+                      <option value="secretaire">{translate('Secrétaire (tout le métier · pas admin serveur)', uiLang)}</option>
+                      <option value="admin">{translate('Admin (stock & ventes)', uiLang)}</option>
+                      <option value="user">{translate('Lecture limitée', uiLang)}</option>
                     </Select>
                   </div>
                   <div className="form-row">
@@ -3852,10 +3869,10 @@ if (loading) return (
                   }}>Enregistrer</button>
                   <button type="button" className="secondary" onClick={() => setEditingUser(null)}>Annuler</button>
                 </div>
-              </div>
+              </SettingsUserDialog>
             )}
 
-            <table className="data-table" style={{ marginTop: 20, width: '100%' }}>
+            <table className="data-table ac-team-users-table" style={{ marginTop: 20, width: '100%' }}>
               <thead>
                 <tr>
                   <th>Identifiant</th>
@@ -3868,7 +3885,7 @@ if (loading) return (
               </thead>
               <tbody>
                 {adminUsers.length === 0 && (
-                  <tr><td colSpan={5} style={{ color: 'var(--muted)' }}>Aucun utilisateur secondaire</td></tr>
+                  <tr><td colSpan={6} style={{ color: 'var(--muted)' }}>Aucun utilisateur secondaire</td></tr>
                 )}
                 {adminUsers.map((u) => (
                   <tr key={u.id}>
@@ -3897,7 +3914,7 @@ if (loading) return (
               Le propriétaire dispose de tous les droits.
             </p>
             <div className="table-wrap">
-              <table className="data-table" style={{ width: '100%', fontSize: 13 }}>
+              <table className="data-table ac-role-matrix" style={{ width: '100%', fontSize: 13 }}>
                 <thead>
                   <tr>
                     <th>Action</th>
