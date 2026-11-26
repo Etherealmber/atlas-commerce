@@ -246,8 +246,16 @@ describe('Financial security, concurrency, multi-currency & reconciliation certi
     ]);
     expect([p1.status, p2.status].sort((a, b) => a - b)).toEqual([200, 409]);
 
+    // A retry after the first commit must not pay the same or an earlier date again,
+    // even when it reads the already-updated employee row.
+    const sameDay = await call(`/api/employees/${empId}/pay`, tok, 'POST', { paid_at: '2026-10-20', amount: 1500 });
+    const earlier = await call(`/api/employees/${empId}/pay`, tok, 'POST', { paid_at: '2026-10-19', amount: 1500 });
+    expect(sameDay.status).toBe(409);
+    expect(earlier.status).toBe(409);
     const payRows = sqlite.prepare(`SELECT amount FROM employee_payments WHERE employee_id = ?`).all(empId) as any[];
     expect(payRows.length).toBe(2); // 1 advance + 1 pay
+    const later = await call(`/api/employees/${empId}/pay`, tok, 'POST', { paid_at: '2026-10-21', amount: 1500 });
+    expect(later.status).toBe(200);
   });
 
   it('rolls back completely when multi-line or duplicate-product invoice exceeds stock', async () => {
