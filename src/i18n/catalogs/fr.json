@@ -2908,5 +2908,14 @@
   "Détail de l’entrée": "Détail de l’entrée",
   "Suspect": "Suspect",
   "À surveiller": "À surveiller",
-  "Normal": "Normal"
+  "Normal": "Normal",
+  "Double authentification, appareils connectés et suppression de compte — tout ce qui touche au compte, au même endroit.": "Double authentification, appareils connectés et suppression de compte — tout ce qui touche au compte, au même endroit.",
+  "2FA activée": "2FA activée",
+  "2FA désactivée": "2FA désactivée",
+  "✓ Enregistré": "✓ Enregistré",
+  "Les changements sont enregistrés automatiquement.": "Les changements sont enregistrés automatiquement.",
+  "Contrôle ce que l’assistant peut appeler (en plus des règles de rôle). Les conversations peuvent être enregistrées — voir la politique de confidentialité.": "Contrôle ce que l’assistant peut appeler (en plus des règles de rôle). Les conversations peuvent être enregistrées — voir la politique de confidentialité.",
+  "non autorisé pour votre rôle": "non autorisé pour votre rôle",
+  "Quota quotidien": "Quota quotidien",
+  "Quota hebdomadaire": "Quota hebdomadaire"
 }
