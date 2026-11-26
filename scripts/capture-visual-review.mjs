@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import { waitForVisualReady } from './visual-wait.mjs';
+import { findVisibleFrenchCandidates } from './visual-i18n-observer.mjs';
 
 const BASE = 'http://127.0.0.1:5173';
 const OUT = 'artifacts/visual-review';
@@ -36,6 +37,7 @@ const pages = [
 const mobile = [ ['M01-home', '/m'], ['M02-products', '/m/products'], ['M03-balance', '/m/balance'], ['M04-employees', '/m/employees'], ['M05-settings', '/m/settings'], ['M06-agent', '/m/agent'] ];
 const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || await chromium.executablePath(), args: [...chromium.args, '--no-sandbox'], headless: true });
 const manifest = [];
+const i18nObservations = [];
 try {
   for (const lang of ['ar', 'en', 'fr'].filter((v) => !process.env.VISUAL_LANGUAGE || process.env.VISUAL_LANGUAGE === v)) {
     for (const device of ['desktop', 'mobile'].filter((v) => !process.env.VISUAL_DEVICE || process.env.VISUAL_DEVICE === v)) {
@@ -74,6 +76,7 @@ try {
           await page.$eval('.ac-audit-table-wrap', (el) => el.scrollIntoView({ block: 'center' }));
           ready = (await waitForVisualReady(page)) && ready;
         }
+        if (lang !== 'fr') i18nObservations.push({ code, lang, device, ready, candidates: await page.evaluate(findVisibleFrenchCandidates) });
         const filename = `${code}--${lang}--${device}--light${ready ? '' : '--loading'}.png`;
         await page.screenshot({ path: `${OUT}/${filename}`, fullPage: code !== '19-audit' });
         manifest.push(`- **${code}** — ${lang}, ${device}: [${filename}](${filename}) (${path})${ready ? '' : ' — loading did not finish'}`);
@@ -116,4 +119,5 @@ try {
     }
   }
 } finally { await browser.close(); }
-writeFileSync(`${OUT}/README.md`, `# Visual review screenshots\n\nIsolated local test/test demo; no production data. Names include page code, language and device. Send the filename and the area needing refinement. Light theme; most captures are full-page, audit is a viewport capture; overlays and every possible state are not covered. Files marked --loading still had visible loading indicators after 45 seconds.\n\n${manifest.join('\n')}\n`);
+writeFileSync(`${OUT}/i18n-observations.json`, JSON.stringify({ note: 'Heuristic French clues in the isolated demo; review manually, not a coverage measurement.', pages: i18nObservations }, null, 2));
+writeFileSync(`${OUT}/README.md`, `# Visual review screenshots\n\nIsolated local test/test demo; no production data. Names include page code, language and device. Send the filename and the area needing refinement. Light theme; most captures are full-page, audit is a viewport capture; overlays and every possible state are not covered. Files marked --loading still had visible loading indicators after 45 seconds. i18n-observations.json contains heuristic French-text candidates from Arabic and English demo pages; review manually and do not treat as coverage.\n\n${manifest.join('\n')}\n`);

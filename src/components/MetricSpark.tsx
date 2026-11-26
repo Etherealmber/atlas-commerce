@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { computeTrend, isEmptySeries, shortDay, useMetricSeries, type TrendCompare } from '../lib/metricSeries';
 import './metric-spark.css';
+import { getLang, intlLocale, t, translate, useLang } from '../i18n/core';
 
 /**
  * KPI cards « façon Cloudflare »:
@@ -22,7 +23,7 @@ interface CommonProps {
   invert?: boolean;
 }
 
-const pctFmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const pctFmt = () => new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 
 function ArrowIcon({ up }: { up: boolean }) {
   return (
@@ -33,6 +34,7 @@ function ArrowIcon({ up }: { up: boolean }) {
 }
 
 export function MetricTrend({ k, invert = false, compare = 'period' }: CommonProps & { compare?: TrendCompare }) {
+  useLang();
   const { data } = useMetricSeries();
   const trend = useMemo(() => {
     if (!data) return null;
@@ -43,12 +45,12 @@ export function MetricTrend({ k, invert = false, compare = 'period' }: CommonPro
   if (!trend) return null;
   const good = trend.direction === 'flat' ? null : (trend.direction === 'up') !== invert;
   const tone = good === null ? 'is-flat' : good ? 'is-good' : 'is-bad';
-  const label = `${trend.pct > 0 ? '+' : trend.pct < 0 ? '−' : ''}${pctFmt.format(Math.abs(trend.pct))} %`;
+  const label = `${trend.pct > 0 ? '+' : trend.pct < 0 ? '−' : ''}${pctFmt().format(Math.abs(trend.pct))} %`;
   return (
-    <span className={`ms-trend ${tone}`} title={`${label} ${trend.against}`} data-metric-trend={k}>
+    <span className={`ms-trend ${tone}`} title={`${label} ${translate(trend.against)}`} data-metric-trend={k}>
       {trend.direction !== 'flat' ? <ArrowIcon up={trend.direction === 'up'} /> : null}
-      <span>{pctFmt.format(Math.abs(trend.pct))}%</span>
-      <span className="sr-only"> {trend.direction === 'up' ? 'en hausse' : trend.direction === 'down' ? 'en baisse' : 'stable'} {trend.against}</span>
+      <span>{pctFmt().format(Math.abs(trend.pct))}%</span>
+      <span className="sr-only"> {t(trend.direction === 'up' ? 'en hausse' : trend.direction === 'down' ? 'en baisse' : 'stable')} {translate(trend.against)}</span>
     </span>
   );
 }
@@ -88,6 +90,8 @@ function buildPaths(values: (number | null)[]) {
 }
 
 export function MetricSpark({ k, invert = false, unit = 'count', currency = 'MAD' }: CommonProps & { unit?: Unit; currency?: string }) {
+  useLang();
+  const lang = getLang();
   const { data, loading } = useMetricSeries();
   const gid = useId().replace(/:/g, '');
   const ref = useRef<HTMLDivElement>(null);
@@ -113,9 +117,10 @@ export function MetricSpark({ k, invert = false, unit = 'count', currency = 'MAD
     );
   }
 
+  const shownCurrency = /^(MAD|DH)$/i.test(currency) ? (lang === 'ar' ? 'درهم' : lang === 'en' ? 'MAD' : 'DH') : currency;
   const fmt = (v: number) => (unit === 'money'
-    ? `${v.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${currency}`
-    : v.toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
+    ? `${v.toLocaleString(intlLocale(), { maximumFractionDigits: 0 })} ${shownCurrency}`
+    : v.toLocaleString(intlLocale(), { maximumFractionDigits: 1 }));
   const n = values!.length;
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     const box = ref.current?.getBoundingClientRect();
@@ -124,8 +129,8 @@ export function MetricSpark({ k, invert = false, unit = 'count', currency = 'MAD
     setHover(Math.max(0, Math.min(n - 1, i)));
   };
   const hv = hover === null ? null : values![hover];
-  const firstDay = data.dates[0] ? shortDay(data.dates[0]) : '';
-  const lastDay = data.dates[n - 1] ? shortDay(data.dates[n - 1]) : '';
+  const firstDay = data.dates[0] ? shortDay(data.dates[0], intlLocale()) : '';
+  const lastDay = data.dates[n - 1] ? shortDay(data.dates[n - 1], intlLocale()) : '';
   let latest: number | null = null;
   for (let i = n - 1; i >= 0; i--) { if (values![i] !== null) { latest = values![i]; break; } }
   return (
@@ -134,7 +139,7 @@ export function MetricSpark({ k, invert = false, unit = 'count', currency = 'MAD
       className={`ms-spark${invert ? ' is-invert' : ''}`}
       data-metric-spark={k}
       role="img"
-      aria-label={`Évolution du ${firstDay} au ${lastDay}${latest !== null ? ` — dernière valeur ${fmt(latest)}` : ''}`}
+      aria-label={latest !== null ? t('Évolution du {first} au {last} — dernière valeur {value}', { first: firstDay, last: lastDay, value: fmt(latest) }) : t('Évolution du {first} au {last}', { first: firstDay, last: lastDay })}
       onPointerMove={onMove}
       onPointerLeave={() => setHover(null)}
     >
@@ -155,7 +160,7 @@ export function MetricSpark({ k, invert = false, unit = 'count', currency = 'MAD
             <span className="ms-dot" style={{ left: `${(hover / Math.max(1, n - 1)) * 100}%`, top: `${(paths.y(hv) / H) * 100}%` }} aria-hidden="true" />
           ) : null}
           <span className={`ms-tip${hover > n / 2 ? ' is-left' : ''}`} style={{ left: `${(hover / Math.max(1, n - 1)) * 100}%` }} aria-hidden="true">
-            <b>{hv === null ? '—' : fmt(hv)}</b> {shortDay(data.dates[hover] || '')}
+            <b>{hv === null ? '—' : fmt(hv)}</b> {shortDay(data.dates[hover] || '', intlLocale())}
           </span>
         </>
       ) : null}

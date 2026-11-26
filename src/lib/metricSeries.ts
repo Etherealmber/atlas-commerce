@@ -150,8 +150,7 @@ export interface TrendResult {
   against: string;
 }
 
-const SHORT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-export const shortDay = (iso: string) => SHORT.format(new Date(`${iso}T00:00:00Z`));
+export const shortDay = (iso: string, locale = 'fr-FR') => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
 
 /**
  * Trend of one series, Cloudflare style.

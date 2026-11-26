@@ -11,7 +11,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useMetricSeries } from '../lib/metricSeries';
-import { getLang, intlLocale, useLang } from '../i18n/core';
+import { getLang, intlLocale, t, translate, useLang } from '../i18n/core';
 import type { FinanceMonthly } from './financeTypes';
 
 const nb = (s: string) => s.replace(/\u202f/g, '\u00a0');
@@ -29,7 +29,7 @@ export function compactMoney(n: number): string {
 const displayCurrency = (currency: string) => /^(MAD|DH)$/i.test(currency) ? (getLang() === 'ar' ? 'درهم' : getLang() === 'en' ? 'MAD' : 'DH') : currency;
 const dayLabel = (iso: string) => {
   const d = new Date(`${iso}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? iso.slice(5) : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+  return Number.isNaN(d.getTime()) ? iso.slice(5) : d.toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit' });
 };
 
 export function PhoneInOutChart({ currency = 'MAD', days = 14 }: { currency?: string; days?: number }) {
@@ -59,14 +59,14 @@ export function PhoneInOutChart({ currency = 'MAD', days = 14 }: { currency?: st
   return (
     <section className="ph-panel ph-chart" aria-label="Encaissements et décaissements">
       <div className="ph-chart-head">
-        <div><h2>Entrées &amp; sorties</h2><p>{model.dates.length} derniers jours</p></div>
+        <div><h2>Entrées &amp; sorties</h2><p>{t('{n} derniers jours', { n: model.dates.length })}</p></div>
         <span className={`ph-chart-net ${net >= 0 ? 'is-up' : 'is-down'}`}>{net >= 0 ? '+' : '−'}{compactMoney(Math.abs(net))} {displayCurrency(currency)}</span>
       </div>
       <div className="ph-chart-legend">
         <span><i className="sw sw-in" />Encaissé <b>{compactMoney(model.totalIn)}</b></span>
         <span><i className="sw sw-out" />Décaissé <b>{compactMoney(model.totalOut)}</b></span>
       </div>
-      <svg className="ph-chart-svg" viewBox={`0 0 ${W} ${H + 18}`} role="img" aria-label={`Encaissé ${fmtInt(model.totalIn)} ${displayCurrency(currency)}, décaissé ${fmtInt(model.totalOut)} ${displayCurrency(currency)}`}>
+      <svg className="ph-chart-svg" viewBox={`0 0 ${W} ${H + 18}`} role="img" aria-label={t('Encaissé {received} {currency}, décaissé {paid} {currency}', { received: fmtInt(model.totalIn), paid: fmtInt(model.totalOut), currency: displayCurrency(currency) })}>
         <line x1="0" x2={W} y1={H} y2={H} className="ph-chart-axis" />
         {model.dates.map((d, i) => {
           const x = i * slot + slot / 2;
@@ -84,7 +84,7 @@ export function PhoneInOutChart({ currency = 'MAD', days = 14 }: { currency?: st
       </svg>
       <p className="ph-chart-pick" aria-live="polite">
         {sel !== null
-          ? <>{dayLabel(model.dates[sel])} · encaissé <b>{fmtInt(model.ins[sel])} {displayCurrency(currency)}</b> · décaissé <b>{fmtInt(model.outs[sel])} {displayCurrency(currency)}</b></>
+          ? <>{dayLabel(model.dates[sel])} · {t('encaissé')} <b>{fmtInt(model.ins[sel])} {displayCurrency(currency)}</b> · {t('décaissé')} <b>{fmtInt(model.outs[sel])} {displayCurrency(currency)}</b></>
           : 'Touchez un jour pour voir le détail.'}
       </p>
     </section>
@@ -125,11 +125,11 @@ export function PhoneStockDonut({ onOpen }: { onOpen?: () => void }) {
   return (
     <section className="ph-panel ph-chart ph-chart--donut" aria-label="Santé du stock">
       <div className="ph-chart-head">
-        <div><h2>Santé du stock</h2><p>{fmtInt(total)} références suivies</p></div>
+        <div><h2>Santé du stock</h2><p>{t('{n} références suivies', { n: fmtInt(total) })}</p></div>
         {onOpen && <button type="button" className="ph-textbtn" onClick={onOpen}>Voir</button>}
       </div>
       <div className="ph-donut-row">
-        <svg viewBox="0 0 110 110" className="ph-donut" role="img" aria-label={`${healthy} % des références en stock`}>
+        <svg viewBox="0 0 110 110" className="ph-donut" role="img" aria-label={t('{n} % des références en stock', { n: healthy })}>
           <circle cx="55" cy="55" r={R} className="ph-donut-track" />
           {parts.map((p, i) => {
             const len = (p.v / total) * C;
@@ -142,7 +142,7 @@ export function PhoneStockDonut({ onOpen }: { onOpen?: () => void }) {
             return el;
           })}
           <text x="55" y="53" textAnchor="middle" className="ph-donut-big">{sel ? fmtInt(sel.v) : `${healthy} %`}</text>
-          <text x="55" y="68" textAnchor="middle" className="ph-donut-small">{sel ? sel.label : 'en stock'}</text>
+          <text x="55" y="68" textAnchor="middle" className="ph-donut-small">{translate(sel ? sel.label : 'en stock')}</text>
         </svg>
         <ul className="ph-donut-legend">
           {parts.map((p, i) => (

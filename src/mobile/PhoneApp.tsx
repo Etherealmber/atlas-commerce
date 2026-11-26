@@ -1615,6 +1615,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
         <textarea
           ref={inputRef}
           className="ph-agent-input"
+          dir="auto"
           rows={1}
           maxLength={2500}
           aria-label="Message à l’assistant Atlas"

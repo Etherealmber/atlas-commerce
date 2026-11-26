@@ -80,6 +80,15 @@ export function formatAxisVal(v: number, span: number) {
   return `${sign}${Math.round(abs)}`;
 }
 
+/** SVG is skipped by the DOM translator: isolate the numeric run explicitly. */
+function AxisText({ value, span }: { value: number; span: number }) {
+  const label = formatAxisVal(value, span);
+  if (getLang() !== 'ar') return <>{label}</>;
+  const parts = /^([-+]?\d[\d.,]*)(.*)$/.exec(label);
+  if (!parts) return <>{label}</>;
+  return <><tspan direction="ltr" style={{ unicodeBidi: 'isolate' }}>{parts[1]}</tspan><tspan>{parts[2]}</tspan></>;
+}
+
 function nicePositiveScale(rawMax: number, emptyFallback = 1000) {
   if (!Number.isFinite(rawMax) || rawMax <= 0) {
     return {
@@ -250,7 +259,7 @@ export function AreaChart({
   const span = Math.max(1, scale.max - scale.min);
   const n = safeSeries.length;
   const minW = n > 16 ? Math.max(width, n * 44) : width;
-  const leftPad = 48;
+  const leftPad = getLang() === 'ar' ? 82 : 48;
   const rightPad = 18;
   const topPad = 16;
   const bottomPad = 30;
@@ -356,9 +365,10 @@ export function AreaChart({
                   fontSize="11"
                   fill="var(--ac-muted)"
                   textAnchor="end"
-                  style={{ fontVariantNumeric: 'tabular-nums' }}
+                  direction={getLang() === 'ar' ? 'rtl' : 'ltr'}
+                  style={{ fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}
                 >
-                  {formatAxisVal(v, span)}
+                  <AxisText value={v} span={span} />
                 </text>
               </g>
             );
@@ -525,7 +535,7 @@ export function BarChart({
 
   const n = series.length;
   const minW = n > 14 ? Math.max(width, n * 44) : width;
-  const leftPad = 46;
+  const leftPad = getLang() === 'ar' ? 82 : 46;
   const rightPad = secondaryLineKey ? 36 : 14;
   const topPad = 14;
   const bottomPad = 28;
@@ -619,9 +629,10 @@ export function BarChart({
                   fontSize="11"
                   fill="var(--ac-muted)"
                   textAnchor="end"
-                  style={{ fontVariantNumeric: 'tabular-nums' }}
+                  direction={getLang() === 'ar' ? 'rtl' : 'ltr'}
+                  style={{ fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}
                 >
-                  {formatAxisVal(v, scale.max)}
+                  <AxisText value={v} span={scale.max} />
                 </text>
               </g>
             );
