@@ -86,3 +86,10 @@ it('guards both catalog dialog dismissal and reports refresh failures after succ
   expect(settings).toContain("toast('Enregistré, mais actualisation des catégories impossible. Actualisez la page.', 'error')");
   expect(settings).toContain("toast('Enregistré, mais actualisation des unités impossible. Actualisez la page.', 'error')");
 });
+
+it('places catalog creation controls in their table headers and groups dialog actions', () => {
+  const settings = readFileSync('src/pages/Settings.tsx', 'utf8');
+  expect(settings).toMatch(/<th className="catalog-add-cell"><button type="button" data-visual-review="category-create"/);
+  expect(settings).toMatch(/<th className="catalog-add-cell"><button type="button" data-visual-review="unit-create"/);
+  expect(settings.match(/className="catalog-dialog-actions"/g)).toHaveLength(2);
+});
