@@ -10,13 +10,19 @@ concurrency:
 jobs:
   screenshots:
     name: Local demo screenshots (Arabic, English, French)
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    outputs:
-      preview_names: ${{ steps.stage.outputs.names }}
-      preview_run: ${{ steps.stage.outputs.run }}
+    # The same-repository workflow can publish demo-only PNGs. Fork PRs have
+    # read-only tokens and are excluded from the publication steps below.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -44,6 +50,12 @@ jobs:
                 echo '```' >> "$GITHUB_STEP_SUMMARY"
                 tail -n 20 /tmp/visual-capture.log >> "$GITHUB_STEP_SUMMARY"
                 echo '```' >> "$GITHUB_STEP_SUMMARY"
+                python3 - <<'PYTHON'
+          from pathlib import Path
+          lines = Path('/tmp/visual-capture.log').read_text(errors='replace').splitlines()[-12:]
+          message = '\n'.join(lines).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print(f'::error::Visual capture failed: {message}')
+          PYTHON
               fi
             fi
             exit "$status"
@@ -68,7 +80,7 @@ jobs:
           path: artifacts/visual-review/
           if-no-files-found: warn
           retention-days: 14
-      - name: Stage up to eight public demo previews
+      - name: Stage public demo previews
         id: stage
         if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
         run: |
@@ -93,36 +105,35 @@ jobs:
         run: |
           echo '## Visual review — isolated test/test demo' >> "$GITHUB_STEP_SUMMARY"
           echo "[Download all captured screenshots and diagnostics]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
-          echo 'Up to eight demo-only screenshots may be publicly published on GitHub Pages for inline preview; see the preview deployment job.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Demo-only screenshots may be publicly published for inline preview. A newer run replaces the preview.' >> "$GITHUB_STEP_SUMMARY"
 
-  previews:
-    name: Public demo screenshot previews
-    needs: screenshots
-    if: always() && needs.screenshots.outputs.preview_names != '' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    concurrency:
-      group: atlas-visual-pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - name: Publish selected demo images
+      - name: Check whether GitHub Pages is enabled
+        id: pages
+        if: always() && steps.stage.outputs.names != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.build_type' 2>/dev/null | grep -qx workflow; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo '::warning::GitHub Pages is not enabled for Actions; preview publishing skipped.'
+            echo 'To show inline previews, enable Settings → Pages → Source → GitHub Actions.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Publish demo images
         id: deploy
+        if: always() && steps.pages.outputs.ready == 'true' && steps.stage.outputs.names != ''
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
       - name: Show screenshots in job summary
+        if: always() && steps.deploy.outcome == 'success'
         env:
           PAGE_URL: ${{ steps.deploy.outputs.page_url }}
-          PREVIEW_RUN: ${{ needs.screenshots.outputs.preview_run }}
-          PREVIEW_NAMES: ${{ needs.screenshots.outputs.preview_names }}
+          PREVIEW_RUN: ${{ steps.stage.outputs.run }}
+          PREVIEW_NAMES: ${{ steps.stage.outputs.names }}
         run: |
           python3 - <<'PYTHON' >> "$GITHUB_STEP_SUMMARY"
           import json, os, urllib.parse
           print('## Visual review — public demo previews')
-          print('Up to eight images from the isolated test/test demo. A newer run replaces this Pages deployment, so older previews may stop working. The full artifact is linked in the capture job.')
+          print('Up to 500 completed images from the isolated test/test demo. A newer run replaces this Pages deployment, so older previews may stop working. The full artifact is linked above.')
           base = os.environ['PAGE_URL'].rstrip('/')
           run = urllib.parse.quote(os.environ['PREVIEW_RUN'], safe='')
           for name in json.loads(os.environ['PREVIEW_NAMES']):

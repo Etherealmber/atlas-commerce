@@ -2,22 +2,9 @@
 import { readdirSync, mkdirSync, readFileSync, copyFileSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 
-export function selectPreviews(names, limit = 8) {
-  const candidates = names.filter(name => /^[A-Za-z0-9-]+--(?:ar|en|fr)--(?:desktop|mobile)--light\.png$/.test(name)).sort();
-  const chosen = [];
-  // Alternate languages and devices, avoiding multiple views of the same page
-  // until all available distinct pages have been represented.
-  const groups = ['ar--desktop', 'en--desktop', 'fr--desktop', 'ar--mobile', 'en--mobile', 'fr--mobile'];
-  for (let round = 0; chosen.length < limit; round++) {
-    let added = false;
-    for (const group of groups) {
-      const match = candidates.find(name => name.includes(`--${group}--`) && !chosen.includes(name) && !chosen.some(c => c.split('--')[0] === name.split('--')[0]));
-      const fallback = round > 0 && candidates.find(name => name.includes(`--${group}--`) && !chosen.includes(name));
-      if (match || fallback) { chosen.push(match || fallback); added = true; if (chosen.length === limit) break; }
-    }
-    if (!added) break;
-  }
-  return chosen;
+// Keep the step output and GitHub summary well below their size limits.
+export function selectPreviews(names, limit = 500) {
+  return [...new Set(names.filter(name => /^[A-Za-z0-9-]{1,100}--(?:ar|en|fr)--(?:desktop|mobile)--light\.png$/.test(name)))].sort().slice(0, limit);
 }
 
 if (process.argv[1]?.endsWith('/visual-summary.mjs')) {
