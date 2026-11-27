@@ -12,6 +12,9 @@ jobs:
     name: Local demo screenshots (Arabic, English, French)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      preview_names: ${{ steps.stage.outputs.names }}
+      preview_run: ${{ steps.stage.outputs.run }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -20,7 +23,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Test screenshot readiness checks
-        run: node --test scripts/visual-current-version.test.mjs scripts/visual-dialogs.test.mjs scripts/visual-wait.test.mjs scripts/visual-i18n-observer.test.mjs scripts/i18n-ast-scan.test.mjs
+        run: node --test scripts/visual-current-version.test.mjs scripts/visual-dialogs.test.mjs scripts/visual-wait.test.mjs scripts/visual-i18n-observer.test.mjs scripts/i18n-ast-scan.test.mjs scripts/visual-summary.test.mjs
       - name: Start isolated test/test demo and capture pages
         run: |
           node scripts/visual-demo-worker.mjs
@@ -65,15 +68,63 @@ jobs:
           path: artifacts/visual-review/
           if-no-files-found: warn
           retention-days: 14
-      - name: Link screenshots in job summary
+      - name: Stage up to eight public demo previews
+        id: stage
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: |
+          if [ ! -d artifacts/visual-review ]; then exit 0; fi
+          run="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if names=$(node scripts/visual-summary.mjs artifacts/visual-review /tmp/atlas-visual-pages "$run"); then
+            echo "names=$names" >> "$GITHUB_OUTPUT"
+            echo "run=$run" >> "$GITHUB_OUTPUT"
+          else
+            echo '::warning::No public preview images were staged.'
+          fi
+      - name: Upload demo previews for GitHub Pages
+        if: always() && steps.stage.outputs.names != ''
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: /tmp/atlas-visual-pages
+          retention-days: 1
+      - name: Link complete artifact
         if: always() && steps.screenshots.outputs.artifact-url != ''
         env:
           ARTIFACT_URL: ${{ steps.screenshots.outputs.artifact-url }}
         run: |
           echo '## Visual review — isolated test/test demo' >> "$GITHUB_STEP_SUMMARY"
-          echo "[Download screenshots and page-code manifest]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
-          echo 'Screenshots are private workflow artifacts, not committed files. GitHub requires downloading the artifact to view its individual images.' >> "$GITHUB_STEP_SUMMARY"
-          if [ -f artifacts/visual-review/README.md ]; then
-            echo '### Captured page codes' >> "$GITHUB_STEP_SUMMARY"
-            sed -n '/^- \*\*/p' artifacts/visual-review/README.md | sed -E 's/\[([^]]+)\]\([^)]+\)/`\1`/' >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "[Download all captured screenshots and diagnostics]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Up to eight demo-only screenshots may be publicly published on GitHub Pages for inline preview; see the preview deployment job.' >> "$GITHUB_STEP_SUMMARY"
+
+  previews:
+    name: Public demo screenshot previews
+    needs: screenshots
+    if: always() && needs.screenshots.outputs.preview_names != '' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: atlas-visual-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Publish selected demo images
+        id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Show screenshots in job summary
+        env:
+          PAGE_URL: ${{ steps.deploy.outputs.page_url }}
+          PREVIEW_RUN: ${{ needs.screenshots.outputs.preview_run }}
+          PREVIEW_NAMES: ${{ needs.screenshots.outputs.preview_names }}
+        run: |
+          python3 - <<'PYTHON' >> "$GITHUB_STEP_SUMMARY"
+          import json, os, urllib.parse
+          print('## Visual review — public demo previews')
+          print('Up to eight images from the isolated test/test demo. A newer run replaces this Pages deployment, so older previews may stop working. The full artifact is linked in the capture job.')
+          base = os.environ['PAGE_URL'].rstrip('/')
+          run = urllib.parse.quote(os.environ['PREVIEW_RUN'], safe='')
+          for name in json.loads(os.environ['PREVIEW_NAMES']):
+              print(f"\n### {name}\n\n![{name}]({base}/{run}/{urllib.parse.quote(name, safe='')})")
+          PYTHON

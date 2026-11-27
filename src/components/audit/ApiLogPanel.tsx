@@ -9,6 +9,7 @@ import { AuditAgentExplanation } from './AuditAgentExplanation';
 import { t, useLang } from '../../i18n/core';
 import TopPageActions from '../TopPageActions';
 import DatePicker from '../DatePicker';
+import Select from '../ui/Select';
 
 const PAGE = 25;
 type Range = '24h' | '7d' | '30d';
@@ -256,7 +257,7 @@ function JournalArchive({ onOpen }: { onOpen: (row: any) => void }) {
     <summary>{t('Archive chiffrée des appels API')} / Audit</summary>
     <p>{t('Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.')}</p>
     <div className="ac-journal-archive-controls">
-      <select value={kind} disabled={busy} aria-label="Journal" onChange={e => { setKind(e.target.value as 'api' | 'audit'); setKeys([]); setCursor(null); setAuditEntry(null); setMessage(''); }}><option value="api">API</option><option value="audit">Audit</option></select>
+      <Select value={kind} disabled={busy} aria-label="Journal" onChange={e => { setKind(e.target.value as 'api' | 'audit'); setKeys([]); setCursor(null); setAuditEntry(null); setMessage(''); }}><option value="api">API</option><option value="audit">Audit</option></Select>
       <label htmlFor="journal-archive-day">{t('Date UTC')}</label>
       <DatePicker id="journal-archive-day" value={day} onChange={value => { setDay(value); setKeys([]); setCursor(null); setAuditEntry(null); setMessage(''); }} />
       <button className="secondary" type="button" disabled={busy || !day} onClick={() => void load()}>{t('Afficher les archives')}</button>
