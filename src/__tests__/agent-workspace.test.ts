@@ -31,8 +31,12 @@ it('shows the welcome workspace and opens the conversation picker', async () => 
   await click('[aria-label="Historique des conversations"]');
   expect(host.querySelector('[aria-label="Rechercher une conversation"]')).not.toBeNull();
   expect(host.textContent).toContain('Aucune conversation trouvée');
+  expect(host.querySelector('.atlas-agent-panel--expanded')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Conversations Atlas Agent"]')).not.toBeNull();
+  await click('[aria-label="Réduire le panneau"]');
+  expect(host.querySelector('.atlas-agent-panel--expanded')).toBeNull();
   await click('[aria-label="Agrandir le panneau"]');
-  expect(host.querySelector('[aria-label="Réduire le panneau"]')).not.toBeNull();
+  expect(host.querySelector('.atlas-agent-panel--expanded')).not.toBeNull();
 });
 
 it('switches existing conversations without carrying messages into a new conversation', async () => {
@@ -67,4 +71,19 @@ it('shows streamed tokens while waiting, then replaces them with the authoritati
   await act(async () => finish({ data: { reply: 'Réponse complète', tool_trace: [] } }));
   expect(host.textContent).toContain('Réponse complète');
   expect(host.textContent).not.toContain('Réponse partielle');
+});
+
+it('shows the real completed tool steps above the answer and lets them expand', async () => {
+  vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Voici le stock.', tool_trace: [{ name: 'list_low_stock', ok: true }, { name: 'search_products', ok: false }] } } as any);
+  await render();
+  const suggestion = host.querySelector<HTMLButtonElement>('.atlas-agent-welcome-cards button')!;
+  await act(async () => suggestion.click());
+  const activity = host.querySelector<HTMLButtonElement>('.atlas-agent-tools-toggle')!;
+  expect(activity.textContent).toContain('2 étapes');
+  expect(activity.getAttribute('aria-expanded')).toBe('false');
+  const bubble = activity.closest('.atlas-agent-msg')!.querySelector('.atlas-agent-bubble')!;
+  expect(activity.compareDocumentPosition(bubble) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await act(async () => activity.click());
+  expect(host.textContent).toContain('Consulter les stocks bas');
+  expect(host.textContent).toContain('Échec');
 });

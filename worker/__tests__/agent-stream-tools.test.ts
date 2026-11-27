@@ -386,6 +386,23 @@ describe('POST /api/assist/chat/stream — parité outils (v0.7.8)', () => {
     expect(done.tool_trace[0]).toMatchObject({ name: 'propose_inventory_adjustment', ok: false });
   });
 
+  it('does not expose or execute unconfirmed direct business mutations even for an owner', async () => {
+    const secret = await seedUser('safeowner', 'Test1234!', 'owner');
+    seedDevice('fpSafe', 'safeowner');
+    let round = 0;
+    vi.stubGlobal('fetch', (async (_u: any, init: any) => {
+      groqBodies.push(JSON.parse(init.body));
+      return ++round === 1
+        ? sseResponse([toolCallDelta(0, 'unsafe', 'create_product', '{"name":"Unexpected"}')])
+        : sseResponse([contentDelta('Not permitted.')]);
+    }) as unknown as typeof fetch);
+    const result = await streamChat(await tokenFor('safeowner', 'owner', secret, 'fpSafe'), { message: 'create a product', response_language: 'en' });
+    for (const name of ['create_client', 'create_product', 'update_client', 'create_invoice_draft', 'create_quote_draft']) expect(toolNames(groqBodies[0])).not.toContain(name);
+    const done = parseEvents(result.text).find((e) => e.event === 'done')!.data;
+    expect(done.tool_trace[0]).toMatchObject({ name: 'create_product', ok: false });
+    expect(done.proposals).toEqual([]);
+  });
+
   it('streams tokens before the upstream has finished, not only in the final event', async () => {
     const secret = await seedUser('live', 'Test1234!', 'owner');
     seedDevice('fpL', 'live');

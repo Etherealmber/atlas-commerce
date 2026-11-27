@@ -175,10 +175,11 @@ export default function Settings() {
   const VALID_TABS = new Set(['profile', 'agent', 'company', 'attendance', 'payroll', 'fec', 'legal', 'invoicing', 'dunning', 'documents', 'warehouse', 'categories', 'integrations', 'app', 'admin', 'audit']);
   const tabFromUrl = searchParams.get('tab') || 'profile';
   const activeTab = VALID_TABS.has(tabFromUrl) ? tabFromUrl : 'profile';
+  const needsCompanySettings = ['company', 'attendance', 'legal', 'invoicing', 'documents', 'warehouse'].includes(activeTab);
 
   // When tab content is ready, honor pending anchor (Windows-style: open page + focus control)
   useEffect(() => {
-    if (loading) return;
+    if (loading && needsCompanySettings) return;
     let raw: string | null = null;
     try { raw = sessionStorage.getItem('atlas-settings-pending-anchor'); } catch { /* */ }
     if (!raw) return;
@@ -216,7 +217,7 @@ export default function Settings() {
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [activeTab, loading]);
+  }, [activeTab, loading, needsCompanySettings]);
 
 
   // mailbox removed — fall through via VALID_TABS
@@ -323,21 +324,34 @@ export default function Settings() {
   };
 
 
+  const canViewJournal = canAccessAdminSettings() || isOwner;
+  const [journalMode, setJournalMode] = useState<'pending' | 'r2' | 'legacy' | 'error'>('pending');
+  const [journalModeRetry, setJournalModeRetry] = useState(0);
+  useEffect(() => {
+    if (activeTab !== 'audit' || !canViewJournal) return;
+    let alive = true;
+    setJournalMode('pending');
+    api.getJournalMode().then((result) => {
+      if (alive) setJournalMode(result.data?.mode === 'r2' ? 'r2' : result.data?.mode === 'legacy' ? 'legacy' : 'error');
+    }).catch(() => { if (alive) setJournalMode('error'); });
+    return () => { alive = false; };
+  }, [activeTab, canViewJournal, journalModeRetry]);
+
   const auditQueryLoaded = useRef('');
   const auditLastAttempt = useRef(0);
   const auditGeneration = useRef(0);
   useEffect(() => {
-    if (activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (auditQueryLoaded.current !== `${auditRange}:${auditAction}` || (auditCursorStack.length === 1 && Date.now() - auditLastAttempt.current >= 300_000))) {
+    if (journalMode === 'legacy' && activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (auditQueryLoaded.current !== `${auditRange}:${auditAction}` || (auditCursorStack.length === 1 && Date.now() - auditLastAttempt.current >= 300_000))) {
       auditQueryLoaded.current = `${auditRange}:${auditAction}`;
       void loadAuditPage(null, auditQ, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, auditRange, auditAction]);
+  }, [activeTab, auditRange, auditAction, journalMode]);
 
   // Avoid a permanently stale first page while a user leaves Settings open.
   // Do not move paginated users back to page one, or poll a hidden tab.
   useEffect(() => {
-    if (activeTab !== 'audit' || !(canAccessAdminSettings() || isOwner)) return;
+    if (journalMode !== 'legacy' || activeTab !== 'audit' || !(canAccessAdminSettings() || isOwner)) return;
     const refreshIfStale = () => {
       if (document.visibilityState === 'visible' && auditCursorStack.length === 1 && Date.now() - auditLastAttempt.current >= 300_000) {
         void loadAuditPage(null, auditQ, true);
@@ -347,7 +361,7 @@ export default function Settings() {
     document.addEventListener('visibilitychange', refreshIfStale);
     return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', refreshIfStale); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, auditRange, auditAction, auditQ, auditCursorStack, isOwner]);
+  }, [activeTab, auditRange, auditAction, auditQ, auditCursorStack, isOwner, journalMode]);
 
   const assistLoaded = useRef(false);
   useEffect(() => {
@@ -442,8 +456,9 @@ export default function Settings() {
 
 
   useEffect(() => {
-    if (initialSettings && settingsRetry === 0) return;
+    if (!needsCompanySettings || (savedSettingsRef.current && settingsRetry === 0)) return;
     let alive = true;
+    setLoading(true);
     setSettingsLoadError(false);
     api.getSettings()
       .then((r) => {
@@ -456,7 +471,7 @@ export default function Settings() {
       .catch(() => { if (alive && !savedSettingsRef.current) setSettingsLoadError(true); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [settingsRetry]);
+  }, [settingsRetry, needsCompanySettings]);
 
   useEffect(() => {
     api.getMe().then((r) => {
@@ -505,6 +520,7 @@ export default function Settings() {
 
   /** Cursor-based audit pages. reset=true clears history (search / first page). */
   const loadAuditPage = async (cursor: string | null = null, q = auditQ, reset = false) => {
+    if (journalMode !== 'legacy') return;
     const generation = ++auditGeneration.current;
     auditLastAttempt.current = Date.now();
     setAuditLoading(true);
@@ -835,13 +851,13 @@ export default function Settings() {
 
 
 
-if (loading && !settings) return (
+if (needsCompanySettings && loading && !settings) return (
     <div className="atlas-page atlas-settings">
       <h1 className="sr-only">Paramètres</h1>
       <PageSkeleton variant="settings" />
     </div>
   );
-  if (settingsLoadError && !settings) return (
+  if (needsCompanySettings && settingsLoadError && !settings) return (
     <div className="atlas-page atlas-settings" role="alert">
       <p>Impossible de charger les paramètres. Réessayez.</p>
       <button type="button" onClick={() => { setLoading(true); setSettingsRetry(n => n + 1); }}>Réessayer</button>
@@ -1000,7 +1016,7 @@ if (loading && !settings) return (
         <article className="ac-metric">
           <span className="ac-metric-label">Société</span>
           <strong className="ac-metric-val">{settings?.company_name || 'Atlas Commerce'}</strong>
-          <span className="ac-metric-meta">{settings?.currency || 'MAD'} · TVA {settings?.tax_rate ?? 20}%</span>
+          <span className="ac-metric-meta">{settings ? `${settings.currency || 'MAD'} · TVA ${settings.tax_rate ?? 20}%` : '—'}</span>
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">Synchronisation</span>
@@ -2835,7 +2851,10 @@ if (loading && !settings) return (
         </div>
       )}
 
-      {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (() => {
+      {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && journalMode === 'pending' && <div role="status" aria-label="Chargement du journal"><DesktopTableSkeleton rows={3} cols={4} /></div>}
+      {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && journalMode === 'error' && <div role="alert"><p>Impossible de charger le journal. Réessayez.</p><button type="button" onClick={() => setJournalModeRetry((n) => n + 1)}>Réessayer</button></div>}
+      {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && journalMode === 'r2' && <ApiLogPanel range={auditRange} forceR2 />}
+      {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && journalMode === 'legacy' && (() => {
         const rangeLabels: Record<'24h' | '7d' | '30d' | 'all', string> = {
           '24h': '24 dernières heures',
           '7d': '7 derniers jours',

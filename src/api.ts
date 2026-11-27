@@ -27,6 +27,7 @@ const GET_CACHE_TTL: Record<string, number> = {
   '/api/units': 120_000,
   '/api/stock-locations': 60_000,
   '/api/nav-badges': 15_000,
+  '/api/alerts': 15_000,
   '/api/auth/me': 15_000,
   '/api/hub/snapshot': 10_000,
 };
@@ -81,6 +82,11 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
       }
       // Retry transient upstream / edge errors on GET only
       if (isIdempotentGet && (res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxAttempts - 1) {
+        const retryAfter = res.headers.get('Retry-After');
+        const code = res.status === 503 ? ((await res.clone().json().catch(() => ({}))) as { code?: string }).code : undefined;
+        // Quota exhaustion and a server-requested cool-down are not transient
+        // 250ms failures. Retrying immediately triples load and delays the UI.
+        if (code === 'DB_QUOTA_EXCEEDED' || code === 'JOURNAL_R2_ONLY' || retryAfter) break;
         await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
         continue;
       }
@@ -279,6 +285,7 @@ async function request<T>(path: string, options?: RequestInit & { silent?: boole
   if (path.includes('/clients')) invalidateGetCache('GET:/api/clients');
   if (path.includes('/vendors')) invalidateGetCache('GET:/api/vendors');
   invalidateGetCache('GET:/api/nav-badges');
+  invalidateGetCache('GET:/api/alerts');
   invalidateGetCache('GET:/api/dashboard');
   invalidateGetCache('GET:/api/hub/snapshot');
   if (path.includes('/bills')) invalidateGetCache('GET:/api/bills');
@@ -1028,6 +1035,7 @@ export const api = {
     if (params?.stats) qs.set('stats', '1');
     return request<{ data: any[]; meta?: { limit: number; has_more: boolean; next_cursor: string | null; range: string; stats?: any } }>(`/api/admin/api-log?${qs}`);
   },
+  getJournalMode: () => request<{ data: { mode: 'r2' | 'legacy' } }>('/api/admin/journal-mode', { silent: true }),
   listJournalArchive: (day: string, cursor?: string | null, kind: 'api' | 'audit' = 'api') => {
     const qs = new URLSearchParams({ day, kind });
     if (cursor) qs.set('cursor', cursor);

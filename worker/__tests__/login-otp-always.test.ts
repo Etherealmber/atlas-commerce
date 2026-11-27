@@ -388,6 +388,21 @@ describe('legacy IP reputation protections remain effective', () => {
     expect(sendSpy).not.toHaveBeenCalled();
   });
 
+  it('recovers a stale legacy low score for Android without bypassing active bans or credential budgets', async () => {
+    await seedReturningUser();
+    sqlite.prepare(`INSERT INTO ip_reputation (ip, score, blocked_until, updated_at) VALUES (?, 2, datetime('now', '+5 minutes'), datetime('now', '-1 hour'))`).run(testIp);
+    expect((await login({ username: 'alice', password: 'Test1234!', client: 'android', fingerprint: 'phone' })).status).toBe(429);
+    sqlite.prepare(`UPDATE ip_reputation SET blocked_until = datetime('now', '-1 minute') WHERE ip = ?`).run(testIp);
+    expect((await login({ username: 'alice', password: 'wrong', client: 'android', fingerprint: 'same-phone' })).status).toBe(401);
+    const recovered = await login({ username: 'alice', password: 'Test1234!', client: 'android', fingerprint: 'same-phone' });
+    expect(recovered.status).toBe(200);
+    expect(recovered.body.needs_otp).toBe(true);
+    expect(recovered.body.token).toBeUndefined();
+    const otp = sqlite.prepare(`SELECT code FROM otp_codes WHERE resource_type = 'login' AND resource_id = 'fp:same-phone'`).get().code;
+    expect((await verifyFallbackOtp(otp)).status).toBe(200);
+    expect(sqlite.prepare(`SELECT score FROM ip_reputation WHERE ip = ?`).get(testIp).score).toBeGreaterThan(10);
+  });
+
   it('successful OTP does not reset the password-attempt bucket', async () => {
     await seedReturningUser();
     await login({ username: 'alice', password: 'Test1234!', fingerprint: 'same-phone' });
