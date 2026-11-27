@@ -603,9 +603,14 @@ async function putAgentChatTurn(
 
 /** List recent Atlas Agent transcripts from R2 (owner/admin or own user) */
 
+// These legacy tools mutate business records immediately, without the proposal
+// approval flow. Do not expose them in chat until they have a server-side
+// confirmation mechanism; never rely on model instructions for consent.
+const UNCONFIRMED_MUTATION_TOOLS = new Set(['create_client', 'create_product', 'update_client', 'create_invoice_draft', 'create_quote_draft']);
+
 function agentChatTools(role: string, knowledge: Awaited<ReturnType<typeof loadAgentKnowledge>> | null) {
   return [
-    ...toolsForRole(role).filter((d) => knowledge !== null && knowledge.toolPrefs[d.function.name] !== 0),
+    ...toolsForRole(role).filter((d) => knowledge !== null && !UNCONFIRMED_MUTATION_TOOLS.has(d.function.name) && knowledge.toolPrefs[d.function.name] !== 0),
     ...KNOWLEDGE_TOOL_DEFS,
   ];
 }

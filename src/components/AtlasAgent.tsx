@@ -613,7 +613,7 @@ export default function AtlasAgent() {
   const [threads, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [showExtras, setShowExtras] = useState<boolean>(() => {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
   });
@@ -1409,7 +1409,7 @@ export default function AtlasAgent() {
       </button>
       )}
 
-      <aside className={`atlas-agent-panel ${open ? 'open' : ''}`} aria-hidden={!open} aria-label="Atlas Agent" style={{ width: expanded ? 'min(960px, 100vw)' : panelWidth }}>
+      <aside className={`atlas-agent-panel ${open ? 'open' : ''}${expanded ? ' atlas-agent-panel--expanded' : ''}`} aria-hidden={!open} aria-label="Atlas Agent" style={{ width: expanded ? '100vw' : panelWidth }}>
         <div
           className="atlas-agent-resize"
           role="separator"
@@ -1420,6 +1420,16 @@ export default function AtlasAgent() {
             dragRef.current = { startX: e.clientX, startW: panelWidth };
           }}
         />
+        {expanded && !isPhoneShell && <nav className="atlas-agent-workspace-sidebar" aria-label="Conversations Atlas Agent">
+          <div className="atlas-agent-workspace-brand"><span className="atlas-agent-sidebar-mark"><Sparkles size={16} /></span><strong>Atlas Agent</strong></div>
+          <button type="button" className="atlas-agent-sidebar-new" disabled={busy || loadingThread} onClick={() => switchThread(newThreadId())}><Plus size={16} /> Nouvelle conversation</button>
+          <label className="atlas-agent-history-search"><Search size={15} aria-hidden="true" /><input aria-label="Rechercher dans les conversations" placeholder="Rechercher…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /></label>
+          <div className="atlas-agent-history-caption">Conversations récentes</div>
+          <div className="atlas-agent-workspace-threads">
+            {visibleThreads.length ? visibleThreads.map((thread) => <button type="button" key={thread.id} disabled={busy || loadingThread} className={`atlas-agent-sidebar-thread${thread.id === threadId ? ' is-current' : ''}`} aria-current={thread.id === threadId ? 'page' : undefined} onClick={() => switchThread(thread.id)}>{thread.title}</button>) : <p>Aucune conversation trouvée.</p>}
+          </div>
+        </nav>}
+        <div className="atlas-agent-main">
         <header className="atlas-agent-head">
           <div className="atlas-agent-header-title">
             <span className="atlas-agent-header-mark" aria-hidden="true"><Sparkles size={17} /></span>
@@ -1979,6 +1989,7 @@ export default function AtlasAgent() {
           />
           )}
         </footer>
+        </div>
         {lightbox && (
           <ImageLightbox src={lightbox.src} name={lightbox.name} onClose={() => setLightbox(null)} />
         )}

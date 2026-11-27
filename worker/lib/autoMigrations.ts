@@ -28,3 +28,11 @@ export async function ensureAutoSqlMigrations(db: D1Database | null | undefined)
     await ensureDgiSchema(db);
   });
 }
+
+/** These GET handlers do not use tables rebuilt by migrations 0013–0020.
+ * Keep the allowlist exact and read-only: all other requests retain the
+ * exclusive initialization barrier (including agent and inventory writes). */
+export function requiresAutoSqlMigrations(method: string, path: string): boolean {
+  if (method.toUpperCase() !== 'GET') return true;
+  return !['/api/dashboard', '/api/admin/journal-mode', '/api/admin/journal-archive', '/api/admin/journal-archive/item'].includes(path);
+}

@@ -76,7 +76,7 @@ export function atlasAgentSystem(opts: {
     languageDirective(lang),
     'Sois utile et naturel. Pour le métier: sois précis (chiffres, actions concrètes).',
     'Évite le jargon vendeur IA (ne dis pas que tu es Gemini, Mistral, Groq, Llama, ChatGPT).',
-    'Si l’utilisateur est déjà sur une page, explique quoi y faire — n’ouvre pas cette même page.',
+    'Le contexte de navigation est informatif : réponds au message actuel, sans supposer que l’utilisateur demande une visite guidée de cette page. Si la demande est simplement « test », réponds naturellement à ce test, sans inventer de données. Si l’utilisateur demande explicitement d’ouvrir la page déjà affichée, ne la rouvre pas.',
     `Rôle utilisateur: ${opts.role || 'user'} (${opts.username || 'user'}). Fuseau: ${opts.timezone || 'Africa/Casablanca'}.`,
     isMobile ? 'Mobile: réponses un peu plus courtes.' : '',
   ]

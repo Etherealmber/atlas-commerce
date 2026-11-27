@@ -31,8 +31,12 @@ it('shows the welcome workspace and opens the conversation picker', async () => 
   await click('[aria-label="Historique des conversations"]');
   expect(host.querySelector('[aria-label="Rechercher une conversation"]')).not.toBeNull();
   expect(host.textContent).toContain('Aucune conversation trouvée');
+  expect(host.querySelector('.atlas-agent-panel--expanded')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Conversations Atlas Agent"]')).not.toBeNull();
+  await click('[aria-label="Réduire le panneau"]');
+  expect(host.querySelector('.atlas-agent-panel--expanded')).toBeNull();
   await click('[aria-label="Agrandir le panneau"]');
-  expect(host.querySelector('[aria-label="Réduire le panneau"]')).not.toBeNull();
+  expect(host.querySelector('.atlas-agent-panel--expanded')).not.toBeNull();
 });
 
 it('switches existing conversations without carrying messages into a new conversation', async () => {

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ensureAutoSqlMigrations } from '../lib/autoMigrations';
+import { ensureAutoSqlMigrations, requiresAutoSqlMigrations } from '../lib/autoMigrations';
 import { registerDbRoot } from '../lib/schema';
 
 const SQLITE_MODULE = ['node:', 'sqlite'].join('');
@@ -138,4 +138,12 @@ describe('ensureAutoSqlMigrations (0013–0020 auto-applied at runtime)', () => 
       sqlite.close();
     }
   });
+});
+
+it('only lets explicitly reviewed read paths bypass the unrelated initialization barrier', () => {
+  for (const path of ['/api/dashboard', '/api/admin/journal-mode', '/api/admin/journal-archive', '/api/admin/journal-archive/item']) {
+    expect(requiresAutoSqlMigrations('GET', path)).toBe(false);
+    expect(requiresAutoSqlMigrations('POST', path)).toBe(true);
+  }
+  for (const path of ['/api/stock/receive', '/api/payroll', '/api/assist/chat', '/api/dashboard/anything']) expect(requiresAutoSqlMigrations('GET', path)).toBe(true);
 });
