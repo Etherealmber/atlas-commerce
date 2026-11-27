@@ -1,5 +1,7 @@
 # D1 usage and encrypted journal rollout
 
+> **Current configuration:** the production Worker configuration selects `JOURNAL_ARCHIVE_MODE=buffered` for new API and audit journals, with no D1 journal fallback. The owner reports that `JOURNAL_ENCRYPTION_KEY` has been added as a Worker secret; its value and live behavior have not been verified here. This configuration takes effect only when this branch is merged and deployed. Earlier sections below describe the historical rollout and may refer to older modes.
+
 ## Evidence
 
 The manually dispatched, read-only [D1 insights run](https://github.com/Etherealmber/atlas-commerce/actions/runs/45852549178) returned aggregated query data for `company-stock-db` over a rolling one-day window. `INSERT api_log` ran 22,241 times, with 88,964 rows written and 889,640 rows read reported for that query shape; QR session-status SELECT ran 19,089 times, and QR session creation INSERT ran 1,343 times (4,029 rows written). These are query analytics for that window, not the account-wide UTC-day billing counter, and they do not establish which requests produced the journal entries. No production rows or schema were modified by that workflow. The prior workflow sorted by reads/count only and incorrectly reported success even when every Cloudflare query failed; it now explicitly includes writes, exits on errors, and outputs only aggregate operation/table labels and metrics instead of raw SQL.
@@ -95,7 +97,7 @@ The documented Cloudflare D1 daily quota error is now mapped to a safe actionabl
 
 When explicitly configured in `r2` mode, the API archive now reads the encrypted object back and checks its bytes before reporting success. A failed or mismatched read-back is reported as an error and never written to D1 in R2 mode. This is an additional check, not reliable R2-only journaling: writes still run in request-owned `waitUntil`, writes can fail without durable retries, and an object could exist even if its read-back fails. No audit cutover, historical migration, purge, or restore verification follows from this change. Do not enable R2-only operation until durable delivery, reconciliation, retention, and recovery are implemented and tested.
 
-### Buffered journal integration — not activated
+### Buffered journal integration — configured for the next deployment
 
 A `buffered` candidate now connects the normal API journal path and request-scoped `writeAudit` calls to `JournalBuffer`: a private R2 binding and Durable Object migration are declared, and each event is encrypted before enqueue. A transaction stores the ciphertext and alarm before acknowledgement; an alarm retries the same object and verifies its bytes before removing the pending entry. API and audit events use separate prefixes. There is no D1 fallback in this mode. The focused tests include a local workerd smoke (`node scripts/journal-runtime-smoke.mjs`) that exercises SQLite Durable Object storage, alarms and local R2 conditional writes; this is not proof of live Cloudflare behavior.
 
