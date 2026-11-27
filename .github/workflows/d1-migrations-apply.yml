@@ -270,9 +270,13 @@ jobs:
           test -n "$id"
           echo "::add-mask::$id"
           export CLOUDFLARE_ACCOUNT_ID="$id"
-          npx wrangler r2 bucket lifecycle add atlas-commerce-private-api-journal-1 audit-expire-30d audit-journal/ --expire-days 30 --force
           base="https://api.cloudflare.com/client/v4/accounts/$id/r2/buckets/atlas-commerce-private-api-journal-1"
           lifecycle=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$base/lifecycle")
+          if ! echo "$lifecycle" | jq -e '.success == true and ([.result.rules[]? | select(.enabled == true and .conditions.prefix == "audit-journal/" and .deleteObjectsTransition.condition.maxAge == 2592000)] | length >= 1)' > /dev/null; then
+            echo "$lifecycle" | jq -e '[.result.rules[]? | select(.id == "audit-expire-30d")] | length == 0' > /dev/null || { echo '::error::Conflicting audit-expire-30d rule: inspect before changing it'; exit 1; }
+            npx wrangler r2 bucket lifecycle add atlas-commerce-private-api-journal-1 audit-expire-30d audit-journal/ --expire-days 30 --force
+            lifecycle=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$base/lifecycle")
+          fi
           echo "$lifecycle" | jq -e '.success == true and ([.result.rules[]? | select(.enabled == true and .conditions.prefix == "api-journal/" and .deleteObjectsTransition.condition.maxAge == 2592000)] | length >= 1) and ([.result.rules[]? | select(.enabled == true and .conditions.prefix == "audit-journal/" and .deleteObjectsTransition.condition.maxAge == 2592000)] | length >= 1)' > /dev/null
           echo '::notice::Both API and audit journal 30-day lifecycle rules verified.'
       - name: Check Worker journal key presence (never prints its value)
@@ -282,7 +286,7 @@ jobs:
           if [ -z "$id" ] && [ -n "$CF_ZONE_ID" ]; then id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID" | jq -r '.result.account.id // empty' || true); fi
           if [ -z "$id" ]; then id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" 'https://api.cloudflare.com/client/v4/accounts?per_page=5' | jq -r '.result[0].id // empty' || true); fi
           test -n "$id"
-          secrets=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$id/workers/scripts/company-stock/secrets")
+          secrets=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$id/workers/scripts/company-stock/secrets") || { echo '::error::Worker secret metadata is not accessible with this token; grant Workers Scripts read permission or verify the key in Cloudflare.'; exit 1; }
           echo "$secrets" | jq -e '.success == true and ([.result[]? | select(.name == "JOURNAL_ENCRYPTION_KEY")] | length == 1)' > /dev/null || { echo '::error::JOURNAL_ENCRYPTION_KEY is missing or could not be verified; do not enable the journal sink.'; exit 1; }
           echo '::notice::Journal key secret exists; value and recoverability were not verified.'
 
