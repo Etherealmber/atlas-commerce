@@ -115,7 +115,7 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
     throw new Error('thread decryption failed');
   }
 
-  async function listAgentThreadKeys(env: any, userKey: string): Promise<string[]> {
+  async function listAgentThreadKeys(env: any, userKey: string): Promise<Array<{ id: string; uploaded: number }>> {
     if (!env.IMAGES) throw new Error('storage unavailable');
     const objects: Array<{ id: string; uploaded: number }> = [];
     let cursor: string | undefined;
@@ -129,7 +129,7 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
       if (!listed.truncated || !listed.cursor) break;
       cursor = listed.cursor;
     }
-    return objects.sort((a, b) => b.uploaded - a.uploaded).slice(0, 40).map(o => o.id);
+    return objects.sort((a, b) => b.uploaded - a.uploaded).slice(0, 40);
   }
 
   const validAgentThreadId = (id: string) => /^[a-zA-Z0-9._-]{1,80}$/.test(id) && id !== '.' && id !== '..';
@@ -151,30 +151,39 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
   app.get('/api/admin/agent/threads', async (c) => {
     const gate = agentUserKeyFromRequest(c);
     if (!gate.ok) return gate.response;
-    let ids: string[];
-    try { ids = await listAgentThreadKeys(c.env, gate.userKey); } catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Historique R2 indisponible.' }, 503); }
-    const threads: any[] = [];
-    // Loading sequentially made opening history wait for up to 40 R2 reads.
-    // Keep concurrency bounded while preserving the existing 40-item limit.
-    for (let offset = 0; offset < Math.min(ids.length, 40); offset += 5) {
-      const chunk = await Promise.all(ids.slice(offset, offset + 5).map(async (id) => {
-        const loaded = await loadAgentThreadR2(c.env, gate.userKey, id).catch(() => null);
-        const data = loaded?.data;
-        if (!data) return { id, title: id, updated_at: null, message_count: 0, unreadable: true };
-        const messages = Array.isArray(data.messages) ? data.messages : [];
-        const firstUser = messages.find((message: any) => message?.role === 'user' && typeof message.text === 'string' && message.text.trim());
-        const title = String(data.title || '').trim();
-        return {
-          id,
-          title: !title || title === 'Sans titre' ? String(firstUser?.text || title || 'Sans titre').trim().slice(0, 48) : title,
-          updated_at: data.updated_at || data.stored_at || null,
-          message_count: messages.length,
-        };
-      }));
-      threads.push(...chunk);
-    }
+    let objects: Array<{ id: string; uploaded: number }>;
+    try { objects = await listAgentThreadKeys(c.env, gate.userKey); } catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Historique R2 indisponible.' }, 503); }
+    // Mobile clients have a short startup deadline. Return all discovered IDs
+    // even if slow R2 reads prevent some encrypted summaries from loading in time.
+    // The detail endpoint remains authoritative; no conversation is overwritten.
+    const threads: any[] = objects.map(({ id, uploaded }) => ({ id, title: id, updated_at: uploaded ? new Date(uploaded).toISOString() : null, message_count: 0, summary_pending: true }));
+    let next = 0; let expired = false;
+    const readSummaries = async () => {
+      while (next < objects.length) {
+        if (expired) break;
+        const index = next++; const id = objects[index].id;
+        try {
+          const loaded = await loadAgentThreadR2(c.env, gate.userKey, id);
+          if (expired) return;
+          if (!loaded?.data) { threads[index] = { ...threads[index], summary_pending: false, unreadable: true }; continue; }
+          const data = loaded.data;
+          const messages = Array.isArray(data.messages) ? data.messages : [];
+          const firstUser = messages.find((message: any) => message?.role === 'user' && typeof message.text === 'string' && message.text.trim());
+          const title = String(data.title || '').trim();
+          threads[index] = { id, title: !title || title === 'Sans titre' ? String(firstUser?.text || title || 'Sans titre').trim().slice(0, 48) : title, updated_at: data.updated_at || data.stored_at || threads[index].updated_at, message_count: messages.length };
+        } catch {
+          if (!expired) threads[index] = { ...threads[index], summary_pending: false, unreadable: true };
+        }
+      }
+    };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      Promise.all(Array.from({ length: Math.min(5, objects.length) }, readSummaries)),
+      new Promise<void>(resolve => { timer = setTimeout(() => { expired = true; resolve(); }, 1800); }),
+    ]);
+    expired = true; if (timer) clearTimeout(timer);
     threads.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
-    return c.json({ success: true, data: threads, meta: { unreadable_count: threads.filter(t => t.unreadable).length } });
+    return c.json({ success: true, data: threads, meta: { unreadable_count: threads.filter(t => t.unreadable).length, pending_count: threads.filter(t => t.summary_pending).length } });
   });
 
   app.get('/api/admin/agent/threads/:id', async (c) => {

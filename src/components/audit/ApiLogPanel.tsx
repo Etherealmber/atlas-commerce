@@ -298,8 +298,8 @@ function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void
   };
   const filtered = entries.filter(entry => `${label(entry)} ${entry.row ? JSON.stringify(entry.row) : ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const current = filtered.find(entry => entry.key === selected);
-  return <details className="ac-panel ac-journal-archive" open={r2Only || undefined}>
-    <summary>{t('Archive chiffrée des appels API')} / Audit</summary>
+  const content = <>
+    {r2Only ? <h4>{t('Archive chiffrée des appels API')} / Audit</h4> : <summary>{t('Archive chiffrée des appels API')} / Audit</summary>}
     {!r2Only && <p>{t('Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.')}</p>}
     <div className="ac-journal-archive-controls">
       <label>Journal<Select value={kind} disabled={busy} aria-label="Journal" onChange={e => { reset(); setKind(e.target.value as 'api' | 'audit'); }}><option value="api">API</option><option value="audit">Audit</option></Select></label>
@@ -342,5 +342,6 @@ function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void
       <dl className="audit-detail-dl">{(['created_at', 'username', 'role', 'action', 'entity', 'entity_id', 'detail'] as const).map(field => auditEntry[field] != null && auditEntry[field] !== '' ? <div key={field}><dt>{field}</dt><dd><bdi dir="auto">{String(auditEntry[field])}</bdi></dd></div> : null)}</dl>
       <AuditRequestDetails row={auditEntry} kind="audit" />
     </div></div>, document.body)}
-  </details>;
+  </>;
+  return r2Only ? <div className="ac-panel ac-journal-archive">{content}</div> : <details className="ac-panel ac-journal-archive">{content}</details>;
 }

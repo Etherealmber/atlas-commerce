@@ -25,6 +25,7 @@ it('opens the R2 archive without fetching either legacy D1 journal or waiting fo
   const archive = vi.spyOn(api, 'listJournalArchiveEntries').mockResolvedValue({ data: [{ key: 'audit-1', row: { action: 'product.create', entity: 'products', entity_id: '42', detail: 'Marbre ajouté', username: 'alice' }, unreadable: false }], meta: { mode: 'buffered', next_cursor: null } });
   await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/settings?tab=audit'] }, createElement(Settings))));
   expect(host.textContent).toContain('Journal des appels API et audit');
+  expect(host.querySelector('.ac-journal-archive')?.tagName).toBe('DIV');
   expect(archive).toHaveBeenCalledOnce(); expect(archive).toHaveBeenCalledWith(expect.any(String), undefined, 'audit'); expect(settings).not.toHaveBeenCalled();
   expect(host.querySelector('[aria-label="Entrées audit R2"]')?.textContent).toContain('products #42');
   expect(host.textContent).toContain('Marbre ajouté');

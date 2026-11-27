@@ -102,3 +102,16 @@ it('reports unavailable R2 instead of pretending history is empty', async () => 
   expect(response.status).toBe(503);
   expect((await response.json() as any).code).toBe('AGENT_STORAGE_UNAVAILABLE');
 });
+
+it('returns discovered R2 threads when summary reads are slow, without claiming they are unreadable', async () => {
+  vi.useFakeTimers();
+  try {
+    const bucket = { list: async () => ({ objects: [{ key: 'agent/alice/slow.agent', uploaded: new Date('2026-10-20T00:00:00Z') }], truncated: false }), get: () => new Promise(() => {}) };
+    const response = app().fetch(new Request('https://example.test/api/admin/agent/threads', { headers: { Authorization: 'Bearer session' } }), { IMAGES: bucket, AGENT_CHAT_SECRET: 'secret' } as any);
+    await vi.advanceTimersByTimeAsync(1800);
+    const body = await (await response).json() as any;
+    expect(body.data).toMatchObject([{ id: 'slow', summary_pending: true }]);
+    expect(body.data[0].unreadable).toBeUndefined();
+    expect(body.meta).toMatchObject({ pending_count: 1, unreadable_count: 0 });
+  } finally { vi.useRealTimers(); }
+});

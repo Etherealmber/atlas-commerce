@@ -567,6 +567,7 @@ export default function AtlasAgent() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
   const [historyError, setHistoryError] = useState(false);
+  const [historyPending, setHistoryPending] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [showExtras, setShowExtras] = useState<boolean>(() => {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
@@ -856,6 +857,7 @@ export default function AtlasAgent() {
         const res = await api.listAgentThreads();
         if (cancelled) return;
         setHistoryError(Boolean(res?.meta?.unreadable_count));
+        setHistoryPending(Boolean(res?.meta?.pending_count));
         const remote = res?.data;
         if (!Array.isArray(remote) || !remote.length) return;
         setThreads((prev) => {
@@ -868,7 +870,7 @@ export default function AtlasAgent() {
             const existing = byId.get(id);
             byId.set(id, {
               id,
-              title: String(r.title || existing?.title || 'Sans titre').slice(0, 48),
+              title: String((r.summary_pending && existing?.title) || r.title || existing?.title || 'Sans titre').slice(0, 48),
               updated: Math.max(existing?.updated || 0, updated || 0),
             });
           }
@@ -1438,6 +1440,7 @@ export default function AtlasAgent() {
           <label className="atlas-agent-history-search"><Search size={15} aria-hidden="true" /><input aria-label="Rechercher dans les conversations" placeholder="Rechercher…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /></label>
           <div className="atlas-agent-history-caption">Conversations récentes</div>
           {historyError && <p className="atlas-agent-history-error" role="status">Certaines conversations R2 sont indisponibles.</p>}
+          {historyPending && <p className="atlas-agent-history-error" role="status">Certains titres sont encore indisponibles ; ouvrez une conversation pour charger son contenu.</p>}
           <div className="atlas-agent-workspace-threads">
             {visibleThreads.length ? visibleThreads.map((thread) => <button type="button" key={thread.id} disabled={busy || loadingThread} className={`atlas-agent-sidebar-thread${thread.id === threadId ? ' is-current' : ''}`} aria-current={thread.id === threadId ? 'page' : undefined} onClick={() => switchThread(thread.id)}>{thread.title}</button>) : <p>Aucune conversation trouvée.</p>}
           </div>
