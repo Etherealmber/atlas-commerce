@@ -6,6 +6,7 @@ import { ChevronDown, Plus, PackageSearch, ListChecks, FileText, ArrowUpRight, S
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import LatticeLoader from './ui/LatticeLoader';
 import AtlasAgentMascot from '../mobile/AtlasAgentMascot';
+import { AgentToolResults } from './agent/AgentToolResults';
 import ConfirmDialog from './ConfirmDialog';
 import { AtlasAgentShimmerBody } from './PageSkeleton';
 import { bumpAtlasLayer } from './GlobalSearchPanel';
@@ -84,7 +85,6 @@ type Msg = {
 type ThreadMeta = { id: string; title: string; updated: number };
 
 const OPEN_KEY = 'atlas_agent_open';
-const AGENT_EXEC_MODE_KEY = 'atlas_agent_exec_mode'; // 'ask' | 'auto'
 const MSGS_KEY = 'atlas_agent_msgs_v1';
 const THREADS_KEY = 'atlas_agent_threads_v1';
 const ACTIVE_THREAD_KEY = 'atlas_agent_active_thread';
@@ -296,13 +296,6 @@ function timeGreeting(): { hello: string; sub: string } {
 
 type ExecMode = 'ask' | 'auto';
 
-function getExecMode(): ExecMode {
-  try {
-    return localStorage.getItem(AGENT_EXEC_MODE_KEY) === 'auto' ? 'auto' : 'ask';
-  } catch {
-    return 'ask';
-  }
-}
 
 type LocalAction =
   | { type: 'navigate'; path: string; draft?: Record<string, string>; label: string }
@@ -634,7 +627,7 @@ export default function AtlasAgent() {
     }
   }, [location.pathname, isPhoneShell, open]);
   const [annotator, setAnnotator] = useState<{ index: number; src: string; name: string } | null>(null);
-  const [execMode] = useState<ExecMode>(() => getExecMode());
+  const [execMode] = useState<ExecMode>('ask');
   /** Server agent_perm_mode: full | read_only | custom */
   const [agentPermMode, setAgentPermMode] = useState<'full' | 'read_only' | 'custom'>('full');
 
@@ -954,7 +947,7 @@ export default function AtlasAgent() {
         setPendingAction(action);
         const why =
           execMode === 'ask'
-            ? 'Confirmez pour exécuter, ou passez en mode « Automatiquement » (permissions complètes).'
+            ? 'Confirmez pour exécuter cette action.'
             : agentPermMode !== 'full'
               ? 'Permissions agent en lecture seule / personnalisées — confirmation requise.'
               : !roleCanWrite
@@ -1315,7 +1308,7 @@ export default function AtlasAgent() {
         const ms = Math.round(performance.now() - t0);
         const tools: ToolTrace[] = (res.data?.tool_trace || []).map((t: any) => ({
           name: t.name,
-          ok: t.ok !== false,
+          ok: typeof t.ok === 'boolean' ? t.ok : undefined,
           error: t.error,
           data: t.data,
         }));
@@ -1592,14 +1585,14 @@ export default function AtlasAgent() {
                     aria-expanded={!!expandedTools[i]}
                     onClick={() => setExpandedTools((s) => ({ ...s, [i]: !s[i] }))}
                   >
-                    {expandedTools[i] ? '▾' : '▸'} {m.tools.some((tool) => tool.ok === false) ? 'Activité avec erreur' : 'Activité terminée'} · {m.tools.length} étape{m.tools.length > 1 ? 's' : ''}
+                    {expandedTools[i] ? '▾' : '▸'} {m.tools.some((tool) => tool.ok === false) ? 'Activité avec erreur' : m.tools.some((tool) => tool.ok !== true) ? 'Activité' : 'Activité terminée'} · {m.tools.length} étape{m.tools.length > 1 ? 's' : ''}
                   </button>
                   {expandedTools[i] && (
                     <ul className="atlas-agent-tools-list">
                       {m.tools.map((t, j) => (
-                        <li key={j} className={t.ok ? 'ok' : 'bad'}>
+                        <li key={j} className={t.ok === true ? 'ok' : t.ok === false ? 'bad' : ''}>
                           <span>{toolLabel(t.name)}</span>
-                          <span>{t.ok ? 'Terminé' : 'Échec'}</span>
+                          <span>{t.ok === true ? 'Terminé' : t.ok === false ? 'Échec' : 'Statut inconnu'}</span>
                         </li>
                       ))}
                     </ul>
@@ -1633,6 +1626,7 @@ export default function AtlasAgent() {
                 ) : null}
                 {m.streaming ? <span className="atlas-agent-caret">▍</span> : null}
               </div>
+              {m.role === 'assistant' && !m.streaming && m.tools?.length ? <AgentToolResults tools={m.tools} /> : null}
               {m.role === 'user' && !m.streaming && m.text.trim() ? (
                 <div className="atlas-agent-msg-actions atlas-agent-msg-actions--user">
                   <button
@@ -1996,6 +1990,15 @@ export default function AtlasAgent() {
           <PromptBar
             key={threadId}
             placeholder="Écrire un message…"
+            footerControl={<details className="atlas-agent-approval-mode">
+              <summary aria-label="Mode de validation de l’agent">Validation <ChevronDown size={13} aria-hidden="true" /></summary>
+              <div className="atlas-agent-approval-menu">
+                <strong>Demander avant modification ✓</strong>
+                <p>Les formulaires restent à vérifier et les propositions nécessitent une validation. Les permissions de votre rôle s’appliquent.</p>
+                <button type="button" disabled>Modification automatique · indisponible</button>
+                <p>Ce mode n’est pas activé : il nécessite des protections et une validation supplémentaires.</p>
+              </div>
+            </details>}
             sources={[
               {
                 key: 'files',

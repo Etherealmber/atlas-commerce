@@ -231,3 +231,12 @@ it('shows a dismissible mascot hint and opens the agent when it is selected', as
     expect(host.querySelector('.atlas-agent-mascot-hint')).toBeNull();
   } finally { vi.useRealTimers(); }
 });
+
+it('keeps automatic modification unavailable even with a legacy auto preference', async () => {
+  localStorage.setItem('atlas_agent_exec_mode', 'auto');
+  await render();
+  expect(host.textContent).toContain('Demander avant modification');
+  const disabled = [...host.querySelectorAll('button')].find(button => button.textContent?.includes('Modification automatique'));
+  expect(disabled?.disabled).toBe(true);
+  expect(host.textContent).toContain('propositions nécessitent une validation');
+});

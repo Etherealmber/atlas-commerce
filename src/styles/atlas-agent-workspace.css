@@ -154,3 +154,28 @@ html body button.atlas-agent-fab.atlas-agent-fab-premium .ph-mascot svg { stroke
 html[data-theme="dark"] body .atlas-agent-mascot-hint { color: #e6f0ff; background: #22314a; border-color: #4e6c98; }
 body:has(.modal-overlay) .atlas-agent-mascot-hint, body:has(.modal-backdrop) .atlas-agent-mascot-hint, body:has(.ph-modal-bg) .atlas-agent-mascot-hint { display: none; }
 @media (prefers-reduced-motion: reduce) { html body :is(.atlas-agent-panel, .atlas-agent-fab) .ph-mascot, html body :is(.atlas-agent-panel, .atlas-agent-fab) .ph-mascot-eyes { animation: none; } }
+
+/* Actual tool results only; do not invent reasoning or a result table. */
+html body aside.atlas-agent-panel .atlas-agent-result-card { margin-top: 9px; max-width: 100%; border: 1px solid var(--agent-line); border-radius: 14px; background: var(--agent-surface); color: var(--agent-ink); }
+.atlas-agent-result-card > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.atlas-agent-result-card > summary::-webkit-details-marker { display: none; }
+.atlas-agent-result-card > summary > span:nth-child(2) { flex: 1; min-width: 0; }
+.atlas-agent-result-card strong, .atlas-agent-result-card small { display: block; }
+.atlas-agent-result-card strong { font-size: 13px; }
+.atlas-agent-result-card small { color: var(--agent-muted); font-size: 11px; }
+.atlas-agent-result-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border: 1px solid var(--agent-line); border-radius: 10px; color: var(--agent-muted); }
+.atlas-agent-result-view { border: 1px solid var(--agent-line); border-radius: 9px; padding: 5px 9px; font-size: 12px; }
+.atlas-agent-result-table { overflow-x: auto; padding: 0 12px 10px; }
+.atlas-agent-result-table table { width: 100%; font-size: 12px; border-collapse: collapse; text-align: start; }
+.atlas-agent-result-table :is(th, td) { padding: 7px; border-bottom: 1px solid var(--agent-line); text-align: start; white-space: nowrap; }
+.atlas-agent-result-card > p, .atlas-agent-result-table p { margin: 0; padding: 8px 12px; color: var(--agent-muted); font-size: 12px; }
+html body aside.atlas-agent-panel .atlas-agent-tools { margin: 0 0 8px; padding: 3px 0; }
+html body aside.atlas-agent-panel .atlas-agent-tools-toggle { color: var(--agent-muted); }
+html body aside.atlas-agent-panel .atlas-agent-tools-list { border-inline-start: 2px solid var(--agent-line); padding-inline-start: 10px; }
+.atlas-agent-approval-mode { position: relative; }
+.atlas-agent-approval-mode > summary { display: flex; align-items: center; gap: 4px; padding: 4px 9px; border: 1px solid var(--agent-line); border-radius: 999px; color: var(--agent-ink); font-size: 12px; cursor: pointer; list-style: none; }
+.atlas-agent-approval-mode > summary::-webkit-details-marker { display: none; }
+.atlas-agent-approval-menu { position: absolute; bottom: calc(100% + 12px); inset-inline-start: 0; z-index: 5; width: min(290px, calc(100vw - 70px)); padding: 12px; border: 1px solid var(--agent-line); border-radius: 14px; background: var(--agent-surface); box-shadow: 0 12px 32px #11182730; color: var(--agent-ink); }
+.atlas-agent-approval-menu strong { font-size: 13px; }
+.atlas-agent-approval-menu p { margin: 4px 0 9px; font-size: 11px; line-height: 1.4; color: var(--agent-muted); }
+html body aside.atlas-agent-panel .atlas-agent-approval-menu button:disabled { padding: 0; border: 0; background: transparent; color: var(--agent-muted); font-size: 12px; opacity: .8; }
