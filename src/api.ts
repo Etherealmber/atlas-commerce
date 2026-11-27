@@ -1035,7 +1035,7 @@ export const api = {
     if (params?.stats) qs.set('stats', '1');
     return request<{ data: any[]; meta?: { limit: number; has_more: boolean; next_cursor: string | null; range: string; stats?: any } }>(`/api/admin/api-log?${qs}`);
   },
-  getJournalMode: () => request<{ data: { mode: 'r2' | 'legacy' } }>('/api/admin/journal-mode', { silent: true }),
+  getJournalMode: () => request<{ data: { mode: 'r2' | 'legacy' | 'supabase' } }>('/api/admin/journal-mode', { silent: true }),
   getJournalBufferStatus: () => request<{ data: { pending_at_least: number; has_more: boolean; alarm_scheduled: boolean } }>('/api/admin/journal-buffer-status', { silent: true }),
   listJournalArchive: (day: string, cursor?: string | null, kind: 'api' | 'audit' = 'api') => {
     const qs = new URLSearchParams({ day, kind });

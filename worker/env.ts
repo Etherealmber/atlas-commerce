@@ -21,6 +21,9 @@ export interface Env {
   /** Optional private R2 shadow journal; never bind the public image bucket. */
   JOURNAL_ARCHIVE?: R2Bucket;
   JOURNAL_ARCHIVE_MODE?: string;
+  SUPABASE_JOURNAL_URL?: string;
+  /** Server-only Supabase secret; never expose to clients. */
+  SUPABASE_JOURNAL_SECRET?: string;
   JOURNAL_BUFFER?: DurableObjectNamespace;
   /** Optional best-effort audit shadow, disabled unless explicitly enabled. */
   JOURNAL_AUDIT_SHADOW?: string;

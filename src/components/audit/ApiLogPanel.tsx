@@ -34,7 +34,7 @@ function statusTone(st: number) {
  * Retention is not guaranteed until verified archival and purge are active. Each row shows the city, country and operator (VPN flag),
  * with inspectable request details.
  */
-export default function ApiLogPanel({ range, dockActions = true, forceR2 = false }: { range: Range; dockActions?: boolean; forceR2?: boolean }) {
+export default function ApiLogPanel({ range, dockActions = true, forceR2 = false, supabase = false }: { range: Range; dockActions?: boolean; forceR2?: boolean; supabase?: boolean }) {
   useLang();
   const [rows, setRows] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -89,12 +89,12 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
   useEffect(() => {
     if (forceR2 || r2Only) return;
     const refreshIfStale = () => {
-      if (document.visibilityState === 'visible' && stack.length === 1 && Date.now() - lastAttempt.current >= 300_000) void load(null, true);
+      if (document.visibilityState === 'visible' && stack.length === 1 && Date.now() - lastAttempt.current >= (supabase ? 120_000 : 300_000)) void load(null, true);
     };
     const timer = window.setInterval(refreshIfStale, 60_000);
     document.addEventListener('visibilitychange', refreshIfStale);
     return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', refreshIfStale); };
-  }, [load, stack.length, forceR2, r2Only]);
+  }, [load, stack.length, forceR2, r2Only, supabase]);
   useEffect(() => () => { generation.current++; }, []);
 
   const days = Array.isArray(stats?.by_day) ? stats.by_day.slice(-14) : [];
@@ -231,12 +231,12 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
           }}
         />
       </div>
-      <JournalArchive onOpen={setDetail} />
+      {!supabase && <JournalArchive onOpen={setDetail} />}
       {detail && createPortal(<div className="audit-detail-modal-backdrop" role="presentation" onClick={() => setDetail(null)}>
         <div className="audit-detail-modal audit-detail-modal--expanded card" role="dialog" aria-modal="true" aria-labelledby="api-log-detail-title" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setDetail(null); }}>
           <div className="audit-detail-heading"><h3 id="api-log-detail-title">Détails de la requête</h3><button type="button" className="secondary" aria-label="Fermer" onClick={() => setDetail(null)}>×</button></div>
           <p className="audit-request-summary"><bdi dir="ltr" translate="no">{detail.method} {detail.path} · {detail.status} · {detail.ms} ms</bdi></p>
-          {Number(detail.id) > 0 && <AuditAgentExplanation key={detail.id} id={Number(detail.id)} kind="api" />}
+          {!supabase && Number(detail.id) > 0 && <AuditAgentExplanation key={detail.id} id={Number(detail.id)} kind="api" />}
           <h4>Détails de la connexion</h4>
           <AuditRequestDetails row={detail} kind="api" />
           <button type="button" className="secondary" onClick={() => setDetail(null)}>Fermer</button>

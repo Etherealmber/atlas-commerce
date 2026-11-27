@@ -325,14 +325,23 @@ export default function Settings() {
 
 
   const canViewJournal = canAccessAdminSettings() || isOwner;
-  const [journalMode, setJournalMode] = useState<'pending' | 'r2' | 'legacy' | 'error'>('pending');
+  const [journalMode, setJournalMode] = useState<'pending' | 'r2' | 'legacy' | 'supabase' | 'error'>('pending');
   const [journalModeRetry, setJournalModeRetry] = useState(0);
+  const [journalQueue, setJournalQueue] = useState<{ pending_at_least: number; has_more: boolean; alarm_scheduled: boolean } | null>(null);
+  const [journalQueueError, setJournalQueueError] = useState(false);
+  useEffect(() => {
+    if (activeTab !== 'audit' || journalMode !== 'supabase') return;
+    let alive = true;
+    const refresh = () => { void api.getJournalBufferStatus().then(r => { if (alive) { setJournalQueue(r.data); setJournalQueueError(false); } }).catch(() => { if (alive) setJournalQueueError(true); }); };
+    refresh(); const timer = window.setInterval(refresh, 120_000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [activeTab, journalMode]);
   useEffect(() => {
     if (activeTab !== 'audit' || !canViewJournal) return;
     let alive = true;
     setJournalMode('pending');
     api.getJournalMode().then((result) => {
-      if (alive) setJournalMode(result.data?.mode === 'r2' ? 'r2' : result.data?.mode === 'legacy' ? 'legacy' : 'error');
+      if (alive) setJournalMode(result.data?.mode === 'r2' ? 'r2' : result.data?.mode === 'legacy' ? 'legacy' : result.data?.mode === 'supabase' ? 'supabase' : 'error');
     }).catch(() => { if (alive) setJournalMode('error'); });
     return () => { alive = false; };
   }, [activeTab, canViewJournal, journalModeRetry]);
@@ -341,7 +350,7 @@ export default function Settings() {
   const auditLastAttempt = useRef(0);
   const auditGeneration = useRef(0);
   useEffect(() => {
-    if (journalMode === 'legacy' && activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (auditQueryLoaded.current !== `${auditRange}:${auditAction}` || (auditCursorStack.length === 1 && Date.now() - auditLastAttempt.current >= 300_000))) {
+    if ((journalMode === 'legacy' || journalMode === 'supabase') && activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (auditQueryLoaded.current !== `${auditRange}:${auditAction}` || (auditCursorStack.length === 1 && Date.now() - auditLastAttempt.current >= (journalMode === 'supabase' ? 120_000 : 300_000)))) {
       auditQueryLoaded.current = `${auditRange}:${auditAction}`;
       void loadAuditPage(null, auditQ, true);
     }
@@ -351,9 +360,9 @@ export default function Settings() {
   // Avoid a permanently stale first page while a user leaves Settings open.
   // Do not move paginated users back to page one, or poll a hidden tab.
   useEffect(() => {
-    if (journalMode !== 'legacy' || activeTab !== 'audit' || !(canAccessAdminSettings() || isOwner)) return;
+    if ((journalMode !== 'legacy' && journalMode !== 'supabase') || activeTab !== 'audit' || !(canAccessAdminSettings() || isOwner)) return;
     const refreshIfStale = () => {
-      if (document.visibilityState === 'visible' && auditCursorStack.length === 1 && Date.now() - auditLastAttempt.current >= 300_000) {
+      if (document.visibilityState === 'visible' && auditCursorStack.length === 1 && Date.now() - auditLastAttempt.current >= (journalMode === 'supabase' ? 120_000 : 300_000)) {
         void loadAuditPage(null, auditQ, true);
       }
     };
@@ -520,7 +529,7 @@ export default function Settings() {
 
   /** Cursor-based audit pages. reset=true clears history (search / first page). */
   const loadAuditPage = async (cursor: string | null = null, q = auditQ, reset = false) => {
-    if (journalMode !== 'legacy') return;
+    if (journalMode !== 'legacy' && journalMode !== 'supabase') return;
     const generation = ++auditGeneration.current;
     auditLastAttempt.current = Date.now();
     setAuditLoading(true);
@@ -2854,7 +2863,7 @@ if (needsCompanySettings && loading && !settings) return (
       {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && journalMode === 'pending' && <div role="status" aria-label="Chargement du journal"><DesktopTableSkeleton rows={3} cols={4} /></div>}
       {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && journalMode === 'error' && <div role="alert"><p>Impossible de charger le journal. Réessayez.</p><button type="button" onClick={() => setJournalModeRetry((n) => n + 1)}>Réessayer</button></div>}
       {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && journalMode === 'r2' && <ApiLogPanel range={auditRange} forceR2 />}
-      {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && journalMode === 'legacy' && (() => {
+      {activeTab === 'audit' && (canAccessAdminSettings() || isOwner) && (journalMode === 'legacy' || journalMode === 'supabase') && (() => {
         const rangeLabels: Record<'24h' | '7d' | '30d' | 'all', string> = {
           '24h': '24 dernières heures',
           '7d': '7 derniers jours',
@@ -2885,11 +2894,13 @@ if (needsCompanySettings && loading && !settings) return (
             {journalView !== 'api' && <div className="page-header ac-page-header dock-page-header">
               <TopPageActions>
                 <button type="button" className="secondary" title="Actualiser" aria-label="Actualiser" disabled={auditLoading} onClick={() => void loadAuditPage(null, auditQ, true)}><RefreshCw size={15} aria-hidden="true" /><span className="tpa-label">Actualiser</span></button>
-                <button type="button" className="secondary" title="Export CSV" aria-label="Export CSV" disabled={auditLoading} onClick={async () => { try { await api.exportAuditLog('csv', 500); flash('Export CSV téléchargé.'); } catch (e: any) { flash(e?.message || 'Échec export', 'error'); } }}><Download size={15} aria-hidden="true" /><span className="tpa-label">Export CSV</span></button>
+                <button type="button" className="secondary" title="Export CSV" aria-label="Export CSV" disabled={auditLoading || journalMode === 'supabase'} onClick={async () => { try { await api.exportAuditLog('csv', 500); flash('Export CSV téléchargé.'); } catch (e: any) { flash(e?.message || 'Échec export', 'error'); } }}><Download size={15} aria-hidden="true" /><span className="tpa-label">Export CSV</span></button>
               </TopPageActions>
             </div>}
             <div className="ac-panel journal-history" aria-label="Journaux">
-            <p role="note">{translateText('Conservation visée : 30 jours · Archivage non vérifié, purge suspendue.')}</p>
+            <p role="note">{journalMode === 'supabase' ? 'Journal Supabase · conservation visée : 30 jours. Actualisation toutes les 2 minutes sur la première page visible ; une panne ou une file d’attente peut retarder les événements. Les anciens journaux ne sont pas importés automatiquement.' : translateText('Conservation visée : 30 jours · Archivage non vérifié, purge suspendue.')}</p>
+            {journalMode === 'supabase' && journalQueue && journalQueue.pending_at_least > 0 && <p role="status">{journalQueue.pending_at_least}{journalQueue.has_more ? '+' : ''} événement(s) en attente de transfert{journalQueue.alarm_scheduled ? '.' : ' ; aucune alarme programmée.'}</p>}
+            {journalMode === 'supabase' && journalQueueError && <p role="alert">État de la file indisponible : les données peuvent être incomplètes.</p>}
             <div className="journal-toolbar">
               <div className="ac-dash-period-pills journal-view-switch" role="group" aria-label="Type de journal">
                 <button type="button" className="ac-seg-btn" aria-pressed={journalView === 'all'} onClick={() => { setJournalView('all'); setJournalReset(n => n + 1); setAuditQ(''); setAuditAction(''); if (!auditAction && (auditQ.trim() || auditCursorStack.length > 1)) void loadAuditPage(null, '', true); }}>{translateText('Tous les journaux')}</button>
@@ -3048,7 +3059,7 @@ if (needsCompanySettings && loading && !settings) return (
                     <span>Historique détaillé</span>
                   </h3>
                   <p>Recherchez par utilisateur, action, ressource ou adresse IP ; cliquez sur une ligne pour l’inspecter.</p>
-                  <p>{translateText('Historique D1 · les archives R2 ne sont pas encore incluses.')}</p>
+                  <p>{journalMode === 'supabase' ? 'Historique Supabase · les anciens journaux ne sont pas importés automatiquement.' : translateText('Historique D1 · les archives R2 ne sont pas encore incluses.')}</p>
                 </div>
                 <div className="ac-audit-pager ac-audit-pager--top">
                   <span className="ac-audit-pager-meta">
@@ -3242,7 +3253,7 @@ if (needsCompanySettings && loading && !settings) return (
               </div>
 
             </section>}
-            {journalView !== 'audit' && <ApiLogPanel key={`${journalView}:${journalReset}`} range={auditRange} dockActions={journalView === 'api'} />}
+            {journalView !== 'audit' && <ApiLogPanel key={`${journalView}:${journalReset}`} range={auditRange} dockActions={journalView === 'api'} supabase={journalMode === 'supabase'} />}
             </div>
           </div>
         );
@@ -4243,7 +4254,7 @@ if (needsCompanySettings && loading && !settings) return (
                   <dd className="audit-detail-full" translate="no" dir="auto">{auditDetailRow.detail || '—'}</dd>
                 </div>
               </dl>
-              {Number(auditDetailRow.id) > 0 && <AuditAgentExplanation key={auditDetailRow.id} id={Number(auditDetailRow.id)} />}
+              {journalMode !== 'supabase' && Number(auditDetailRow.id) > 0 && <AuditAgentExplanation key={auditDetailRow.id} id={Number(auditDetailRow.id)} />}
               <h4>Détails de la connexion</h4>
               <AuditRequestDetails row={auditDetailRow} kind="audit" />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>

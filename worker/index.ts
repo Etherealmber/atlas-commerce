@@ -381,7 +381,7 @@ app.use('/api/*', async (c, next) => {
         const journalWrite = (async () => {
           await recordApiJournal(c.env, db, row, await isIdleQrPoll(row.method, path, status, response));
         })();
-        if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered') {
+        if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' || c.env.JOURNAL_ARCHIVE_MODE === 'supabase') {
           // Wait for durable acceptance rather than returning a response while
           // the first enqueue still exists only in request-owned waitUntil.
           try { await journalWrite; } catch { console.error('journal_buffer_enqueue_failed'); }
@@ -699,7 +699,7 @@ app.use('*', async (c, next) => {
       }
     }
   }
-  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+  if ((c.env.JOURNAL_ARCHIVE_MODE === 'buffered' || c.env.JOURNAL_ARCHIVE_MODE === 'supabase') && c.env.ATLAS_DEMO !== '1') {
     await withBufferedJournal(c.env, () => next());
   } else if (c.env.JOURNAL_AUDIT_SHADOW === '1' && c.env.ATLAS_DEMO !== '1') {
     // Some test/embedded callers have no ExecutionContext. Do not break the

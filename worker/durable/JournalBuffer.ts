@@ -2,13 +2,24 @@
  * Accepted items and their alarm are persisted atomically; retry writes use the
  * same immutable key and ciphertext. Does not guarantee upstream capture. */
 import type { Env } from '../env';
+import { journalRpc } from '../lib/journalSupabase';
 
 const PREFIX = 'pending/';
 const MAX_BATCH = 25;
 const MAX_BYTES = 100_000;
 const CURSOR = 'meta/drain-cursor';
 const PATH = /^(?:api|audit)-journal\/v1\/\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f-]{36}\.journal$/;
-type Item = { path: string; bytes: Uint8Array };
+type Item = { path: string; bytes: Uint8Array; destination?: 'r2' | 'supabase' };
+
+async function supabaseEvent(env: Env, item: Item) {
+  const secret = Uint8Array.from(atob(env.JOURNAL_ENCRYPTION_KEY || ''), c => c.charCodeAt(0));
+  if (secret.length !== 32) throw new Error('Journal key invalid');
+  const key = await crypto.subtle.importKey('raw', secret, 'AES-GCM', false, ['decrypt']);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: item.bytes.slice(4, 16), additionalData: new TextEncoder().encode(item.path) }, key, item.bytes.slice(16));
+  const row = JSON.parse(new TextDecoder().decode(plain));
+  const result = await journalRpc(env, 'atlas_journal_ingest', { p_key: item.path, p_kind: item.path.startsWith('api-') ? 'api' : 'audit', p_data: row });
+  if (result?.accepted !== true) throw new Error('Journal acknowledgement missing');
+}
 
 function equal(a: Uint8Array, b: Uint8Array) {
   return a.length === b.length && a.every((value, i) => value === b[i]);
@@ -27,17 +38,19 @@ export class JournalBuffer {
     if (request.method !== 'POST' || path !== '/enqueue') return new Response(null, { status: 404 });
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 150_000) return new Response(null, { status: 413 });
-    const input = await request.json().catch(() => null) as { path?: unknown; ciphertext?: unknown } | null;
+    const input = await request.json().catch(() => null) as { path?: unknown; ciphertext?: unknown; destination?: unknown } | null;
     if (!input || typeof input.path !== 'string' || !PATH.test(input.path) || typeof input.ciphertext !== 'string' || input.ciphertext.length > 140_000) return new Response(null, { status: 400 });
     let bytes: Uint8Array;
     try { bytes = Uint8Array.from(atob(input.ciphertext), c => c.charCodeAt(0)); } catch { return new Response(null, { status: 400 }); }
     if (bytes.length < 32 || bytes.length > MAX_BYTES || new TextDecoder().decode(bytes.slice(0, 4)) !== 'AJR1') return new Response(null, { status: 400 });
+    if (input.destination !== undefined && input.destination !== 'r2' && input.destination !== 'supabase') return new Response(null, { status: 400 });
+    const destination = input.destination === 'supabase' ? 'supabase' : 'r2';
     const objectPath = input.path;
     const key = PREFIX + objectPath;
     const ok = await this.state.storage.transaction(async tx => {
       const existing = await tx.get<Item>(key);
-      if (existing && !equal(existing.bytes, bytes)) return false;
-      if (!existing) await tx.put(key, { path: objectPath, bytes });
+      if (existing && (!equal(existing.bytes, bytes) || (existing.destination || 'r2') !== destination)) return false;
+      if (!existing) await tx.put(key, { path: objectPath, bytes, destination });
       if (await tx.getAlarm() === null) await tx.setAlarm(Date.now() + 1000);
       return true;
     });
@@ -53,18 +66,18 @@ export class JournalBuffer {
     }
     if (!items.size) return;
     const bucket = this.env.JOURNAL_ARCHIVE;
-    if (!bucket || bucket === this.env.IMAGES) {
-      console.error('journal_buffer_drain_failed');
-      await this.state.storage.setAlarm(Date.now() + 60_000);
-      return;
-    }
     let failed = false;
     for (const [key, item] of items) {
       try {
-        // If-None-Match protects an existing immutable object on retries.
-        await bucket.put(item.path, item.bytes, { onlyIf: new Headers({ 'If-None-Match': '*' }), httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'no-store' } });
-        const stored = await bucket.get(item.path);
-        if (!stored || !equal(new Uint8Array(await stored.arrayBuffer()), item.bytes)) throw new Error('journal read-back mismatch');
+        if (item.destination === 'supabase') {
+          await supabaseEvent(this.env, item);
+        } else {
+          // Existing R2 outbox items retain their original destination after cutover.
+          if (!bucket || bucket === this.env.IMAGES) throw new Error('journal bucket unavailable');
+          await bucket.put(item.path, item.bytes, { onlyIf: new Headers({ 'If-None-Match': '*' }), httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'no-store' } });
+          const stored = await bucket.get(item.path);
+          if (!stored || !equal(new Uint8Array(await stored.arrayBuffer()), item.bytes)) throw new Error('journal read-back mismatch');
+        }
         await this.state.storage.delete(key);
       } catch {
         failed = true;

@@ -7,7 +7,7 @@ import { enqueueBufferedApi } from './journalBuffered';
  * background write can lose an event, so do not enable it before cutover work.
  * Shadow remains D1-authoritative; idle QR polling is excluded from D1. */
 export async function recordApiJournal(env: Env, db: D1Database, row: ApiLogRow, idle: boolean): Promise<void> {
-  if (env.JOURNAL_ARCHIVE_MODE === 'buffered') {
+  if ((env.JOURNAL_ARCHIVE_MODE === 'buffered' || env.JOURNAL_ARCHIVE_MODE === 'supabase')) {
     if (!idle) await enqueueBufferedApi(env, row);
     return;
   }
