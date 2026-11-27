@@ -75,11 +75,11 @@ export class JournalBuffer {
     const supabase: { key: string; event: JournalEvent; size: number }[] = [];
     for (const [key, item] of items) {
       try {
-        if (item.destination === 'supabase') {
+        if (item.destination === 'supabase' || this.env.JOURNAL_ARCHIVE_MODE === 'supabase') {
           const event = await decryptEvent(this.env, item);
           supabase.push({ key, event, size: new TextEncoder().encode(JSON.stringify(event)).length });
         } else {
-          // Existing R2 outbox items retain their original destination after cutover.
+          // Legacy mode only; Supabase mode routes all pending items to Supabase.
           if (!bucket || bucket === this.env.IMAGES) throw new Error('journal bucket unavailable');
           await bucket.put(item.path, item.bytes, { onlyIf: new Headers({ 'If-None-Match': '*' }), httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'no-store' } });
           const stored = await bucket.get(item.path);

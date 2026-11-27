@@ -91,9 +91,10 @@
   // Public / non-secret config only. Everything sensitive → `wrangler secret put`
   "vars": {
     "ENVIRONMENT": "production",
-    // New API and audit journals use the encrypted Durable Object → private R2 outbox.
+    // Journal events use the encrypted Durable Object outbox → Supabase only.
+    // Install the Supabase schema and Worker secrets before deploying; no journal fallback.
     // JOURNAL_ENCRYPTION_KEY must be installed as a Worker secret, not a var.
-    "JOURNAL_ARCHIVE_MODE": "buffered",
+    "JOURNAL_ARCHIVE_MODE": "supabase",
     "CACHE_TTL_SECONDS": "900",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAEco33YS31FvWems",
     // v259 — WebAuthn/passkeys capability config (non-secret). Hardened

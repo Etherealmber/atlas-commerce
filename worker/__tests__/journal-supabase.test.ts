@@ -83,3 +83,24 @@ it('falls back to the existing single-event RPC when the batch RPC is not instal
   expect(calls).toHaveLength(3);
   expect([...f.pending.keys()].filter(k => k.startsWith('pending/'))).toHaveLength(0);
 });
+it('redirects legacy R2 outbox entries to Supabase after cutover without R2 writes', async () => {
+  const f = setup();
+  const put = vi.fn(); f.env.JOURNAL_ARCHIVE = { put };
+  const fetch = vi.fn(async (_url: string, init: any) => Response.json({ accepted: true, count: JSON.parse(init.body).p_items.length }));
+  vi.stubGlobal('fetch', fetch);
+  await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'queued-before-cutover' }));
+  for (const item of f.pending.values()) item.destination = 'r2';
+  await f.buffer.alarm();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(put).not.toHaveBeenCalled();
+  expect(f.db.prepare).not.toHaveBeenCalled();
+  expect([...f.pending.keys()].filter(k => k.startsWith('pending/'))).toHaveLength(0);
+});
+it('does not fall back to D1 or R2 if Supabase configuration is missing', async () => {
+  const f = setup(); delete f.env.SUPABASE_JOURNAL_SECRET;
+  const put = vi.fn(); f.env.JOURNAL_ARCHIVE = { put };
+  await expect(withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'missing-config' }))).rejects.toThrow();
+  expect(f.db.prepare).not.toHaveBeenCalled();
+  expect(put).not.toHaveBeenCalled();
+  expect(f.pending.size).toBe(0);
+});
