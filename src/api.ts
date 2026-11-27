@@ -49,6 +49,7 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
   const fp = await getCachedFingerprint().catch(() => 'none');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Accept-Language': getLang(),
     'X-Device-Fingerprint': fp,
     ...(options?.headers as Record<string, string>),
   };
@@ -91,7 +92,7 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
         continue;
       }
       const msg = 'Pas de connexion réseau — vérifiez internet ou réessayez';
-      try { uiToast(msg, 'error'); } catch { /* */ }
+      if (!options?.silent) { try { uiToast(msg, 'error'); } catch { /* */ } }
       throw new Error(msg, { cause: e });
     }
   }
@@ -465,6 +466,7 @@ export const api = {
     message: string,
     opts?: {
       task?: string;
+      silent?: boolean;
       timezone?: string;
       thread_id?: string;
       user_message?: string;
@@ -498,6 +500,7 @@ export const api = {
     }>(opts?.onAgentEvent ? '/api/assist/chat/stream' : '/api/assist/chat', {
       method: 'POST',
       signal: opts?.signal,
+      silent: opts?.silent,
       onAgentEvent: opts?.onAgentEvent,
       body: JSON.stringify({
         message,
@@ -649,11 +652,11 @@ export const api = {
   // Variants
   getVariants: (productId: number) => request<{ data: any[]; parent?: any }>(`/api/products/${productId}/variants`),
   createVariant: (productId: number, body: any) =>
-    request(`/api/products/${productId}/variants`, { method: 'POST', body: JSON.stringify(body) }),
+    request(`/api/products/${productId}/variants`, { method: 'POST', body: JSON.stringify(body), silent: true }),
   updateVariant: (variantId: number, body: any) =>
     request(`/api/products/variants/${variantId}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteVariant: (variantId: number, body?: any) =>
-    request(`/api/products/variants/${variantId}`, { method: 'DELETE', body: JSON.stringify(body || {}) }),
+    request(`/api/products/variants/${variantId}`, { method: 'DELETE', body: JSON.stringify(body || {}), silent: true }),
 
   // Barcode scan (mobile APK)
   scanBarcode: (code: string) =>
@@ -1025,12 +1028,12 @@ export const api = {
     if (params?.stats) qs.set('stats', '1');
     return request<{ data: any[]; meta?: { limit: number; has_more: boolean; next_cursor: string | null; range: string; stats?: any } }>(`/api/admin/api-log?${qs}`);
   },
-  listJournalArchive: (day: string, cursor?: string | null) => {
-    const qs = new URLSearchParams({ day });
+  listJournalArchive: (day: string, cursor?: string | null, kind: 'api' | 'audit' = 'api') => {
+    const qs = new URLSearchParams({ day, kind });
     if (cursor) qs.set('cursor', cursor);
     return request<{ data: string[]; meta: { next_cursor: string | null; mode: string } }>(`/api/admin/journal-archive?${qs}`, { silent: true });
   },
-  getJournalArchiveItem: (key: string) => request<{ data: any }>(`/api/admin/journal-archive/item?${new URLSearchParams({ key })}`, { silent: true }),
+  getJournalArchiveItem: (key: string, kind: 'api' | 'audit' = 'api') => request<{ data: any }>(`/api/admin/journal-archive/item?${new URLSearchParams({ key, kind })}`, { silent: true }),
   /** « Expliquer » — Groq (free tier, cached) explanation of one log line. */
   explainLogLine: (kind: 'audit' | 'api', id: number, language: 'fr' | 'en' | 'ar' = 'fr') =>
     request<{ data: { summary: string; risk: 'normal' | 'à surveiller' | 'suspect'; advice: string; source: string; model?: string; network?: { kind: string; label: string; risky: boolean } } }>(
@@ -1192,7 +1195,7 @@ export const api = {
   updateMe: (body: any) => request('/api/auth/me', { method: 'PATCH', body: JSON.stringify(body) }),
 
   getCategories: () => request<{ data: any[] }>('/api/categories'),
-  createCategory: (body: any) => request('/api/categories', { method: 'POST', body: JSON.stringify(body) }),
+  createCategory: (body: any, options?: { silent?: boolean }) => request('/api/categories', { method: 'POST', body: JSON.stringify(body), silent: options?.silent }),
   updateCategory: (id: number, body: any) =>
     request(`/api/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteCategory: (id: number | string | null, confirm_password: string = '', name?: string) =>
@@ -1202,7 +1205,7 @@ export const api = {
     }),
 
   getUnits: () => request<{ data: any[] }>('/api/units'),
-  createUnit: (body: any) => request('/api/units', { method: 'POST', body: JSON.stringify(body) }),
+  createUnit: (body: any, options?: { silent?: boolean }) => request('/api/units', { method: 'POST', body: JSON.stringify(body), silent: options?.silent }),
   updateUnit: (id: number, body: any) =>
     request(`/api/units/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteUnit: (id: number | string | null, confirm_password: string = '', name?: string) =>

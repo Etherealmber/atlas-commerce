@@ -6,6 +6,7 @@ import chromium from '@sparticuz/chromium';
 import { waitForVisualReady } from './visual-wait.mjs';
 import { findVisibleFrenchCandidates } from './visual-i18n-observer.mjs';
 import { visualDialogsForPage } from './visual-dialogs.mjs';
+import { assertDemoUserCreationDisabled } from './visual-demo-users.mjs';
 
 const BASE = 'http://127.0.0.1:5173';
 const OUT = 'artifacts/visual-review';
@@ -79,6 +80,8 @@ try {
           ready = (await waitForVisualReady(page)) && ready;
           if (!ready) throw new Error(`${code}: audit table is still loading`);
         }
+        // Check the live panel before fullPage can resize and remount Settings.
+        if (device === 'desktop' && code === '16-settings-users') await assertDemoUserCreationDisabled(page);
         if (lang !== 'fr') i18nObservations.push({ code, lang, device, ready, candidates: await page.evaluate(findVisibleFrenchCandidates) });
         const filename = `${code}--${lang}--${device}--light${ready ? '' : '--loading'}.png`;
         await page.screenshot({ path: `${OUT}/${filename}`, fullPage: code !== '19-audit' });
@@ -95,12 +98,6 @@ try {
             await page.screenshot({ path: `${OUT}/${modalFile}` });
             manifest.push(`- **${code}-detail** — ${lang}, ${device}: [${modalFile}](${modalFile})${modalReady ? '' : ' — loading did not finish'}`);
             await page.keyboard.press('Escape');
-          }
-        }
-        if (device === 'desktop' && code === '16-settings-users') {
-          await page.waitForSelector('[data-visual-review="demo-user-create-disabled"]', { visible: true, timeout: 15000 });
-          if (await page.$('[data-visual-review="user-create"]')) {
-            throw new Error('Demo must not offer user creation');
           }
         }
         const dialogs = visualDialogsForPage(code, device);

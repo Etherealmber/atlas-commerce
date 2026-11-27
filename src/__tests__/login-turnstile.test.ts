@@ -4,6 +4,7 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import Login from '../pages/Login';
+import { setLang } from '../i18n/core';
 
 vi.mock('motion/react', () => ({
   motion: new Proxy({}, { get: (_target, tag: string) => React.forwardRef(({ children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, whileHover: _whileHover, whileTap: _whileTap, ...props }: any, ref: any) => React.createElement(tag, { ...props, ref }, children)) }),
@@ -48,6 +49,7 @@ describe('login Turnstile', () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+    setLang('fr');
     document.querySelectorAll('script[src*="challenges.cloudflare.com/turnstile"]').forEach(s => s.remove());
     delete (window as any).turnstile;
     vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers();
@@ -206,12 +208,15 @@ describe('login Turnstile', () => {
     await submit();
     expect(container.textContent).toContain('n’a pas encore fourni de jeton');
     expect(logins()).toHaveLength(0);
+    // The app language, not the browser language, selects the email copy.
+    await act(async () => { setLang('ar'); });
     // The fresh token resumes the pending login by itself (phones: tap on the widget).
     await act(async () => { render.mock.calls.at(-1)![1].callback('test-token'); });
     await act(async () => { await new Promise((r) => window.setTimeout(r, 150)); });
     await act(async () => { await new Promise((r) => window.setTimeout(r, 0)); });
     expect(logins()).toHaveLength(1);
     expect(JSON.parse(String(logins()[0][1]?.body)).turnstile_token).toBe('test-token');
+    expect(logins()[0][1]?.headers).toMatchObject({ 'Accept-Language': 'ar' });
   });
   it('renders flexible light-matched widget on normal phone widths instead of dark compact square', async () => {
     document.documentElement.setAttribute('data-theme', 'light');

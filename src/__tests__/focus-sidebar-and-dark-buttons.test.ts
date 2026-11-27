@@ -829,9 +829,9 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     expect(appSrc).toContain('skeletonVariantForPath(location.pathname)');
     expect(appSrc).not.toContain('>Chargement…<');
 
-    // 5. Desktop Atlas Agent uses shimmer skeleton for thread loading, busy reply, and lazy fallback
+    // 5. Desktop Atlas Agent uses a thread-loading skeleton, but no fake reply shimmer
     expect(agentSrc).toContain('AtlasAgentShimmerBody');
-    expect(agentSrc).toContain('atlas-agent-shimmer-reply');
+    expect(agentSrc).not.toContain('atlas-agent-shimmer-reply');
     expect(agentSrc).not.toContain('Chargement de la conversation…');
     expect(appSrc).toContain('AtlasAgentDesktopFallback');
   });

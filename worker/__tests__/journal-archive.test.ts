@@ -40,6 +40,15 @@ describe('private encrypted API shadow archive', () => {
     await expect(archiveApiCall({ JOURNAL_ARCHIVE: r2 as any, IMAGES: r2 as any, JOURNAL_ARCHIVE_MODE: 'shadow', JOURNAL_ENCRYPTION_KEY: secret }, row)).rejects.toThrow();
     expect(r2.put).not.toHaveBeenCalled();
   });
+  it('requires an exact R2 read-back before reporting an R2-first write as successful', async () => {
+    const r2 = bucket(); const env: any = { JOURNAL_ARCHIVE: r2, JOURNAL_ARCHIVE_MODE: 'r2', JOURNAL_ENCRYPTION_KEY: secret };
+    expect(await archiveApiCall(env, row)).toBe(true);
+    expect(r2.get).toHaveBeenCalledOnce();
+    r2.get.mockResolvedValueOnce(null);
+    await expect(archiveApiCall(env, row)).rejects.toThrow('read-back missing');
+    r2.get.mockImplementationOnce(async () => ({ arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer }));
+    await expect(archiveApiCall(env, row)).rejects.toThrow('read-back differs');
+  });
   it('cannot read objects older than 30 days, arbitrary paths or invalid dates', async () => {
     const r2 = bucket(); const env: any = { JOURNAL_ARCHIVE: r2, JOURNAL_ARCHIVE_MODE: 'shadow', JOURNAL_ENCRYPTION_KEY: secret };
     const now = Date.now(); const at = new Date(now - 31 * 86400_000);

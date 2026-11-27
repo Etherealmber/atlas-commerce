@@ -7986,3 +7986,26 @@ html[data-theme="dark"] body :is(.content, .atlas-page, .settings-main) table tb
 html[data-theme="dark"] body :is(.content, .atlas-page, .settings-main) table tbody tr:hover > td {
   background: #29292f !important;
 }
+
+/* Settings: protect surfaces and button text against light-mode specificity
+   when switching theme without remounting the page. */
+html[data-theme="dark"] body .ac-settings-metrics > .ac-metric:not(#settings-dark-a):not(#settings-dark-b):not(#settings-dark-c) {
+  background: #18181b !important;
+  border-color: #3f3f46 !important;
+  color: #f4f4f5 !important;
+}
+html[data-theme="dark"] body .ac-settings-catalog table tbody td:not(#settings-dark-a):not(#settings-dark-b):not(#settings-dark-c) {
+  background: #18181b !important;
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: currentColor;
+  border-bottom-color: #3f3f46 !important;
+}
+html[data-theme="dark"] body .ac-settings-catalog table tbody tr:hover td:not(#settings-dark-a):not(#settings-dark-b):not(#settings-dark-c) {
+  background: #27272a !important;
+}
+html[data-theme="dark"] body .ac-settings-catalog :is(.catalog-add-cell button, .row-actions-cell button.secondary):not(#settings-dark-a):not(#settings-dark-b):not(#settings-dark-c) {
+  background: #3f3f46 !important;
+  border-color: #71717a !important;
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa !important;
+}

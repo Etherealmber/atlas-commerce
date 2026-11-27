@@ -1,4 +1,5 @@
 import { whatsNewVersion } from './visual-current-version.mjs';
+import { assertDemoUserCreationDisabled } from './visual-demo-users.mjs';
 // Isolated local demo only; never point this smoke test at production.
 import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer-core';
@@ -10,5 +11,5 @@ try {const page=await browser.newPage();await page.setViewport({width:1440,heigh
 let paths=[];page.on('request',req=>{if(req.url().includes('/api/'))paths.push(new URL(req.url()).pathname)});
 await page.goto(base+'/settings?tab=profile',{waitUntil:'networkidle2'});await page.waitForSelector('.settings-main');assert.deepEqual(paths.filter(p=>['/api/categories','/api/units','/api/admin/audit'].includes(p)), []); paths=[];
 async function nav(tab){await page.evaluate(t=>{history.pushState({},'',`/settings?tab=${t}`);dispatchEvent(new PopStateEvent('popstate'));},tab);}
-await nav('categories');await page.waitForSelector('[data-visual-review="category-create"]',{timeout:30000});assert.deepEqual(paths.filter(p=>p==='/api/categories'||p==='/api/units').sort(), ['/api/categories', '/api/units']); paths=[];await nav('profile');await nav('categories');await page.waitForSelector('[data-visual-review="category-create"]');await new Promise(r=>setTimeout(r,500));assert.deepEqual(paths.filter(p=>p==='/api/categories'||p==='/api/units'), []); console.log('Settings lazy-load and tab revisit smoke test passed.');
+await nav('categories');await page.waitForSelector('[data-visual-review="category-create"]',{timeout:30000});assert.deepEqual(paths.filter(p=>p==='/api/categories'||p==='/api/units').sort(), ['/api/categories', '/api/units']); paths=[];await nav('profile');await nav('categories');await page.waitForSelector('[data-visual-review="category-create"]');await new Promise(r=>setTimeout(r,500));assert.deepEqual(paths.filter(p=>p==='/api/categories'||p==='/api/units'), []); await nav('admin'); await assertDemoUserCreationDisabled(page); console.log('Settings lazy-load, tab revisit, and demo user restriction smoke test passed.');
 }finally{await browser.close()}

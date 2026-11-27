@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type TypeaheadOption = {
   id: string | number;
@@ -41,6 +42,11 @@ export default function TypeaheadField({
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const listId = useId();
+  const [placement, setPlacement] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null);
+
 
   const filtered = useMemo(() => {
     const q = value.toLowerCase().trim();
@@ -52,6 +58,44 @@ export default function TypeaheadField({
         });
     return list.slice(0, max);
   }, [options, value, max]);
+
+  useLayoutEffect(() => {
+    if (!open || !rootRef.current) return;
+    const rect = rootRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const below = Math.max(0, viewportHeight - rect.bottom - 12);
+    const above = Math.max(0, rect.top - 12);
+    const up = below < 180 && above > below;
+    const maxHeight = Math.max(0, Math.min(240, up ? above : below));
+    const width = Math.max(0, Math.min(Math.max(rect.width, 260), viewportWidth - 16));
+    const left = Math.max(8, Math.min(rect.left, viewportWidth - width - 8));
+    setPlacement({ left, top: up ? Math.max(8, rect.top - maxHeight - 4) : rect.bottom + 4, width, maxHeight });
+  }, [open, filtered.length]);
+
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && (rootRef.current?.contains(target) || menuRef.current?.contains(target))) return;
+      setOpen(false);
+    };
+    const scroll = (event: Event) => {
+      if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    const resize = () => setOpen(false);
+    document.addEventListener('pointerdown', outside, true);
+    window.addEventListener('scroll', scroll, true);
+    window.addEventListener('resize', resize);
+    return () => {
+      document.removeEventListener('pointerdown', outside, true);
+      window.removeEventListener('scroll', scroll, true);
+      window.removeEventListener('resize', resize);
+    };
+  }, [open]);
+
+  useEffect(() => () => clearTimeout(blurTimer.current), []);
 
   useEffect(() => {
     setHi(0);
@@ -72,10 +116,13 @@ export default function TypeaheadField({
         autoComplete="off"
         aria-autocomplete="list"
         aria-expanded={open}
+        aria-controls={open ? listId : undefined}
         onFocus={() => {
+          clearTimeout(blurTimer.current);
           setOpen(true);
           onOpen?.();
         }}
+        onClick={() => { if (!open) { clearTimeout(blurTimer.current); setOpen(true); onOpen?.(); } }}
         onChange={(e) => {
           onChange(e.target.value);
           setOpen(true);
@@ -96,13 +143,17 @@ export default function TypeaheadField({
             const o = filtered[hi];
             if (o) pick(o);
           } else if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
             setOpen(false);
           }
         }}
-        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        onBlur={() => { blurTimer.current = setTimeout(() => setOpen(false), 200); }}
       />
-      {open && (
-        <div className="atlas-typeahead-menu" role="listbox">
+      {open && placement && createPortal(
+        <div id={listId} ref={menuRef} className="atlas-typeahead-menu atlas-typeahead-portal" role="listbox"
+          dir={document.documentElement.dir || undefined}
+          style={{ position: 'fixed', left: placement.left, top: placement.top, right: 'auto', width: placement.width, maxHeight: placement.maxHeight }}>
           {filtered.map((o, i) => (
             <button
               key={String(o.id)}
@@ -126,7 +177,7 @@ export default function TypeaheadField({
           ))}
           {!filtered.length && <div className="atlas-typeahead-empty">{emptyLabel}</div>}
           <div className="atlas-typeahead-hint">Entrée pour choisir · Échap pour fermer</div>
-        </div>
+        </div>, document.body,
       )}
     </div>
   );

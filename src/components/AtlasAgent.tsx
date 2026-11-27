@@ -1,3 +1,4 @@
+import { finishAgentReply } from '../lib/agentMessages';
 /**
  * Atlas Agent — dock + P0/P1/P2: citations, tools, drafts, stream UX, history, voice, role chips.
  */
@@ -728,7 +729,7 @@ export default function AtlasAgent() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevPath = useRef(location.pathname);
   const abortRef = useRef<AbortController | null>(null);
-  const streamTimer = useRef<number | null>(null);
+  const conversationRevision = useRef(0);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -773,6 +774,7 @@ export default function AtlasAgent() {
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    const revision = conversationRevision.current;
     const local = loadMsgs(threadId);
     if (local.length) {
       setMsgs(local);
@@ -784,7 +786,7 @@ export default function AtlasAgent() {
     (async () => {
       try {
         const res = await api.getAgentThread(threadId);
-        if (cancelled) return;
+        if (cancelled || revision !== conversationRevision.current) return;
         const remote = res?.data?.messages;
         if (!Array.isArray(remote) || !remote.length) return;
         const mapped = remote
@@ -894,61 +896,16 @@ export default function AtlasAgent() {
 
   useEffect(() => {
     return () => {
-      if (streamTimer.current) window.clearInterval(streamTimer.current);
       try {
         recognitionRef.current?.stop?.();
       } catch { /* */ }
     };
   }, []);
 
-  const streamText = (full: string, meta: Omit<Msg, 'role' | 'text' | 'streaming'>, replaceStreaming = true) => {
-    const idPlaceholder = { role: 'assistant' as const, text: '', streaming: true, ...meta };
-    setMsgs((m) => {
-      if (replaceStreaming) {
-        let idx = -1;
-        m.forEach((x, i) => { if (x.streaming && x.role === 'assistant') idx = i; });
-        if (idx >= 0) {
-          const copy = [...m];
-          const prev = copy[idx];
-          const variants = prev.variants ? [...prev.variants] : [];
-          copy[idx] = { ...idPlaceholder, variants, variantIndex: variants.length };
-          return copy;
-        }
-      }
-      return [...m, idPlaceholder];
-    });
-    let i = 0;
-    if (streamTimer.current) window.clearInterval(streamTimer.current);
-    streamTimer.current = window.setInterval(() => {
-      i += Math.max(2, Math.ceil(full.length / 40));
-      const slice = full.slice(0, i);
-      setMsgs((m) => {
-        const copy = [...m];
-        const last = copy[copy.length - 1];
-        if (last?.streaming) {
-          const done = i >= full.length;
-          let variants = last.variants ? [...last.variants] : [];
-          let variantIndex = last.variantIndex ?? 0;
-          if (done) {
-            variants = [...variants, full];
-            variantIndex = variants.length - 1;
-          }
-          copy[copy.length - 1] = {
-            ...last,
-            text: slice,
-            streaming: !done,
-            variants: done ? variants : last.variants,
-            variantIndex: done ? variantIndex : last.variantIndex,
-            ...meta,
-          };
-        }
-        return copy;
-      });
-      if (i >= full.length) {
-        if (streamTimer.current) window.clearInterval(streamTimer.current);
-        streamTimer.current = null;
-      }
-    }, 28);
+  // A completed server response is authoritative. Replace a retry placeholder
+  // at its actual position instead of animating only the final message.
+  const finishReply = (reply: Msg) => {
+    setMsgs((messages) => finishAgentReply(messages, reply));
   };
 
   const touchThread = (title: string) => {
@@ -1221,6 +1178,7 @@ export default function AtlasAgent() {
         : picked;
       if (!isRetry && picked.length) lastFilesRef.current = picked;
       if ((!q && !files.length) || busy) return;
+      conversationRevision.current += 1;
       /* v225 security: blocked users and exhausted quotas cannot talk to the agent */
       if (agentPolicy?.blocked) {
         setMsgs((m) => [...m, { role: 'assistant', text: "⛔ Accès à Atlas Agent suspendu pour votre compte (abus ou injection de prompt détecté). Contactez un administrateur pour le rétablir." }]);
@@ -1356,8 +1314,8 @@ export default function AtlasAgent() {
         }));
         const sources = sourcesFromTools(tools);
         const reply = clipAgent(res.data?.reply || 'Pas de réponse.');
-        streamText(reply, {
-          ms,
+        finishReply({
+          role: 'assistant', text: reply, ms,
           tools,
           sources,
           proposals: res.data?.proposals || [],
@@ -1365,22 +1323,13 @@ export default function AtlasAgent() {
         });
       } catch (e: any) {
         if (ac.signal.aborted) {
-          setMsgs((m) => [
-            ...m,
-            { role: 'assistant', text: 'Réception arrêtée. Une action déjà lancée peut se poursuivre.', ms: Math.round(performance.now() - t0) },
-          ]);
+          finishReply({ role: 'assistant', text: 'Réception arrêtée. Une action déjà lancée peut se poursuivre.', ms: Math.round(performance.now() - t0) });
           return;
         }
-        setMsgs((m) => [
-          ...m,
-          {
-            role: 'assistant',
-            text: friendlyError(e) || 'Je ne peux pas répondre pour le moment.',
-            ms: Math.round(performance.now() - t0),
-            failed: true,
-            prompt: q,
-          },
-        ]);
+        finishReply({
+          role: 'assistant', text: friendlyError(e) || 'Je ne peux pas répondre pour le moment.',
+          ms: Math.round(performance.now() - t0), failed: true, prompt: q,
+        });
       } finally {
         setBusy(false);
         setLiveTools([]);
@@ -1394,13 +1343,6 @@ export default function AtlasAgent() {
 
   const stop = () => {
     abortRef.current?.abort();
-    if (streamTimer.current) {
-      window.clearInterval(streamTimer.current);
-      streamTimer.current = null;
-    }
-    setMsgs((m) =>
-      m.map((x) => (x.streaming ? { ...x, streaming: false } : x)),
-    );
   };
 
 
@@ -1760,7 +1702,7 @@ export default function AtlasAgent() {
                       type="button"
                       className="atlas-agent-retry"
                       disabled={busy}
-                      onClick={() => void send(m.prompt, true)}
+                      onClick={() => void send(m.prompt, true, msgs.indexOf(m))}
                       title="Réessayer"
                     >
                       <svg className="atlas-agent-retry-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1830,13 +1772,6 @@ export default function AtlasAgent() {
                 {liveTools.map((tool, index) => <div key={index}><span>{toolLabel(tool.name)}</span><span>{tool.ok ? 'Terminé' : 'Échec'}</span></div>)}
                 {activeTool && <div><span>{toolLabel(activeTool)}</span><span>En cours…</span></div>}
               </div>}
-              {!isPhoneShell && !msgs.some((m) => m.streaming && String(m.text || '').trim()) && (
-                <div className="atlas-agent-shimmer-reply" aria-hidden="true">
-                  <div className="skeleton" style={{ height: 10, width: '88%', marginBottom: 8 }} />
-                  <div className="skeleton" style={{ height: 10, width: '74%', marginBottom: 8 }} />
-                  <div className="skeleton" style={{ height: 10, width: '52%' }} />
-                </div>
-              )}
             </div>
           )}
           <div ref={bottomRef} />

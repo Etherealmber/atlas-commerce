@@ -8,6 +8,8 @@ import { AuditRequestDetails } from './AuditRequestDetails';
 import { AuditAgentExplanation } from './AuditAgentExplanation';
 import { t, useLang } from '../../i18n/core';
 import TopPageActions from '../TopPageActions';
+import DatePicker from '../DatePicker';
+import Select from '../ui/Select';
 
 const PAGE = 25;
 type Range = '24h' | '7d' | '30d';
@@ -229,6 +231,8 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
 /** Separate archive browser: current D1 KPIs and filters do not include R2. */
 function JournalArchive({ onOpen }: { onOpen: (row: any) => void }) {
   const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [kind, setKind] = useState<'api' | 'audit'>('api');
+  const [auditEntry, setAuditEntry] = useState<unknown>(null);
   const [keys, setKeys] = useState<string[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -236,7 +240,7 @@ function JournalArchive({ onOpen }: { onOpen: (row: any) => void }) {
   const load = async (next?: string) => {
     setBusy(true); setMessage('');
     try {
-      const result = await api.listJournalArchive(day, next);
+      const result = await api.listJournalArchive(day, next, kind);
       setKeys(current => next ? [...current, ...result.data] : result.data);
       setCursor(result.meta.next_cursor);
       if (!result.data.length && !next) setMessage(t('Aucune entrée archivée pour cette date.'));
@@ -245,16 +249,21 @@ function JournalArchive({ onOpen }: { onOpen: (row: any) => void }) {
   };
   const open = async (key: string) => {
     setBusy(true); setMessage('');
-    try { const result = await api.getJournalArchiveItem(key); onOpen(result.data); }
+    try { const result = await api.getJournalArchiveItem(key, kind); if (kind === 'audit') setAuditEntry(result.data); else onOpen(result.data); }
     catch { setMessage(t('Impossible de lire cette entrée archivée.')); }
     finally { setBusy(false); }
   };
   return <details className="ac-panel">
-    <summary>{t('Archive chiffrée des appels API')}</summary>
+    <summary>{t('Archive chiffrée des appels API')} / Audit</summary>
     <p>{t('Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.')}</p>
-    <label>{t('Date UTC')} <input type="date" value={day} onChange={e => { setDay(e.target.value); setKeys([]); setCursor(null); setMessage(''); }} /></label>{' '}
-    <button className="secondary" type="button" disabled={busy || !day} onClick={() => void load()}>{t('Afficher les archives')}</button>
+    <div className="ac-journal-archive-controls">
+      <Select value={kind} disabled={busy} aria-label="Journal" onChange={e => { setKind(e.target.value as 'api' | 'audit'); setKeys([]); setCursor(null); setAuditEntry(null); setMessage(''); }}><option value="api">API</option><option value="audit">Audit</option></Select>
+      <label htmlFor="journal-archive-day">{t('Date UTC')}</label>
+      <DatePicker id="journal-archive-day" value={day} onChange={value => { setDay(value); setKeys([]); setCursor(null); setAuditEntry(null); setMessage(''); }} />
+      <button className="secondary" type="button" disabled={busy || !day} onClick={() => void load()}>{t('Afficher les archives')}</button>
+    </div>
     {message && <p role="status">{message}</p>}
+    {auditEntry != null && <pre translate="no" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(auditEntry, null, 2)}</pre>}
     <ul>{keys.map((key, index) => <li key={key}><button className="secondary" type="button" disabled={busy} onClick={() => void open(key)}><bdi dir="ltr">{key.split('/').pop()?.slice(0, 23) || index + 1}</bdi></button></li>)}</ul>
     {cursor && <button className="secondary" type="button" disabled={busy} onClick={() => void load(cursor)}>{t('Afficher plus')}</button>}
   </details>;

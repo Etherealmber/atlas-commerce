@@ -4,6 +4,7 @@
  * Tooling layer for creating/updating clients, products, snapshots, etc.
  */
 import type { Env } from '../env';
+import { enqueueBufferedJournal } from './journalBuffered';
 import { scrubProductForRole } from './inventory-policy';
 import { canMutateBusiness, canFloorStock, normalizeRole } from './rbac';
 
@@ -1219,6 +1220,10 @@ export async function auditAssist(
   env: Env,
   row: { username: string; role: string; message: string; tools: string; ok: boolean },
 ) {
+  if (env.JOURNAL_ARCHIVE_MODE === 'buffered' && env.ATLAS_DEMO !== '1') {
+    await enqueueBufferedJournal(env, 'audit', { action: 'assist_audit', username: row.username.slice(0, 64), role: row.role.slice(0, 32), message: `[message ${(row.message || '').length} chars]`, tools: row.tools.slice(0, 500), ok: row.ok ? 1 : 0 });
+    return;
+  }
   try {
     await env.DB.prepare(
       `CREATE TABLE IF NOT EXISTS assist_audit (

@@ -15,7 +15,7 @@ export default function CatalogNames({ value, onChange, kind, disabled }: { valu
     if (!source) { setError('Saisissez d’abord un nom.'); return; }
     setBusy(true); setError('');
     try {
-      const response = await api.assistChat(JSON.stringify({ kind, language: source[0], name: source[1].trim() }), { task: 'catalog_translation' });
+      const response = await api.assistChat(JSON.stringify({ kind, language: source[0], name: source[1].trim() }), { task: 'catalog_translation', silent: true });
       const result: unknown = JSON.parse(response.data.reply);
       if (!result || typeof result !== 'object') throw new Error('Réponse invalide');
       const suggestions = result as Record<string, unknown>;

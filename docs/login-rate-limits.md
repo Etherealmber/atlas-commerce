@@ -315,3 +315,9 @@ Wrangler bindings, package/lockfile and product version files are unchanged.
 The existing **0.8.1** release notes now describe the local scenario and staging
 limitations; there is no new version or remote validation claim. No push or
 remote deployment was performed in this follow-up.
+
+## OTP email delivery diagnosis
+
+`OTP_DELIVERY_FAILED` means no configured transport accepted the login message; it does not prove which provider failed or whether a previously accepted message reached an inbox. Login tries Resend when its key is present, then the Cloudflare EMAIL binding. Current configuration restricts that binding to its configured destination, while account/company email may choose another recipient: if Resend fails and the recipient differs, the fallback can be rejected. Do not redirect a user's code to a different inbox or disable OTP to work around this.
+
+Check private Worker logs for `otp_resend_failed` (HTTP status only), `otp_resend_error`, `otp_binding_failed`, `otp_transport_unconfigured`, and `otp_email_failed_all_transports`; check provider sending/domain verification, the configured sender, binding destination and recipient, and suppression/bounce events. Do not put addresses, codes, tokens, API keys or message content in tickets/logs. An accepted send does not prove final delivery. Validate with an authorized test account and mailbox after deploying, including a non-default recipient. Demo `test/test` goes through the isolated sandbox and does not need email OTP; it still has its gateway/Turnstile checks. Neither the email configuration nor deployment is changed by these notes.

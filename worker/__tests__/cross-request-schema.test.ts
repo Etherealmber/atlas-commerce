@@ -26,7 +26,7 @@ describe('request-owned initialization', () => {
       const database = db(); let release!: () => void;
       const first = schemaOnceForDb(database, 'offline_ops_schema_v20', () => new Promise<void>(resolve => { release = resolve; }));
       const second = schemaOnceForDb(database, 'offline_ops_schema_v20', async () => {});
-      const rejected = expect(second).rejects.toThrow('busy');
+      const rejected = expect(second).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE', status: 503 });
       await vi.advanceTimersByTimeAsync(3100);
       await rejected; release(); await first;
     } finally { vi.useRealTimers(); }

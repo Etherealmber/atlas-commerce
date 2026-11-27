@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Env } from '../env';
 import { enqueueAuditShadow } from './auditShadow';
+import { enqueueBufferedAudit } from './journalBuffered';
 import { schemaOnce, addColumnIfMissing } from './schema';
 import { normalizeIp } from './security';
 import { reserveCredentialAttempt, type CredentialAttemptPurpose } from './credential-attempt-limits';
@@ -355,6 +356,7 @@ export async function writeAudit(
   db: D1Database,
   opts: { username?: string; role?: string; action: string; entity?: string; entity_id?: string | number; detail?: string; ip?: string }
 ) {
+  if (await enqueueBufferedAudit(db, { username: opts.username || null, role: opts.role || null, action: opts.action, entity: opts.entity || null, entity_id: opts.entity_id != null ? String(opts.entity_id) : null, detail: opts.detail || null, ip: opts.ip || null })) return;
   try {
     await ensureSecurityTables(db);
     const result = await db.prepare(

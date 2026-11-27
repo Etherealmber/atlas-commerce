@@ -5,7 +5,7 @@
  *  - serveAppUpdatesAsset for app-updates/desktop/* (no-cache on live files, Range/HEAD)
  *  - Isolation from Android (android/* untouched, unsupported platform rejected, 426 exempt)
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   desktopReleaseRouter,
   DESKTOP_JSON_KEY,
@@ -150,6 +150,16 @@ describe('desktopReleaseRouter', () => {
     expect(j.hasRelease).toBe(false);
     expect(j.updateAvailable).toBe(false);
     expect(j.platform).toBe('windows');
+  });
+
+  it('does not probe absent optional release objects', async () => {
+    const bucket = new MemBucket();
+    const head = vi.spyOn(bucket, 'head');
+    const get = vi.spyOn(bucket, 'get');
+    const res = await desktopReleaseRouter.fetch(new Request('https://api.example.com/api/app/desktop-update?version=0.9.1&platform=windows'), makeEnv(bucket));
+    expect(res.status).toBe(200);
+    expect(head).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
   });
 
   it('rejects non-windows platforms so desktop endpoint never mixes with android', async () => {

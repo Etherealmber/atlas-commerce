@@ -783,6 +783,7 @@ export default function Login() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept-Language': uiLang,
           'X-Device-Fingerprint': fp,
           'X-Atlas-Client': native ? 'native' : 'web',
         },

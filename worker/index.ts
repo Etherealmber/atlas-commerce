@@ -1,3 +1,4 @@
+import { withBufferedJournal } from './lib/journalBuffered';
 import { otpCopy } from './lib/otpCopy';
 import { withAuditShadow } from './lib/auditShadow';
 import { REPORT_TICKET_PATHS, mintScopedReportTicket, verifyScopedReportTicket, verifyScopedPrintTicket } from './lib/report-ticket';
@@ -66,6 +67,7 @@ import { recordApiJournal } from './lib/journalSink';
 import { canMutateBusiness, normalizeRole } from './lib/rbac';
 import { apiFail, apiOk } from './lib/api-response';
 import { toClientError } from './lib/errors';
+import { SchemaBusyError } from './lib/schema';
 import { repairProductSearchIndex } from './lib/reliability';
 import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRelease';
 import { desktopReleaseRouter } from './routes/desktopRelease';
@@ -376,9 +378,14 @@ app.use('/api/*', async (c, next) => {
           ...geoFromCf((c.req.raw as any).cf),
         };
         const response = c.res;
-        ctx.waitUntil((async () => {
+        const journalWrite = (async () => {
           await recordApiJournal(c.env, db, row, await isIdleQrPoll(row.method, path, status, response));
-        })());
+        })();
+        if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered') {
+          // Wait for durable acceptance rather than returning a response while
+          // the first enqueue still exists only in request-owned waitUntil.
+          try { await journalWrite; } catch { console.error('journal_buffer_enqueue_failed'); }
+        } else ctx.waitUntil(journalWrite);
       }
     } catch { /* journaling never breaks a request */ }
   }
@@ -483,7 +490,7 @@ app.use('*', cors({
     return 'https://stock.afmarbre.com';
   },
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'DPoP', 'X-Api-Key', 'Idempotency-Key', 'X-Device-Fingerprint', 'X-Atlas-Client', 'X-Admin-Backup-Token', 'X-Backup-Signature', 'X-Backup-Timestamp'],
+  allowHeaders: ['Content-Type', 'Accept-Language', 'Authorization', 'DPoP', 'X-Api-Key', 'Idempotency-Key', 'X-Device-Fingerprint', 'X-Atlas-Client', 'X-Admin-Backup-Token', 'X-Backup-Signature', 'X-Backup-Timestamp'],
   maxAge: 86400,
 }));
 
@@ -692,7 +699,9 @@ app.use('*', async (c, next) => {
       }
     }
   }
-  if (c.env.JOURNAL_AUDIT_SHADOW === '1' && c.env.ATLAS_DEMO !== '1') {
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+    await withBufferedJournal(c.env, () => next());
+  } else if (c.env.JOURNAL_AUDIT_SHADOW === '1' && c.env.ATLAS_DEMO !== '1') {
     // Some test/embedded callers have no ExecutionContext. Do not break the
     // request when shadow scheduling is unavailable; emit a fixed diagnostic.
     let executionCtx: { waitUntil(promise: Promise<unknown>): void } | undefined;
@@ -1318,6 +1327,10 @@ app.onError(async (err, c) => {
   const errPath = new URL(c.req.url).pathname;
   if (errPath.startsWith(`${NATIVE_V2}/`) || errPath.startsWith(`${NATIVE_V3}/`)) {
     return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
+  }
+  if (err instanceof SchemaBusyError) {
+    c.header('Retry-After', '3');
+    return apiFail(c, err.message, 'SERVICE_UNAVAILABLE');
   }
   // Authentication errors may contain request secrets; never log their raw exceptions.
   try { if (!errPath.startsWith('/api/reports/') && !errPath.startsWith('/api/auth/') && !errPath.startsWith(EMBEDDED_CHALLENGE_PATH) && !errPath.startsWith(V3_WEBVIEW_CHALLENGE_PATH) && !errPath.startsWith(V3_BROWSER_CHALLENGE_PATH)) console.error('[onError]', c.get('requestId') || '-', c.req.method, errPath, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }
@@ -2187,6 +2200,7 @@ async function sendOtpMail(
       console.error('otp_binding_failed');
     }
   }
+  if (!key && !env.EMAIL?.send) console.error('otp_transport_unconfigured');
   return false;
 }
 
@@ -2791,6 +2805,7 @@ app.get('/.well-known/assetlinks.json', async (c) => {
 registerEmployeeFormPrintRoutes(app, requireEmployeeAdmin);
 
 export { MobileHub, RestoreHub, NumberHub };
+export { JournalBuffer } from './durable/JournalBuffer';
 
 /* Mailbox module removed (v240): signed deep-links + CF Email Routing inbound deleted. */
 

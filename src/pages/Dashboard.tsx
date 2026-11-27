@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import ProductArtwork from '../components/ProductArtwork';
 import { DateRangePicker } from '../components/DatePicker';
 import { Link, Navigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Inbox } from 'lucide-react';
 import { api } from '../api';
 import { getUsername, isStockRole } from '../auth';
 import { IconPackage } from '../components/Icons';
@@ -452,7 +452,7 @@ export default function Dashboard() {
         </div>
         <div className="ac-metric">
           <div className="as-label">
-            <svg className="as-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16v12H4z" /><path d="M4 12l8 5 8-5" /></svg>
+            <Inbox className="as-icon" aria-hidden="true" />
             À traiter
           </div>
           <div className="as-value">{pending}<MetricTrend k="pending_actions" invert /></div>

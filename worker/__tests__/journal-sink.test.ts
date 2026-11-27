@@ -13,12 +13,12 @@ describe('journal sink routing', () => {
     expect(r2).toHaveBeenCalledOnce(); expect(d1).not.toHaveBeenCalled();
     r2.mockRestore(); d1.mockRestore();
   });
-  it('falls back to D1 if R2 rejects the write, and skips idle polls', async () => {
+  it('reports R2 failure without writing D1 and skips idle polls', async () => {
     const r2 = vi.spyOn(archive, 'archiveApiCall').mockRejectedValue(new Error('unavailable'));
     const d1 = vi.spyOn(api, 'writeApiLog').mockResolvedValue();
-    await recordApiJournal({ JOURNAL_ARCHIVE_MODE: 'r2' } as any, db, row, false);
+    await expect(recordApiJournal({ JOURNAL_ARCHIVE_MODE: 'r2' } as any, db, row, false)).rejects.toThrow('R2 journal write failed');
     await recordApiJournal({ JOURNAL_ARCHIVE_MODE: 'r2' } as any, db, row, true);
-    expect(d1).toHaveBeenCalledOnce(); expect(r2).toHaveBeenCalledOnce();
+    expect(d1).not.toHaveBeenCalled(); expect(r2).toHaveBeenCalledOnce();
     r2.mockRestore(); d1.mockRestore();
   });
 });
