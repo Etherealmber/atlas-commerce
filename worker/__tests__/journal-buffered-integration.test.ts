@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { JournalBuffer } from '../durable/JournalBuffer';
 import { enqueueBufferedApi, withBufferedJournal } from '../lib/journalBuffered';
 import { writeAudit } from '../lib/authHelpers';
-import { readArchivedApiCall } from '../lib/journalArchive';
+import { readArchivedApiCall, readArchivedJournal, listArchivedJournal } from '../lib/journalArchive';
 
 function setup() {
   const pending = new Map<string, any>(); const objects = new Map<string, Uint8Array>(); let alarm: number | null = null;
   const storage: any = { async get(k: string) { return pending.get(k); }, async put(k: string, v: any) { pending.set(k, v); }, async delete(k: string) { return pending.delete(k); }, async getAlarm() { return alarm; }, async setAlarm(v: number) { alarm = v; }, async list(o: any) { return new Map([...pending].filter(([k]) => k.startsWith(o.prefix)).slice(0, o.limit)); }, async transaction(fn: any) { return fn(storage); } };
-  const bucket = { async put(k: string, b: Uint8Array) { if (!objects.has(k)) objects.set(k, b.slice()); }, async get(k: string) { const bytes = objects.get(k); return bytes ? { arrayBuffer: async () => bytes.slice().buffer } : null; } };
+  const bucket = { async list(options: { prefix: string }) { return { objects: [...objects.keys()].filter(k => k.startsWith(options.prefix)).map(key => ({ key })), truncated: false }; }, async put(k: string, b: Uint8Array) { if (!objects.has(k)) objects.set(k, b.slice()); }, async get(k: string) { const bytes = objects.get(k); return bytes ? { arrayBuffer: async () => bytes.slice().buffer } : null; } };
   let writes = 0; const db = { prepare() { writes++; throw new Error('D1 must not be used'); } };
   const env: any = { DB: db, JOURNAL_ARCHIVE_MODE: 'buffered', JOURNAL_ARCHIVE: bucket, JOURNAL_ENCRYPTION_KEY: btoa('k'.repeat(32)) };
   const buffer = new JournalBuffer({ storage } as any, env);
@@ -24,7 +24,12 @@ describe('buffered R2 journal producers', () => {
     await f.buffer.alarm(); expect(f.pending.size).toBe(0);
     const apiPath = [...f.objects.keys()].find(p => p.startsWith('api-journal/'))!;
     expect(await readArchivedApiCall(f.env, apiPath)).toMatchObject({ username: 'alice', path: '/api/items' });
-    expect([...f.objects.keys()].some(p => p.startsWith('audit-journal/'))).toBe(true);
+    const auditPath = [...f.objects.keys()].find(p => p.startsWith('audit-journal/'))!;
+    expect(await readArchivedJournal(f.env, auditPath, 'audit')).toMatchObject({ username: 'alice', action: 'update', detail: 'private detail' });
+    expect(await readArchivedJournal(f.env, auditPath, 'api')).toBeNull();
+    const day = new Date().toISOString().slice(0, 10);
+    expect((await listArchivedJournal(f.env, day, undefined, 'audit')).keys).toEqual([auditPath]);
+    expect((await listArchivedJournal(f.env, day, undefined, 'api')).keys).toEqual([apiPath]);
   });
   it('does not fall back to D1 when the buffer is unavailable', async () => {
     const f = setup(); delete f.env.JOURNAL_BUFFER;

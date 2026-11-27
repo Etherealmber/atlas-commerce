@@ -28,8 +28,9 @@ function makeKey(date: Date): string {
   return `${PREFIX}${iso.slice(0, 10)}/${iso.replace(/[:.]/g, '-')}-${crypto.randomUUID()}.journal`;
 }
 const KEY_FORMAT = /^api-journal\/v1\/(\d{4}-\d{2}-\d{2})\/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)-[0-9a-f-]{36}\.journal$/;
-function validKey(path: string, now = Date.now()): boolean {
-  const m = KEY_FORMAT.exec(path);
+function validKey(path: string, now = Date.now(), kind: 'api' | 'audit' = 'api'): boolean {
+  if (!path.startsWith(`${kind}-journal/`)) return false;
+  const m = KEY_FORMAT.exec(kind === 'audit' ? `api-${path.slice('audit-'.length)}` : path);
   if (!m || !m[2].startsWith(m[1])) return false;
   const stamp = m[2].replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, 'T$1:$2:$3.$4Z');
   const parsed = Date.parse(stamp);
@@ -60,9 +61,9 @@ export async function archiveApiCall(env: ArchiveEnv, row: ApiLogRow, at = new D
   return true;
 }
 
-export async function readArchivedApiCall(env: ArchiveEnv, path: string, now = Date.now()): Promise<unknown | null> {
+export async function readArchivedJournal(env: ArchiveEnv, path: string, kind: 'api' | 'audit', now = Date.now()): Promise<unknown | null> {
   if (!enabled(env)) throw new Error('Journal archive disabled');
-  if (!validKey(path, now)) return null;
+  if (!validKey(path, now, kind)) return null;
   const key = await keyFromSecret(env);
   const object = await env.JOURNAL_ARCHIVE!.get(path);
   if (!object) return null;
@@ -72,11 +73,19 @@ export async function readArchivedApiCall(env: ArchiveEnv, path: string, now = D
   return JSON.parse(new TextDecoder().decode(plain));
 }
 
+export async function readArchivedApiCall(env: ArchiveEnv, path: string, now = Date.now()) {
+  return readArchivedJournal(env, path, 'api', now);
+}
+
 /** Limited listing; callers must provide a day, no unbounded cross-month scan. */
-export async function listArchivedApiCalls(env: ArchiveEnv, day: string, cursor?: string, now = Date.now()) {
+export async function listArchivedJournal(env: ArchiveEnv, day: string, cursor: string | undefined, kind: 'api' | 'audit', now = Date.now()) {
   if (!enabled(env)) throw new Error('Journal archive disabled');
   const parsed = Date.parse(`${day}T00:00:00.000Z`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(parsed) || new Date(parsed).toISOString().slice(0, 10) !== day || parsed + 86400_000 <= now - RETENTION_MS || parsed > now + 86400_000) throw new Error('Invalid archive date');
-  const result = await env.JOURNAL_ARCHIVE!.list({ prefix: `${PREFIX}${day}/`, limit: 100, ...(cursor ? { cursor } : {}) });
-  return { keys: result.objects.map(o => o.key).filter(k => validKey(k, now)), cursor: result.truncated ? result.cursor : null };
+  const result = await env.JOURNAL_ARCHIVE!.list({ prefix: `${kind}-journal/v1/${day}/`, limit: 100, ...(cursor ? { cursor } : {}) });
+  return { keys: result.objects.map(o => o.key).filter(k => validKey(k, now, kind)), cursor: result.truncated ? result.cursor : null };
+}
+
+export async function listArchivedApiCalls(env: ArchiveEnv, day: string, cursor?: string, now = Date.now()) {
+  return listArchivedJournal(env, day, cursor, 'api', now);
 }

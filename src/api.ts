@@ -1025,12 +1025,12 @@ export const api = {
     if (params?.stats) qs.set('stats', '1');
     return request<{ data: any[]; meta?: { limit: number; has_more: boolean; next_cursor: string | null; range: string; stats?: any } }>(`/api/admin/api-log?${qs}`);
   },
-  listJournalArchive: (day: string, cursor?: string | null) => {
-    const qs = new URLSearchParams({ day });
+  listJournalArchive: (day: string, cursor?: string | null, kind: 'api' | 'audit' = 'api') => {
+    const qs = new URLSearchParams({ day, kind });
     if (cursor) qs.set('cursor', cursor);
     return request<{ data: string[]; meta: { next_cursor: string | null; mode: string } }>(`/api/admin/journal-archive?${qs}`, { silent: true });
   },
-  getJournalArchiveItem: (key: string) => request<{ data: any }>(`/api/admin/journal-archive/item?${new URLSearchParams({ key })}`, { silent: true }),
+  getJournalArchiveItem: (key: string, kind: 'api' | 'audit' = 'api') => request<{ data: any }>(`/api/admin/journal-archive/item?${new URLSearchParams({ key, kind })}`, { silent: true }),
   /** « Expliquer » — Groq (free tier, cached) explanation of one log line. */
   explainLogLine: (kind: 'audit' | 'api', id: number, language: 'fr' | 'en' | 'ar' = 'fr') =>
     request<{ data: { summary: string; risk: 'normal' | 'à surveiller' | 'suspect'; advice: string; source: string; model?: string; network?: { kind: string; label: string; risky: boolean } } }>(

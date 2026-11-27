@@ -3,6 +3,7 @@ import { otpCopy } from '../lib/otpCopy';
 import type { Env } from '../env';
 import { addColumnIfMissing } from '../lib/schema';
 import { normalizeRole } from '../lib/rbac';
+import { inDemoScope } from '../lib/dataScope';
 import { registerDesktopAuthRoutes } from './desktopAuth';
 import { registerDesktopNativeDiscovery } from './desktopNativeDiscovery';
 import { registerDesktopPilotWebView } from '../lib/desktop-pilot-webview';
@@ -203,6 +204,16 @@ app.post('/api/auth/login', async (c) => {
     displayName = row.display_name || username;
     accountEmail = String(row?.email || '').trim();
     await c.env.DB.prepare(`UPDATE app_users SET last_login = datetime('now') WHERE id = ?`).bind(row.id).run();
+  }
+
+  // The gateway has already verified Turnstile and routed these credentials to
+  // disposable demo SQLite. Never use this exception for a production request.
+  if (c.env.ATLAS_DEMO === '1' && inDemoScope() && username === 'test') {
+    await trustDevice(c.env.DB, fingerprint, ip, username, c.req.header('User-Agent') || '');
+    await recordLogin(c.env.DB, ip, fingerprint, true, ua, true);
+    await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'demo_sandbox', ip });
+    const token = await makeTokenV2(username, role, secretMaterial, ip, fingerprint);
+    return c.json({ success: true, needs_otp: false, trusted_device: true, token, ip, username, role, displayName });
   }
 
   // v0.7.5 — reprise après auto-déconnexion : même compte + même appareil +

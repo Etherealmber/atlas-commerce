@@ -28,15 +28,34 @@ jobs:
           WORKER=$!
           npx vite --config scripts/vite-visual.config.mjs > /tmp/visual-vite.log 2>&1 &
           VITE=$!
-          trap 'kill "$WORKER" "$VITE" 2>/dev/null || true' EXIT
+          cleanup() {
+            status=$?
+            kill "$WORKER" "$VITE" 2>/dev/null || true
+            if [ "$status" -ne 0 ]; then
+              echo '## Visual capture failed' >> "$GITHUB_STEP_SUMMARY"
+              echo 'The isolated demo capture failed. Diagnostic logs are included in the workflow artifact.' >> "$GITHUB_STEP_SUMMARY"
+              mkdir -p artifacts/visual-review/diagnostics
+              cp /tmp/visual-worker.log /tmp/visual-vite.log artifacts/visual-review/diagnostics/ 2>/dev/null || true
+              if [ -f /tmp/visual-capture.log ]; then
+                cp /tmp/visual-capture.log artifacts/visual-review/diagnostics/
+                echo '```' >> "$GITHUB_STEP_SUMMARY"
+                tail -n 20 /tmp/visual-capture.log >> "$GITHUB_STEP_SUMMARY"
+                echo '```' >> "$GITHUB_STEP_SUMMARY"
+              fi
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
           for i in $(seq 1 90); do
             if curl -fsS http://127.0.0.1:5173/api/demo/config >/dev/null 2>&1; then break; fi
             if ! kill -0 "$WORKER" 2>/dev/null || ! kill -0 "$VITE" 2>/dev/null; then cat /tmp/visual-worker.log /tmp/visual-vite.log; exit 1; fi
             sleep 1
           done
           curl -fsS http://127.0.0.1:5173/api/demo/config >/dev/null
+          node scripts/demo-login-smoke.mjs
           node scripts/settings-load-smoke.mjs
-          node scripts/capture-visual-review.mjs
+          set -o pipefail
+          node scripts/capture-visual-review.mjs 2>&1 | tee /tmp/visual-capture.log
       - name: Upload screenshot artifact
         id: screenshots
         if: always()

@@ -2,7 +2,7 @@ import type { AtlasApp } from './types';
 import { DEMO_USERNAME } from '../lib/demo/policy';
 import { API_LOG_RETENTION_DAYS, classifyNetwork, ensureApiLogTable, geoForIps } from '../lib/apiLog';
 import { explainLogLine } from '../lib/auditExplain';
-import { listArchivedApiCalls, readArchivedApiCall } from '../lib/journalArchive';
+import { listArchivedJournal, readArchivedJournal } from '../lib/journalArchive';
 import { schemaOnce, addColumnIfMissing } from '../lib/schema';
 import { ensureDocAssetColumns } from '../lib/printTemplates';
 import {
@@ -335,9 +335,11 @@ app.get('/api/admin/journal-archive', async (c) => {
   c.header('Cache-Control', 'no-store');
   const day = String(c.req.query('day') || '');
   const cursor = String(c.req.query('cursor') || '');
+  const kind = c.req.query('kind') || 'api';
+  if (kind !== 'api' && kind !== 'audit') return c.json({ success: false, error: 'Type invalide.' }, 400);
   if (cursor.length > 2048) return c.json({ success: false, error: 'Curseur invalide.' }, 400);
   try {
-    const result = await listArchivedApiCalls(c.env, day, cursor || undefined);
+    const result = await listArchivedJournal(c.env, day, cursor || undefined, kind);
     return c.json({ success: true, data: result.keys, meta: { next_cursor: result.cursor, mode: c.env.JOURNAL_ARCHIVE_MODE } });
   } catch (e) {
     if (e instanceof Error && e.message === 'Invalid archive date') return c.json({ success: false, error: 'Date invalide.' }, 400);
@@ -349,7 +351,9 @@ app.get('/api/admin/journal-archive/item', async (c) => {
   if (!gate.ok) return gate.response;
   c.header('Cache-Control', 'no-store');
   try {
-    const row = await readArchivedApiCall(c.env, String(c.req.query('key') || ''));
+    const kind = c.req.query('kind') || 'api';
+    if (kind !== 'api' && kind !== 'audit') return c.json({ success: false, error: 'Type invalide.' }, 400);
+    const row = await readArchivedJournal(c.env, String(c.req.query('key') || ''), kind);
     if (!row) return c.json({ success: false, error: 'Entrée introuvable.' }, 404);
     return c.json({ success: true, data: row });
   } catch { return c.json({ success: false, error: 'Archive indisponible.' }, 503); }
