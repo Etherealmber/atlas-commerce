@@ -1,10 +1,11 @@
 import { finishAgentReply } from '../lib/agentMessages';
-import { ChevronDown, Plus, PackageSearch, ListChecks, FileText, ArrowUpRight, Sparkles, Search, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronDown, Plus, PackageSearch, ListChecks, FileText, ArrowUpRight, Sparkles, Search, Maximize2, Minimize2, Trash2 } from 'lucide-react';
 /**
  * Atlas Agent — dock + P0/P1/P2: citations, tools, drafts, stream UX, history, voice, role chips.
  */
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import LatticeLoader from './ui/LatticeLoader';
+import ConfirmDialog from './ConfirmDialog';
 import { AtlasAgentShimmerBody } from './PageSkeleton';
 import { bumpAtlasLayer } from './GlobalSearchPanel';
 import PromptBar from './ui/PromptBar';
@@ -568,6 +569,9 @@ export default function AtlasAgent() {
   const [historySearch, setHistorySearch] = useState('');
   const [historyError, setHistoryError] = useState(false);
   const [historyPending, setHistoryPending] = useState(false);
+  const [deletingThread, setDeletingThread] = useState<string | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<(ThreadMeta & { user: string }) | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [expanded, setExpanded] = useState(true);
   const [showExtras, setShowExtras] = useState<boolean>(() => {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
@@ -1174,7 +1178,7 @@ export default function AtlasAgent() {
         ? ((reused = true), lastFilesRef.current)
         : picked;
       if (!isRetry && picked.length) lastFilesRef.current = picked;
-      if ((!q && !files.length) || busy || loadingThread) return;
+      if ((!q && !files.length) || busy || loadingThread || deletingThread) return;
       conversationRevision.current += 1;
       /* v225 security: blocked users and exhausted quotas cannot talk to the agent */
       if (agentPolicy?.blocked) {
@@ -1336,7 +1340,7 @@ export default function AtlasAgent() {
         abortRef.current = null;
       }
     },
-    [busy, loadingThread, input, attachments, page, threadId, applyAction, location.pathname, agentPolicy],
+    [busy, loadingThread, deletingThread, input, attachments, page, threadId, applyAction, location.pathname, agentPolicy],
   );
 
   const stop = () => {
@@ -1366,7 +1370,7 @@ export default function AtlasAgent() {
 
 
   const switchThread = (id: string) => {
-    if (busy || loadingThread || syncStatus === 'pending' || syncStatus === 'saving' || id === threadId) { setHistoryOpen(false); return; }
+    if (busy || loadingThread || deletingThread || syncStatus === 'pending' || syncStatus === 'saving' || id === threadId) { setHistoryOpen(false); return; }
     conversationRevision.current += 1;
     const local = loadMsgs(id);
     setThreadId(id);
@@ -1377,6 +1381,20 @@ export default function AtlasAgent() {
     setInput('');
     setExpandedTools({});
     setHistoryOpen(false);
+  };
+  const deleteThread = async (thread: ThreadMeta) => {
+    if (busy || loadingThread || deletingThread || syncStatus === 'pending' || syncStatus === 'saving') return;
+    const user = scopeUser();
+    setDeletingThread(thread.id); setDeleteError('');
+    try {
+      await api.deleteAgentThread(thread.id);
+      if (scopeUser() !== user) return;
+      try { localStorage.removeItem(msgsKey(thread.id)); sessionStorage.removeItem(msgsKey(thread.id)); localStorage.removeItem(pendingKey(thread.id)); } catch { /* remote deletion already completed */ }
+      setThreads(prev => { const next = prev.filter(t => t.id !== thread.id); saveThreads(next); return next; });
+      if (thread.id === threadId) { conversationRevision.current++; syncRef.current = null; setThreadId(newThreadId()); setMsgs([WELCOME]); setInput(''); setAttachments([]); setPendingAction(null); }
+      setHistoryOpen(false);
+    } catch { if (scopeUser() === user) setDeleteError('Suppression impossible. La conversation reste affichée ; réessayez.'); }
+    finally { if (scopeUser() === user) setDeletingThread(null); }
   };
   const saveConflictAsNew = () => {
     if (syncStatus !== 'conflict' || busy) return;
@@ -1441,23 +1459,24 @@ export default function AtlasAgent() {
           <div className="atlas-agent-history-caption">Conversations récentes</div>
           {historyError && <p className="atlas-agent-history-error" role="status">Certaines conversations R2 sont indisponibles.</p>}
           {historyPending && <p className="atlas-agent-history-error" role="status">Certains titres sont encore indisponibles ; ouvrez une conversation pour charger son contenu.</p>}
+          {deleteError && <p className="atlas-agent-history-error" role="alert">{deleteError}</p>}
           <div className="atlas-agent-workspace-threads">
-            {visibleThreads.length ? visibleThreads.map((thread) => <button type="button" key={thread.id} disabled={busy || loadingThread} className={`atlas-agent-sidebar-thread${thread.id === threadId ? ' is-current' : ''}`} aria-current={thread.id === threadId ? 'page' : undefined} onClick={() => switchThread(thread.id)}>{thread.title}</button>) : <p>Aucune conversation trouvée.</p>}
+            {visibleThreads.length ? visibleThreads.map((thread) => <div className="atlas-agent-thread-row" key={thread.id}><button type="button" disabled={busy || loadingThread || !!deletingThread} className={`atlas-agent-sidebar-thread${thread.id === threadId ? ' is-current' : ''}`} aria-current={thread.id === threadId ? 'page' : undefined} onClick={() => switchThread(thread.id)}>{thread.title}</button><button type="button" className="atlas-agent-thread-delete" aria-label={`Supprimer ${thread.title}`} title="Supprimer la conversation" disabled={busy || loadingThread || !!deletingThread || syncStatus === 'pending' || syncStatus === 'saving'} onClick={() => setDeleteCandidate({ ...thread, user: scopeUser() })}><Trash2 size={15} /></button></div>) : <p>Aucune conversation trouvée.</p>}
           </div>
         </nav>}
         <div className="atlas-agent-main">
         <header className="atlas-agent-head">
           <div className="atlas-agent-header-title">
             <span className="atlas-agent-header-mark" aria-hidden="true"><Sparkles size={17} /></span>
-            {expanded && !isPhoneShell && <strong className="atlas-agent-current-title">{activeTitle}</strong>}
             <button type="button" className="atlas-agent-history-trigger" aria-label="Historique des conversations" aria-expanded={historyOpen} aria-controls="atlas-agent-history-menu" onClick={() => setHistoryOpen((value) => !value)}>
               <span><small>ATLAS AGENT</small><strong>{activeTitle}</strong></span><ChevronDown size={15} aria-hidden="true" />
             </button>
             {historyOpen && <div id="atlas-agent-history-menu" className="atlas-agent-history-popover" onKeyDown={(event) => { if (event.key === 'Escape') setHistoryOpen(false); }}>
               <label className="atlas-agent-history-search"><Search size={15} aria-hidden="true" /><input aria-label="Rechercher une conversation" placeholder="Rechercher…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /></label>
               <div className="atlas-agent-history-caption">Conversations récentes</div>
+              {deleteError && <p className="atlas-agent-history-error" role="alert">{deleteError}</p>}
               <div className="atlas-agent-history-list">
-                {visibleThreads.length ? visibleThreads.map((thread) => <button type="button" key={thread.id} disabled={busy || loadingThread} className={`atlas-agent-history-choice${thread.id === threadId ? ' is-current' : ''}`} onClick={() => switchThread(thread.id)}><span>{thread.title}</span>{thread.id === threadId && <span aria-label="Conversation actuelle">•</span>}</button>) : <p>Aucune conversation trouvée.</p>}
+                {visibleThreads.length ? visibleThreads.map((thread) => <div className="atlas-agent-thread-row" key={thread.id}><button type="button" disabled={busy || loadingThread || !!deletingThread} className={`atlas-agent-history-choice${thread.id === threadId ? ' is-current' : ''}`} onClick={() => switchThread(thread.id)}><span>{thread.title}</span>{thread.id === threadId && <span aria-label="Conversation actuelle">•</span>}</button><button type="button" className="atlas-agent-thread-delete" aria-label={`Supprimer ${thread.title}`} title="Supprimer la conversation" disabled={busy || loadingThread || !!deletingThread || syncStatus === 'pending' || syncStatus === 'saving'} onClick={() => setDeleteCandidate({ ...thread, user: scopeUser() })}><Trash2 size={15} /></button></div>) : <p>Aucune conversation trouvée.</p>}
               </div>
               <button type="button" className="atlas-agent-history-new" disabled={busy || loadingThread || syncStatus === 'pending' || syncStatus === 'saving'} onClick={() => switchThread(newThreadId())}><Plus size={15} /> Nouvelle conversation</button>
             </div>}
@@ -2033,6 +2052,7 @@ export default function AtlasAgent() {
           />
         )}
       </aside>
+      <ConfirmDialog open={!!deleteCandidate} title="Supprimer la conversation ?" message={`Supprimer « ${deleteCandidate?.title || ''} » et son contexte R2 ? Cette action est immédiate et sans annulation.`} confirmLabel="Supprimer" onCancel={() => setDeleteCandidate(null)} onConfirm={() => { const candidate = deleteCandidate; setDeleteCandidate(null); if (candidate && candidate.user === scopeUser()) void deleteThread(candidate); }} />
     </>
   );
 }

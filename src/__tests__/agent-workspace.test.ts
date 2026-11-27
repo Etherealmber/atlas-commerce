@@ -166,3 +166,35 @@ it('shows a shimmer only while an empty conversation hydrates from R2', async ()
   expect(host.textContent).toContain('Réponse R2');
   expect(api.putAgentThread).not.toHaveBeenCalled();
 });
+
+it('renders one header title and immediately deletes the selected R2 thread after confirmation', async () => {
+  localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'thread-a', title: 'Factures impayées', updated: 10 }]));
+  localStorage.setItem('atlas_agent_active_thread:admin', 'thread-a');
+  vi.mocked(api.getAgentThread).mockImplementation(async id => id === 'thread-a' ? { data: { title: 'Factures impayées', messages: [{ role: 'user', text: 'Factures impayées' }] }, meta: { version: 'v1' } } as any : { data: { messages: [] }, meta: { version: null } } as any);
+  const remove = vi.spyOn(api, 'deleteAgentThread').mockResolvedValue({ success: true } as any);
+  await render();
+  expect(host.querySelectorAll('.atlas-agent-header-title strong')).toHaveLength(1);
+  const del = host.querySelector<HTMLButtonElement>('.atlas-agent-workspace-sidebar [aria-label="Supprimer Factures impayées"]')!;
+  expect(del).not.toBeNull();
+  await act(async () => del.click());
+  expect(remove).not.toHaveBeenCalled();
+  await act(async () => document.querySelector<HTMLButtonElement>('.ac-confirm-ok')!.click());
+  expect(remove).toHaveBeenCalledWith('thread-a');
+  expect(host.querySelector('.atlas-agent-workspace-sidebar [aria-label="Supprimer Factures impayées"]')).toBeNull();
+  expect(localStorage.getItem('atlas_agent_msgs_v1:admin:thread-a')).toBeNull();
+});
+
+it('keeps the conversation when deletion fails or is cancelled', async () => {
+  localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'thread-a', title: 'Factures', updated: 10 }]));
+  const remove = vi.spyOn(api, 'deleteAgentThread').mockRejectedValue(new Error('offline'));
+  await render();
+  const del = host.querySelector<HTMLButtonElement>('.atlas-agent-workspace-sidebar [aria-label="Supprimer Factures"]')!;
+  await act(async () => del.click()); expect(remove).not.toHaveBeenCalled();
+  await act(async () => document.querySelector<HTMLButtonElement>('.ac-confirm-cancel')!.click());
+  expect(remove).not.toHaveBeenCalled();
+  await act(async () => del.click());
+  await act(async () => document.querySelector<HTMLButtonElement>('.ac-confirm-ok')!.click());
+  expect(remove).toHaveBeenCalledOnce();
+  expect(host.textContent).toContain('Suppression impossible');
+  expect(host.querySelector('.atlas-agent-workspace-sidebar [aria-label="Supprimer Factures"]')).not.toBeNull();
+});

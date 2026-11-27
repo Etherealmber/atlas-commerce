@@ -225,7 +225,10 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
     if (!validAgentThreadId(id)) return c.json({ success: false, error: 'Identifiant invalide.' }, 400);
     try {
       if (!c.env.IMAGES) throw new Error('storage unavailable');
-      await c.env.IMAGES.delete(`agent/${gate.userKey}/${id}.agent`);
+      // The UI snapshot and model-context transcript have different user-key
+      // encodings. Delete only this authenticated user's exact thread objects.
+      const transcriptUser = gate.username.replace(/[^a-zA-Z0-9._@-]/g, '_').slice(0, 64);
+      await c.env.IMAGES.delete([`agent/${gate.userKey}/${id}.agent`, `agent-chats/v2/${transcriptUser}/${id}.conv`]);
       return c.json({ success: true });
     } catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Impossible de supprimer la conversation R2.' }, 503); }
   });
