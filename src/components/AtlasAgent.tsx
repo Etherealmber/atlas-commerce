@@ -153,13 +153,12 @@ function sourcesFromTools(tools: ToolTrace[]): { label: string; href: string }[]
       add('Boîte d’actions', '/actions');
     }
     if (t.name === 'list_unpaid_invoices' || t.name === 'list_recent_invoices' || t.name === 'get_invoice_brief') {
-      const items = d?.items || (d?.id ? [d] : []);
+      const items = Array.isArray(d) ? d : d?.items || (d?.id ? [d] : []);
       if (Array.isArray(items)) {
         for (const inv of items.slice(0, 4)) {
           if (inv?.id) add(String(inv.number || `FA #${inv.id}`), `/invoices/${inv.id}`);
         }
       }
-      add('Factures', '/invoices');
     }
     if (t.name === 'list_open_quotes') add('Devis', '/quotes');
     if (t.name === 'search_clients') add('Clients', '/clients');
@@ -1585,7 +1584,7 @@ export default function AtlasAgent() {
                     aria-expanded={!!expandedTools[i]}
                     onClick={() => setExpandedTools((s) => ({ ...s, [i]: !s[i] }))}
                   >
-                    {expandedTools[i] ? '▾' : '▸'} {m.tools.some((tool) => tool.ok === false) ? 'Activité avec erreur' : m.tools.some((tool) => tool.ok !== true) ? 'Activité' : 'Activité terminée'} · {m.tools.length} étape{m.tools.length > 1 ? 's' : ''}
+                    {m.tools.some((tool) => tool.ok === false) ? 'Activité avec erreur' : m.tools.some((tool) => tool.ok !== true) ? 'Activité' : 'Activité terminée'} · {m.tools.length} étape{m.tools.length > 1 ? 's' : ''} <ChevronDown size={14} className={expandedTools[i] ? 'is-open' : ''} aria-hidden="true" />
                   </button>
                   {expandedTools[i] && (
                     <ul className="atlas-agent-tools-list">
@@ -1729,9 +1728,9 @@ export default function AtlasAgent() {
               ) : null}
 
 
-              {m.sources && m.sources.length > 0 && (
+              {m.sources?.some((source) => source.href !== '/invoices' || source.label !== 'Factures') && (
                 <div className="atlas-agent-sources">
-                  {m.sources.map((s, j) => (
+                  {m.sources.filter((source) => source.href !== '/invoices' || source.label !== 'Factures').map((s, j) => (
                     <Link key={j} to={s.href} className="atlas-agent-source">
                       {s.label}
                     </Link>

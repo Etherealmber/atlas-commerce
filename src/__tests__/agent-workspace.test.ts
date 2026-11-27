@@ -240,3 +240,18 @@ it('keeps automatic modification unavailable even with a legacy auto preference'
   expect(disabled?.disabled).toBe(true);
   expect(host.textContent).toContain('propositions nécessitent une validation');
 });
+
+it('shows real expandable activity without a redundant generic invoice shortcut, including in saved history', async () => {
+  localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'thread-a', title: 'Factures impayées', updated: 10 }]));
+  localStorage.setItem('atlas_agent_active_thread:admin', 'thread-a');
+  vi.mocked(api.getAgentThread).mockResolvedValue({ data: { title: 'Factures impayées', messages: [{ role: 'assistant', text: 'Aucune facture impayée.', tools: [{ name: 'list_unpaid_invoices', ok: true, data: [] }], sources: [{ label: 'Factures', href: '/invoices' }] }] }, meta: { version: 'v1' } } as any);
+  await render();
+  expect(host.querySelector('.atlas-agent-source')).toBeNull();
+  const toggle = host.querySelector<HTMLButtonElement>('.atlas-agent-tools-toggle')!;
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  expect(toggle.textContent).toContain('1 étape');
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(host.querySelector('.atlas-agent-tools-list')?.textContent).toContain('Consulter les factures impayées');
+  expect(host.querySelector('.atlas-agent-result-card')?.textContent).toContain('0 résultat');
+});
