@@ -121,3 +121,61 @@ html[data-theme="dark"] body aside.atlas-agent-panel button.atlas-agent-thread-d
 html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-card-icon { background: #383b45; color: #f4f4f5; }
 html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-msg.user .atlas-agent-bubble { background: #373a45 !important; border-color: #50535e !important; color: #f4f4f5 !important; }
 html body aside.atlas-agent-panel :is(button, input):focus-visible { outline: 2px solid #828cfc; outline-offset: 2px; }
+
+/* The expanded workspace already has a history rail; keep the picker only
+   where the rail is absent. The title remains visible in both layouts. */
+.atlas-agent-workspace-title { display: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--agent-ink); }
+@media (min-width: 721px) {
+  html body aside.atlas-agent-panel.atlas-agent-has-sidebar .atlas-agent-history-trigger,
+  html body aside.atlas-agent-panel.atlas-agent-has-sidebar .atlas-agent-history-popover { display: none !important; }
+  html body aside.atlas-agent-panel.atlas-agent-has-sidebar .atlas-agent-workspace-title { display: block; }
+  html body aside.atlas-agent-panel.atlas-agent-panel--expanded .atlas-agent-body:not(#agent-ui-a):not(#agent-ui-b) { padding-inline: max(28px, calc((100% - 1000px) / 2)) !important; }
+  html body aside.atlas-agent-panel.atlas-agent-panel--expanded .atlas-agent-foot { padding-inline: max(28px, calc((100% - 1000px) / 2)) !important; }
+}
+html body aside.atlas-agent-panel .atlas-agent-bubble .atlas-agent-msg-label { display: block; margin: 0 0 7px; color: #2563eb; font-weight: 700; font-size: 12px; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-bubble .atlas-agent-msg-label { color: #93b9ff !important; -webkit-text-fill-color: #93b9ff !important; }
+html body aside.atlas-agent-panel .atlas-agent-foot .prompt-bar__field { padding: 14px 16px !important; border-radius: 20px !important; }
+html body aside.atlas-agent-panel .atlas-agent-foot .prompt-bar__input { min-height: 32px !important; }
+html body aside.atlas-agent-panel .atlas-agent-foot .prompt-bar__field:focus-within { border-color: #7aa6f8 !important; box-shadow: 0 0 0 3px #4f86ef26 !important; }
+html body aside.atlas-agent-panel .atlas-agent-welcome-art { background: transparent; transform: none; }
+html body aside.atlas-agent-panel .atlas-agent-welcome-art .ph-mascot { position: static; background: linear-gradient(135deg, #8277f2, #36bfc2); }
+html body aside.atlas-agent-panel .atlas-agent-sidebar-mark, html body aside.atlas-agent-panel .atlas-agent-head .atlas-agent-header-mark { background: transparent !important; box-shadow: none !important; }
+/* Reuse the same mascot as the mobile Agent, with motion preference respected. */
+html body :is(.atlas-agent-panel, .atlas-agent-fab) .ph-mascot { --mascot-eye: #fff; --mascot-sparkle: #fff; display: inline-flex; flex: 0 0 auto; overflow: hidden; border-radius: 50%; background: linear-gradient(135deg, #8277f2, #36bfc2); animation: atlas-mascot-bob 3.4s ease-in-out infinite alternate; }
+html body :is(.atlas-agent-panel, .atlas-agent-fab) .ph-mascot-eyes { transform-origin: 20px 18px; animation: atlas-mascot-blink 3s infinite; }
+html:not(.atlas-agent-docked) body button.atlas-agent-fab.atlas-agent-fab-premium { background: #eef4ff !important; border-radius: 50% !important; }
+html body button.atlas-agent-fab.atlas-agent-fab-premium .ph-mascot svg { stroke: none !important; }
+@keyframes atlas-mascot-bob { from { transform: translateY(-1px) rotate(-2deg); } to { transform: translateY(1px) rotate(2deg); } }
+@keyframes atlas-mascot-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.15); } }
+.atlas-agent-mascot-hint { position: fixed; z-index: 120; right: 20px; bottom: 90px; max-width: min(270px, calc(100vw - 40px)); display: flex; gap: 6px; align-items: start; padding: 9px 10px 9px 13px; color: #173057; background: #f5f9ff; border: 1px solid #bad2ff; border-radius: 15px 15px 5px 15px; box-shadow: 0 8px 28px #1d355726; }
+.atlas-agent-mascot-hint button { border: 0; padding: 0; color: inherit; background: transparent; cursor: pointer; }
+.atlas-agent-hint-open { text-align: start; font-size: 13px; line-height: 1.4; }
+.atlas-agent-hint-close { font-size: 18px; line-height: 1; }
+html[data-theme="dark"] body .atlas-agent-mascot-hint { color: #e6f0ff; background: #22314a; border-color: #4e6c98; }
+body:has(.modal-overlay) .atlas-agent-mascot-hint, body:has(.modal-backdrop) .atlas-agent-mascot-hint, body:has(.ph-modal-bg) .atlas-agent-mascot-hint { display: none; }
+@media (prefers-reduced-motion: reduce) { html body :is(.atlas-agent-panel, .atlas-agent-fab) .ph-mascot, html body :is(.atlas-agent-panel, .atlas-agent-fab) .ph-mascot-eyes { animation: none; } }
+
+/* Actual tool results only; do not invent reasoning or a result table. */
+html body aside.atlas-agent-panel .atlas-agent-result-card { margin-top: 9px; max-width: 100%; border: 1px solid var(--agent-line); border-radius: 14px; background: var(--agent-surface); color: var(--agent-ink); }
+.atlas-agent-result-card > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.atlas-agent-result-card > summary::-webkit-details-marker { display: none; }
+.atlas-agent-result-card > summary > span:nth-child(2) { flex: 1; min-width: 0; }
+.atlas-agent-result-card strong, .atlas-agent-result-card small { display: block; }
+.atlas-agent-result-card strong { font-size: 13px; }
+.atlas-agent-result-card small { color: var(--agent-muted); font-size: 11px; }
+.atlas-agent-result-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border: 1px solid var(--agent-line); border-radius: 10px; color: var(--agent-muted); }
+.atlas-agent-result-view { border: 1px solid var(--agent-line); border-radius: 9px; padding: 5px 9px; font-size: 12px; }
+.atlas-agent-result-table { overflow-x: auto; padding: 0 12px 10px; }
+.atlas-agent-result-table table { width: 100%; font-size: 12px; border-collapse: collapse; text-align: start; }
+.atlas-agent-result-table :is(th, td) { padding: 7px; border-bottom: 1px solid var(--agent-line); text-align: start; white-space: nowrap; }
+.atlas-agent-result-card > p, .atlas-agent-result-table p { margin: 0; padding: 8px 12px; color: var(--agent-muted); font-size: 12px; }
+html body aside.atlas-agent-panel .atlas-agent-tools { margin: 0 0 8px; padding: 3px 0; }
+html body aside.atlas-agent-panel .atlas-agent-tools-toggle { color: var(--agent-muted); }
+html body aside.atlas-agent-panel .atlas-agent-tools-list { border-inline-start: 2px solid var(--agent-line); padding-inline-start: 10px; }
+.atlas-agent-approval-mode { position: relative; }
+.atlas-agent-approval-mode > summary { display: flex; align-items: center; gap: 4px; padding: 4px 9px; border: 1px solid var(--agent-line); border-radius: 999px; color: var(--agent-ink); font-size: 12px; cursor: pointer; list-style: none; }
+.atlas-agent-approval-mode > summary::-webkit-details-marker { display: none; }
+.atlas-agent-approval-menu { position: absolute; bottom: calc(100% + 12px); inset-inline-start: 0; z-index: 5; width: min(290px, calc(100vw - 70px)); padding: 12px; border: 1px solid var(--agent-line); border-radius: 14px; background: var(--agent-surface); box-shadow: 0 12px 32px #11182730; color: var(--agent-ink); }
+.atlas-agent-approval-menu strong { font-size: 13px; }
+.atlas-agent-approval-menu p { margin: 4px 0 9px; font-size: 11px; line-height: 1.4; color: var(--agent-muted); }
+html body aside.atlas-agent-panel .atlas-agent-approval-menu button:disabled { padding: 0; border: 0; background: transparent; color: var(--agent-muted); font-size: 12px; opacity: .8; }

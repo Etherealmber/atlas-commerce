@@ -523,7 +523,6 @@ app.get('/api/admin/api-log', async (c) => {
 app.post('/api/admin/audit/explain', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
-  if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase' && c.env.ATLAS_DEMO !== '1') return c.json({ success: false, code: 'JOURNAL_FEATURE_UNAVAILABLE', error: 'Cette fonction n’est pas encore disponible pour Supabase.' }, 409);
   // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
   if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
     return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 409);
@@ -531,9 +530,20 @@ app.post('/api/admin/audit/explain', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { kind?: string; id?: unknown; language?: string };
   const kind = body.kind === 'api' ? 'api' : 'audit';
   const id = Math.floor(Number(body.id));
-  if (!Number.isFinite(id) || id <= 0) return c.json({ success: false, error: 'Ligne introuvable.' }, 400);
+  if (!Number.isSafeInteger(id) || id <= 0 || id >= Number.MAX_SAFE_INTEGER) return c.json({ success: false, error: 'Ligne introuvable.' }, 400);
+  const supabase = c.env.JOURNAL_ARCHIVE_MODE === 'supabase' && c.env.ATLAS_DEMO !== '1';
   let row: any = null;
-  if (kind === 'api') {
+  if (supabase) {
+    try {
+      // Fetch from the authoritative store, never accept journal contents from
+      // the browser. The existing page RPC orders by id DESC with an exclusive cursor.
+      const result = await journalRpc(c.env, 'atlas_journal_page', { p_kind: kind, p_range: '30d', p_limit: 1, p_cursor: id + 1, p_query: '', p_action: '', p_status: '', p_username: '', p_ip: '', p_stats: false });
+      if (!Array.isArray(result?.data)) throw new Error('Invalid journal response');
+      if (Number(result.data[0]?.id) === id) row = result.data[0];
+    } catch {
+      return c.json({ success: false, code: 'JOURNAL_SUPABASE_UNAVAILABLE', error: 'Journal Supabase indisponible. Réessayez.' }, 503);
+    }
+  } else if (kind === 'api') {
     await ensureApiLogTable(c.env.DB);
     row = await c.env.DB.prepare('SELECT * FROM api_log WHERE id = ?').bind(id).first();
   } else {
@@ -546,7 +556,7 @@ app.post('/api/admin/audit/explain', async (c) => {
   }
   if (!row) return c.json({ success: false, error: 'Ligne introuvable.' }, 404);
   let recent = { failures: 0, users: 0 };
-  if (row.ip) {
+  if (row.ip && !supabase) {
     try {
       await ensureApiLogTable(c.env.DB);
       const r = await c.env.DB.prepare(
@@ -557,7 +567,7 @@ app.post('/api/admin/audit/explain', async (c) => {
     } catch { /* */ }
   }
   const explanation = await explainLogLine(c.env as any, {
-    kind, id, ...row, language: body.language === 'ar' || body.language === 'en' ? body.language : 'fr', ip_recent_failures: recent.failures, ip_recent_users: recent.users,
+    ...row, kind, id, storage: supabase ? 'supabase' : 'legacy', language: body.language === 'ar' || body.language === 'en' ? body.language : 'fr', ip_recent_failures: supabase ? undefined : recent.failures, ip_recent_users: supabase ? undefined : recent.users,
   });
   return c.json({ success: true, data: { ...explanation, network: classifyNetwork(row.as_org, row.asn, row.ip) } });
 });

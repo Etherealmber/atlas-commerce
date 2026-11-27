@@ -9,4 +9,7 @@ it('keeps the expanded sidebar readable and avoids duplicated branding without h
   expect(css).toContain('.atlas-agent-history-trigger small { display: none; }');
   expect(css).not.toMatch(/\.atlas-agent-history-trigger\s*\{\s*display:\s*none/);
   expect(css).toContain(':not(.atlas-agent-workspace-threads) { flex-shrink: 0; }');
+  expect(css).toContain('.atlas-agent-has-sidebar .atlas-agent-history-popover { display: none !important; }');
+  expect(css).toContain('(100% - 1000px) / 2');
+  expect(css).toContain('prefers-reduced-motion: reduce');
 });

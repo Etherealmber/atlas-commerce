@@ -207,3 +207,36 @@ it('restores the previously selected expanded state on remount', async () => {
   await render();
   expect(host.querySelector('.atlas-agent-panel--expanded')).not.toBeNull();
 });
+
+it('places the agent name inside the answer, and keeps the user name accessible without a visible label', async () => {
+  localStorage.setItem('atlas_agent_active_thread:admin', 'labels');
+  localStorage.setItem('atlas_agent_msgs_v1:admin:labels', JSON.stringify([{ role: 'user', text: 'Bonjour' }, { role: 'assistant', text: 'Bienvenue' }]));
+  vi.mocked(api.getAgentThread).mockResolvedValue({ data: { messages: [{ role: 'user', text: 'Bonjour' }, { role: 'assistant', text: 'Bienvenue' }] }, meta: { version: 'v1' } } as any);
+  await render();
+  expect(host.querySelector('.atlas-agent-msg.assistant .atlas-agent-bubble .atlas-agent-msg-label')?.textContent).toBe('Atlas Agent');
+  expect(host.querySelector('.atlas-agent-msg.user .atlas-agent-bubble .sr-only')?.textContent).toBe('Vous');
+});
+
+it('shows a dismissible mascot hint and opens the agent when it is selected', async () => {
+  vi.useFakeTimers();
+  try {
+    sessionStorage.setItem('atlas_agent_open', '0');
+    await render();
+    expect(host.querySelector('.atlas-agent-fab .ph-mascot')).not.toBeNull();
+    expect(host.querySelector('.atlas-agent-mascot-hint')).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+    expect(host.querySelector('.atlas-agent-mascot-hint')).not.toBeNull();
+    await click('.atlas-agent-hint-open');
+    expect(host.querySelector('.atlas-agent-panel.open')).not.toBeNull();
+    expect(host.querySelector('.atlas-agent-mascot-hint')).toBeNull();
+  } finally { vi.useRealTimers(); }
+});
+
+it('keeps automatic modification unavailable even with a legacy auto preference', async () => {
+  localStorage.setItem('atlas_agent_exec_mode', 'auto');
+  await render();
+  expect(host.textContent).toContain('Demander avant modification');
+  const disabled = [...host.querySelectorAll('button')].find(button => button.textContent?.includes('Modification automatique'));
+  expect(disabled?.disabled).toBe(true);
+  expect(host.textContent).toContain('propositions nécessitent une validation');
+});

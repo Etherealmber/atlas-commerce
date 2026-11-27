@@ -14,6 +14,7 @@ export const AUDIT_EXPLAIN_MODEL = 'openai/gpt-oss-20b';
 export type ExplainInput = {
   kind: 'audit' | 'api';
   id: number;
+  storage?: 'legacy' | 'supabase';
   language?: 'fr' | 'en' | 'ar';
   created_at?: string | null;
   username?: string | null;
@@ -68,7 +69,7 @@ function linesFor(input: ExplainInput): string {
   return JSON.stringify({ kind: input.kind, action: actions.has(input.action || '') ? input.action : 'other',
     method: input.kind === 'api' && methods.has(input.method || '') ? input.method : null, status: input.kind === 'api' && input.status != null ? Number(input.status) : null,
     network_flagged: classifyNetwork(input.as_org, input.asn).risky,
-    recent_failures: Math.min(1000, Math.max(0, Number(input.ip_recent_failures) || 0)),
+    recent_failures: input.ip_recent_failures == null ? null : Math.min(1000, Math.max(0, Number(input.ip_recent_failures) || 0)),
   });
 }
 
@@ -136,7 +137,7 @@ async function cfg(db: D1Database | undefined, key: string, value?: string): Pro
 
 export async function explainLogLine(env: Env, input: ExplainInput, fetcher: Fetcher = fetch): Promise<Explanation> {
   const language = input.language === 'en' || input.language === 'ar' ? input.language : 'fr';
-  const cacheKey = `audit_explain:v3:${language}:${input.kind}:${input.id}`;
+  const cacheKey = `audit_explain:v4:${input.storage || 'legacy'}:${language}:${input.kind}:${input.id}`;
   try {
     const hit = env.CACHE ? await env.CACHE.get(cacheKey) : null;
     if (hit) return { ...(JSON.parse(hit) as Explanation), source: 'cache' };

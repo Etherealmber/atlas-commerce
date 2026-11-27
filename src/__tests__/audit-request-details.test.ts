@@ -16,6 +16,11 @@ describe('audit request details', () => {
     expect(html).not.toContain('China Standard Time');
     expect(html).not.toContain('Intel(R)');
   });
+  it('renders recorded client-reported context without pretending unsupported fields are known', () => {
+    const html = renderToStaticMarkup(createElement(AuditRequestDetails, { kind: 'api', row: { device_context: { language: 'fr-FR', timezone: 'Africa/Casablanca', orientation: 'portrait', theme: 'dark', touch: false } } }));
+    expect(html).toContain('Africa/Casablanca'); expect(html).toContain('fr-FR');
+    expect(html).toContain('déclarées par le navigateur'); expect(html).toContain('Navigation privée');
+  });
   it('discloses that the audit IP location is from a later API lookup', () => {
     const html = renderToStaticMarkup(createElement(AuditRequestDetails, { kind: 'audit', row: { geo: { country: 'MA' } } }));
     expect(html).toContain('dernier appel API');

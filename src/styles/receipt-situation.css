@@ -1,0 +1,4 @@
+html body .receipts-page button.receipt-situation-toggle.is-on { color: #087443 !important; border-color: #15945b !important; background: #e7f8ee !important; }
+html body .receipts-page button.receipt-situation-toggle.is-off { color: #b42318 !important; border-color: #e36860 !important; background: #fff1f0 !important; }
+html[data-theme="dark"] body .receipts-page button.receipt-situation-toggle.is-on { color: #8be9b7 !important; border-color: #42b978 !important; background: #153d2b !important; }
+html[data-theme="dark"] body .receipts-page button.receipt-situation-toggle.is-off { color: #ffaaa4 !important; border-color: #d46a64 !important; background: #482322 !important; }

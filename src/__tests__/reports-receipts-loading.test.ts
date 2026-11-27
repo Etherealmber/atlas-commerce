@@ -68,3 +68,14 @@ it('keeps the newest report range when an older request finishes later', async (
   expect(host.textContent).toContain('222 MAD');
   expect(host.textContent).not.toContain('111 MAD');
 });
+
+it('shows the receipt QR state accessibly and omits the redundant PDF button', async () => {
+  vi.spyOn(api, 'getReceipts').mockResolvedValue({ data: [{ id: 1, number: 'REC-1', client_name: 'Test', amount: 12, issue_date: '2026-01-01', include_client_situation: 0 }] } as any);
+  vi.spyOn(api, 'getInvoices').mockResolvedValue({ data: [] } as any);
+  await act(async () => { render(Receipts); });
+  const toggle = host.querySelector<HTMLButtonElement>('.receipt-situation-toggle');
+  expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+  expect(toggle?.classList.contains('is-off')).toBe(true);
+  expect(toggle?.textContent).toContain('désactivée');
+  expect([...host.querySelectorAll('button')].some(b => b.textContent?.trim() === 'PDF')).toBe(false);
+});

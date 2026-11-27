@@ -4256,7 +4256,7 @@ if (needsCompanySettings && loading && !settings) return (
                   <dd className="audit-detail-full" translate="no" dir="auto">{auditDetailRow.detail || '—'}</dd>
                 </div>
               </dl>
-              {journalMode !== 'supabase' && Number(auditDetailRow.id) > 0 && <AuditAgentExplanation key={auditDetailRow.id} id={Number(auditDetailRow.id)} />}
+              {Number(auditDetailRow.id) > 0 && <AuditAgentExplanation key={auditDetailRow.id} id={Number(auditDetailRow.id)} />}
               <h4>Détails de la connexion</h4>
               <AuditRequestDetails row={auditDetailRow} kind="audit" />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
@@ -4411,6 +4411,7 @@ const DOC_PREVIEW_LABELS: Record<string, string> = {
   credit: 'Avoir',
   report: 'Rapport',
   employee: 'Fiche employé',
+  delivery: 'BL',
 };
 
 function DocPreviewPanel() {
@@ -4428,7 +4429,7 @@ function DocPreviewPanel() {
       <div className="card">
         <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 8 }} data-settings-anchor="doc-preview">Aperçu PDF</h2>
         <p className="muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
-          Même rendu que le PDF imprimé, affiché ici : dernier document réel de ce type (société, lignes, totaux) ou modèle avec vos infos, QR de vérification fonctionnel. Pour le Reçu, choisissez d&apos;inclure ou non le QR « situation client ». Bandeau d&apos;avertissement inclus — ce n&apos;est pas une pièce à envoyer au client.
+          Aperçus des modèles avec des données fictives et les paramètres de votre société. Les QR sont des exemples non vérifiables. Ces documents ne sont pas des pièces à envoyer au client.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {Object.keys(DOC_PREVIEW_LABELS).map((docType) => (
@@ -4449,8 +4450,7 @@ function DocPreviewPanel() {
           <div className="modal-card" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
             <h3>QR « situation client » sur cet aperçu ?</h3>
             <p style={{ fontSize: 13.5, lineHeight: 1.5, color: 'var(--muted)' }}>
-              Le QR de vérification du reçu est toujours inclus. Voulez-vous ajouter en plus le QR
-              « situation client » (factures payées / impayées de la partie) sur cet aperçu ?
+              Le QR de vérification est fictif. Voulez-vous ajouter un exemple de QR « situation client » sur cet aperçu ?
             </p>
             <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
               <button type="button" className="secondary" onClick={() => { setAskReceipt(false); openPreview('receipt', '0'); }}>

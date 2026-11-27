@@ -5,6 +5,7 @@ export type WorkStatusSource = {
   error?: string | null;
 };
 
+import { journalDeviceContext } from './lib/journalDeviceContext';
 import { readAgentStream } from './lib/agentStream';
 import { getToken, clearToken, refreshSessionRole, getRefreshedTokenFor } from './auth';
 import { getLang } from './i18n/core';
@@ -60,6 +61,8 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
     'X-Device-Fingerprint': fp,
     ...(options?.headers as Record<string, string>),
   };
+  const journalContext = journalDeviceContext();
+  if (journalContext) headers['X-Atlas-Journal-Context'] = journalContext;
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const method = String(options?.method || 'GET').toUpperCase();
@@ -990,7 +993,7 @@ export const api = {
   bulkDeleteBills: (ids: number[], confirm_password: string) =>
     request('/api/bills/bulk-delete', { method: 'POST', body: JSON.stringify({ ids, confirm_password }) }),
 
-  getReceipts: () => request<{ data: any[] }>('/api/receipts'),
+  getReceipts: (opts?: { fresh?: boolean }) => request<{ data: any[] }>('/api/receipts', opts?.fresh ? { cache: 'no-store' } : undefined),
   createReceipt: (body: any) => {
     const idempotency_key =
       body?.idempotency_key ||

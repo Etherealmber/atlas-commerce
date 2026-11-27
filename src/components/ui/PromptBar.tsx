@@ -1,6 +1,7 @@
 'use client';
 import { sanitizePreviewUrl } from '../../auth';
 
+import type { ReactNode } from 'react';
 import { isValidElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -114,6 +115,7 @@ function SendGlyph({
 
 type PromptBarProps = {
   placeholder?: string;
+  footerControl?: ReactNode;
   sources?: PromptBarSource[];
   commands?: PromptBarCommand[];
   models?: PromptBarModel[];
@@ -147,6 +149,7 @@ type PromptBarProps = {
 
 export default function PromptBar({
   placeholder = 'Ask anything',
+  footerControl,
   sources = DEFAULT_SOURCES,
   commands = DEFAULT_COMMANDS,
   models = DEFAULT_MODELS,
@@ -703,6 +706,7 @@ export default function PromptBar({
           >
             <HugeiconsIcon icon={PlusSignIcon} size={16} strokeWidth={2} />
           </button>
+          {footerControl}
           {models.length > 0 ? (
             <button
               type="button"
