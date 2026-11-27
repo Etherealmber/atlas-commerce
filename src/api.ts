@@ -993,7 +993,7 @@ export const api = {
   bulkDeleteBills: (ids: number[], confirm_password: string) =>
     request('/api/bills/bulk-delete', { method: 'POST', body: JSON.stringify({ ids, confirm_password }) }),
 
-  getReceipts: () => request<{ data: any[] }>('/api/receipts'),
+  getReceipts: (opts?: { fresh?: boolean }) => request<{ data: any[] }>('/api/receipts', opts?.fresh ? { cache: 'no-store' } : undefined),
   createReceipt: (body: any) => {
     const idempotency_key =
       body?.idempotency_key ||

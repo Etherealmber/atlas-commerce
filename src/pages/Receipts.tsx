@@ -1,6 +1,6 @@
 import DocumentActors from '../components/DocumentActors';
 import TopPageActions from '../components/TopPageActions';
-import { FileDown, FileText, Plus, Printer, QrCode } from 'lucide-react';
+import { FileText, Plus, Printer, QrCode } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
@@ -23,6 +23,7 @@ import { FloatingPortal } from '../components/FloatingPortal';
 import { useWizard, StepBody, WizardFoot, WizardHeader, WizardIntro, type WizardStepDef } from '../components/ui/FormWizard';
 import { ModalFormError } from '../components/ModalFormFeedback';
 import Select from '../components/ui/Select';
+import '../styles/receipt-situation.css';
 
 const RECEIPT_STEPS: readonly WizardStepDef[] = [
   { id: 'client', label: 'Client & montant', hint: 'Associez une facture ou saisissez le client et le montant.' },
@@ -46,6 +47,7 @@ export default function Receipts() {
   const PAGE_SIZE = 20;
   useEffect(() => { setPage(0); }, [search]);
   const [saving, setSaving] = useState(false);
+  const [togglingSituation, setTogglingSituation] = useState<number | null>(null);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error'>('success');
 
@@ -73,7 +75,7 @@ export default function Receipts() {
     else setLoading(true);
     setLoadError('');
     setInvoiceStatus('loading');
-    void api.getReceipts().then(r => {
+    void api.getReceipts(soft ? { fresh: true } : undefined).then(r => {
       if (generation === loadGeneration.current) setList(r.data);
     }).catch(() => {
       if (generation === loadGeneration.current) setLoadError('Impossible de charger les reçus. Réessayez.');
@@ -130,20 +132,18 @@ export default function Receipts() {
       setShowModal(false);
       setClientName(''); setAmount(0); setNotes(''); setInvoiceId('');
       flash('Reçu enregistré dans la base de données avec succès.');
-      load(true);
     } catch (e: any) { setModalError(e?.message || 'Enregistrement impossible'); } finally { setSaving(false); }
   };
 
   const toggleSituation = async (r: any) => {
     const next = !(Number(r.include_client_situation) === 1);
+    setTogglingSituation(r.id);
     try {
       const res: any = await api.setReceiptClientSituation(r.id, next);
       flash(res.message || (next ? 'Situation activée pour ce reçu — réimprimez.' : 'Situation désactivée pour ce reçu.'));
-      const resList: any = await api.getReceipts();
-      setList(resList.data || resList || []);
     } catch (e: any) {
       flash(e?.message || 'Erreur', 'error');
-    }
+    } finally { setTogglingSituation(null); }
   };
 
   const requestDelete = async (id: number) => {
@@ -177,7 +177,6 @@ export default function Receipts() {
       const res = await api.deleteReceipt(id, password, cascade_invoice);
       flash((res as any).message || 'Reçu supprimé.');
       setPwOpen(false); setPendingAction(null);
-      load(true);
     });
     setPwOpen(true);
   };
@@ -247,24 +246,14 @@ export default function Receipts() {
                       </button>
                       <button
                         type="button"
-                        className="secondary"
-                        onClick={() => window.open(`${BASE}/api/receipts/${r.id}/pdf?token=${token}`, '_blank', 'noopener,noreferrer')}
-                      >
-                        <FileDown size={14} aria-hidden="true" />
-                        <span>PDF</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary"
-                        style={{
-                          borderColor: Number(r.include_client_situation) === 1 ? 'var(--ok, #3f3f46)' : undefined,
-                          background: Number(r.include_client_situation) === 1 ? 'rgba(15, 23, 42, 0.08)' : undefined,
-                        }}
-                        title="Affiche le QR situation client uniquement sur ce reçu (paramètre global reste inchangé)"
+                        disabled={togglingSituation !== null}
+                        aria-pressed={Number(r.include_client_situation) === 1}
+                        className={`secondary receipt-situation-toggle ${Number(r.include_client_situation) === 1 ? 'is-on' : 'is-off'}`}
+                        title="Active ou désactive le QR situation client pour ce reçu uniquement"
                         onClick={() => toggleSituation(r)}
                       >
                         <QrCode size={14} aria-hidden="true" />
-                        <span>{Number(r.include_client_situation) === 1 ? 'Situation QR : ON' : 'Situation QR'}</span>
+                        <span>{Number(r.include_client_situation) === 1 ? 'Situation QR : activée' : 'Situation QR : désactivée'}</span>
                       </button>
                       <TimedUndoDelete iconOnly width="34px"
                         deleteLabel="Supprimer"

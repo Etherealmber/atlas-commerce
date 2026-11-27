@@ -1,3 +1,4 @@
+import { controllerChangeRequiresReload } from './lib/serviceWorkerController';
 
 // Permanently disable liquid glass (stuck blur on some devices)
 try {
@@ -172,6 +173,8 @@ createRoot(document.getElementById('root')!).render(
 // Offline PWA: cache shell + GET /api/* for hors-ligne scan / catalogue
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    // Initial activation may claim this tab; that is not an update and must not reload it.
+    const shouldReloadForController = controllerChangeRequiresReload(!!navigator.serviceWorker.controller);
     navigator.serviceWorker.register('/sw.js?v=12').then((reg) => {
       // Prefer fresh worker after deploy
       // oxlint-disable-next-line unicorn/require-post-message-target-origin -- ServiceWorker.postMessage has no targetOrigin
@@ -190,6 +193,7 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     // v0.7 — when a fresher worker takes control, reload ONCE so the open tab
     // never keeps rendering the previous bundle after a deploy.
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!shouldReloadForController()) return;
       try {
         if (sessionStorage.getItem('atlas-sw-reload')) return;
         sessionStorage.setItem('atlas-sw-reload', '1');
