@@ -17,9 +17,9 @@ it('discovers existing delivery notes and reopens one without creating it', asyn
   await act(async () => root.render(createElement(DeliveryNotesPanel)));
   expect(mocks.list).not.toHaveBeenCalled();
   await act(async () => { host.querySelector<HTMLButtonElement>('button')!.click(); });
-  expect(host.textContent).toContain('BL-2026-0004');
-  expect(host.textContent).toContain('100 derniers');
-  await act(async () => { [...host.querySelectorAll('button')].find(button => button.textContent?.includes('Imprimer'))!.click(); });
+  expect(document.body.textContent).toContain('BL-2026-0004');
+  expect(document.body.textContent).toContain('100 derniers');
+  await act(async () => { [...document.body.querySelectorAll('button')].find(button => button.textContent?.includes('Imprimer'))!.click(); });
   expect(mocks.open).toHaveBeenCalledWith(4);
 });
 
@@ -27,7 +27,18 @@ it('shows an error and permits retry after list loading fails', async () => {
   mocks.list.mockRejectedValueOnce(new Error('Service indisponible')).mockResolvedValueOnce({ data: [] });
   await act(async () => root.render(createElement(DeliveryNotesPanel)));
   await act(async () => host.querySelector<HTMLButtonElement>('button')!.click());
-  expect(host.querySelector('[role=alert]')?.textContent).toContain('Service indisponible');
-  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Réessayer')!.click());
-  expect(host.textContent).toContain('Aucun bon de livraison créé');
+  expect(document.body.querySelector('[role=alert]')?.textContent).toContain('Service indisponible');
+  await act(async () => [...document.body.querySelectorAll('button')].find(button => button.textContent === 'Réessayer')!.click());
+  expect(document.body.textContent).toContain('Aucun bon de livraison créé');
+});
+
+it('opens a dialog and closes it with Escape', async () => {
+  mocks.list.mockResolvedValue({ data: [] });
+  await act(async () => root.render(createElement(DeliveryNotesPanel)));
+  const trigger = host.querySelector<HTMLButtonElement>('button')!;
+  await act(async () => trigger.click());
+  expect(document.body.querySelector('[role=dialog]')?.getAttribute('aria-modal')).toBe('true');
+  await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  expect(document.body.querySelector('[role=dialog]')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
 });

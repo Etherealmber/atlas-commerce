@@ -917,6 +917,9 @@ function DesktopShell() {
       void import('./pages/Products');
       void import('./pages/Invoices');
       void import('./pages/Actions');
+      void import('./pages/Settings');
+      void import('./pages/About');
+      void import('./pages/WhatsNew');
     };
     if ('requestIdleCallback' in window) {
       (window as any).requestIdleCallback(run, { timeout: 2500 });

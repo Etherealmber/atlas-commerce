@@ -40,10 +40,10 @@ it('keeps the invoice refresh and creation actions in the requested order, inclu
   expect(header.querySelector('h1')?.classList.contains('sr-only')).toBe(true);
   expect(header.querySelector('.dock-page-actions')).not.toBeNull();
   const buttons=[...header.querySelectorAll('button')];
-  expect(buttons.map(b=>b.getAttribute('aria-label') || b.textContent?.trim())).toEqual(['Actualiser','Remboursement (WR)','Créer une facture']);
+  expect(buttons.map(b=>b.getAttribute('aria-label') || b.textContent?.trim())).toEqual(['Actualiser','Bons de livraison','Remboursement (WR)','Créer une facture']);
   expect(header.textContent).not.toContain('Exporter les créances');
   expect(header.textContent).not.toContain('Télécharger le CSV');
-  await act(async () => buttons[2].click());
+  await act(async () => buttons[3].click());
   expect(document.body.textContent).toContain('Nouvelle facture de vente');
 });
 

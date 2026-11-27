@@ -1,11 +1,11 @@
 import type { Env } from '../env';
 
 /** Server-side only. Never log keys, request bodies, or upstream response bodies. */
-export function supabaseJournalConfig(env: Pick<Env, 'SUPABASE_JOURNAL_URL' | 'SUPABASE_JOURNAL_SECRET'>) {
+export function supabaseJournalConfig(env: Pick<Env, 'SUPABASE_JOURNAL_URL' | 'SUPABASE_JOURNAL_SECRET' | 'SUPABASE_JOURNAL_SECRET_KEY'>) {
   let url: URL;
   try { url = new URL(String(env.SUPABASE_JOURNAL_URL || '')); } catch { throw new Error('Journal configuration unavailable'); }
   if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname) || url.port || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error('Journal configuration unavailable');
-  const key = String(env.SUPABASE_JOURNAL_SECRET || '').trim();
+  const key = String(env.SUPABASE_JOURNAL_SECRET_KEY || env.SUPABASE_JOURNAL_SECRET || '').trim();
   if (!key) throw new Error('Journal configuration unavailable');
   return { base: url.origin, key };
 }
@@ -15,7 +15,7 @@ export async function journalRpc(env: Env, name: 'atlas_journal_ingest' | 'atlas
   // Opaque sb_secret keys are sent only in apikey. Legacy service-role JWTs
   // require the bearer header as well.
   if (!key.startsWith('sb_secret_')) headers.Authorization = `Bearer ${key}`;
-  const res = await fetch(`${base}/rest/v1/rpc/${name}`, { method: 'POST', headers, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(8000) });
+  const res = await fetch(`${base}/rest/v1/rpc/${name}`, { method: 'POST', headers, body: JSON.stringify(body), redirect: 'manual', signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error('Journal service unavailable');
   return res.json();
 }

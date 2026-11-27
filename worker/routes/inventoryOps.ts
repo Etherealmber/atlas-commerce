@@ -208,6 +208,10 @@ async function ensureDeliveryNotes(db: D1Database) {
     id INTEGER PRIMARY KEY AUTOINCREMENT, delivery_note_id INTEGER NOT NULL, product_id INTEGER,
     product_name TEXT, quantity REAL NOT NULL, unit TEXT DEFAULT 'u')`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_delivery_notes_invoice ON delivery_notes(invoice_id)`).run().catch(() => {});
+  await db.prepare(`CREATE TRIGGER IF NOT EXISTS delivery_notes_invoice_delete AFTER DELETE ON invoices BEGIN
+    DELETE FROM delivery_note_items WHERE delivery_note_id IN (SELECT id FROM delivery_notes WHERE invoice_id = OLD.id);
+    DELETE FROM delivery_notes WHERE invoice_id = OLD.id;
+  END`).run();
 
   });
 }
@@ -988,7 +992,7 @@ export function registerInventoryOpsRoutes(app: Hono<any>, deps: InventoryOpsRou
   
   app.get('/api/delivery-notes', async (c) => {
     await ensureDeliveryNotes(c.env.DB);
-    const { results } = await c.env.DB.prepare(`SELECT * FROM delivery_notes ORDER BY id DESC LIMIT 100`).all();
+    const { results } = await c.env.DB.prepare(`SELECT * FROM delivery_notes WHERE invoice_id IS NULL OR EXISTS (SELECT 1 FROM invoices WHERE invoices.id = delivery_notes.invoice_id) ORDER BY id DESC LIMIT 100`).all();
     return c.json({ success: true, data: results || [] });
   });
   

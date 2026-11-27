@@ -24,6 +24,9 @@ export interface Env {
   SUPABASE_JOURNAL_URL?: string;
   /** Server-only Supabase secret; never expose to clients. */
   SUPABASE_JOURNAL_SECRET?: string;
+  SUPABASE_JOURNAL_SECRET_KEY?: string;
+  SUPABASE_JOURNAL_PUBLISHABLE_KEY?: string;
+  SUPABASE_JOURNAL_JWKS_URL?: string;
   JOURNAL_BUFFER?: DurableObjectNamespace;
   /** Optional best-effort audit shadow, disabled unless explicitly enabled. */
   JOURNAL_AUDIT_SHADOW?: string;
