@@ -21,7 +21,7 @@ export function AuditRequestDetails({ row, kind }: { row: Row; kind: 'audit' | '
     {items.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value == null || value === '' ? <span>Non disponible</span> : <bdi dir={label === 'Adresse IP' || label === 'Date / heure (UTC)' || label === 'ASN' ? 'ltr' : 'auto'} translate="no">{String(value)}</bdi>}</dd></div>)}
   </dl>;
   return <section className="audit-connection-details">
-    {kind === 'audit' && <p className="audit-geo-note">Le lieu et le réseau proviennent du dernier appel API associé à cette IP ; ils peuvent différer de ceux de l’événement.</p>}
+    {kind === 'audit' && row.geo && <p className="audit-geo-note">Le lieu et le réseau proviennent du dernier appel API associé à cette IP ; ils peuvent différer de ceux de l’événement.</p>}
     {available.length ? renderFields(available) : <p>Aucune information de connexion enregistrée.</p>}
     {missing.length > 0 && <details className="audit-missing-details"><summary>Informations non enregistrées</summary>
       <p className="audit-geo-note">Les informations non enregistrées ne peuvent pas être déduites de cet événement.</p>

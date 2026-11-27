@@ -313,7 +313,7 @@ function saveMsgs(threadId: string, msgs: Msg[], syncRemote = true) {
   }
   try {
     const th = loadThreads().find((t) => t.id === threadId);
-    if (syncRemote) void persistThreadR2(threadId, th?.title || 'Sans titre', copy);
+    if (syncRemote) void persistThreadR2(threadId, th?.title || String(copy.find(m => m.role === 'user')?.text || 'Sans titre').trim().slice(0, 48), copy);
   } catch { /* */ }
 }
 
@@ -862,7 +862,7 @@ export default function AtlasAgent() {
           for (const t of prev) byId.set(t.id, t);
           for (const r of remote) {
             const id = String(r.id || '');
-            if (!id) continue;
+            if (!id || (r.message_count === 0 && String(r.title || '') === 'Sans titre')) continue;
             const updated = r.updated_at ? new Date(r.updated_at).getTime() : Date.now();
             const existing = byId.get(id);
             byId.set(id, {
@@ -1409,7 +1409,7 @@ export default function AtlasAgent() {
       </button>
       )}
 
-      <aside className={`atlas-agent-panel ${open ? 'open' : ''}${expanded ? ' atlas-agent-panel--expanded' : ''}`} aria-hidden={!open} aria-label="Atlas Agent" style={{ width: expanded ? '100vw' : panelWidth }}>
+      <aside className={`atlas-agent-panel ${open ? 'open' : ''}${expanded ? ' atlas-agent-panel--expanded' : ''}${expanded && !isPhoneShell ? ' atlas-agent-has-sidebar' : ''}`} aria-hidden={!open} aria-label="Atlas Agent" style={{ width: expanded ? '100vw' : panelWidth }}>
         <div
           className="atlas-agent-resize"
           role="separator"
@@ -1433,6 +1433,7 @@ export default function AtlasAgent() {
         <header className="atlas-agent-head">
           <div className="atlas-agent-header-title">
             <span className="atlas-agent-header-mark" aria-hidden="true"><Sparkles size={17} /></span>
+            {expanded && !isPhoneShell && <strong className="atlas-agent-current-title">{activeTitle}</strong>}
             <button type="button" className="atlas-agent-history-trigger" aria-label="Historique des conversations" aria-expanded={historyOpen} aria-controls="atlas-agent-history-menu" onClick={() => setHistoryOpen((value) => !value)}>
               <span><small>ATLAS AGENT</small><strong>{activeTitle}</strong></span><ChevronDown size={15} aria-hidden="true" />
             </button>

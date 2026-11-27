@@ -1,0 +1,8 @@
+.ac-journal-archive-controls, .ac-journal-browser { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.ac-journal-archive-controls label, .ac-journal-browser label { display: flex; flex-direction: column; gap: 6px; min-width: 160px; font-size: 12px; font-weight: 600; }
+.ac-journal-browser label { flex: 1 1 270px; }
+.ac-journal-browser input, .ac-journal-browser select { width: 100%; min-width: 0; }
+.ac-journal-browser p { flex-basis: 100%; margin: 0; font-size: 12px; color: #71717a; }
+.ac-journal-archive [role="alert"] { color: #b91c1c; }
+html[data-theme="dark"] .ac-journal-archive [role="alert"] { color: #fca5a5; }
+html[data-theme="dark"] .ac-journal-browser p { color: #a1a1aa; }

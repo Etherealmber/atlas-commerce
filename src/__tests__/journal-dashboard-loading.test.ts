@@ -22,7 +22,7 @@ it('opens the R2 archive without fetching either legacy D1 journal or waiting fo
   vi.spyOn(api, 'getMe').mockResolvedValue({ data: { is_owner: true, role: 'owner' } } as any);
   vi.spyOn(api, 'getJournalMode').mockResolvedValue({ data: { mode: 'r2' } });
   const audit = vi.spyOn(api, 'getAuditLog'); const legacyApi = vi.spyOn(api, 'getApiLog');
-  const archive = vi.spyOn(api, 'listJournalArchive').mockResolvedValue({ data: [], meta: { mode: 'buffered', next_cursor: null } });
+  const archive = vi.spyOn(api, 'listJournalArchiveEntries').mockResolvedValue({ data: [], meta: { mode: 'buffered', next_cursor: null } });
   await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/settings?tab=audit'] }, createElement(Settings))));
   expect(host.textContent).toContain('Journal des appels API et audit');
   expect(archive).toHaveBeenCalledOnce(); expect(settings).not.toHaveBeenCalled();
@@ -42,4 +42,22 @@ it('renders the dashboard before its secondary product and action requests finis
   expect(host.textContent).not.toContain('Tout est à jour');
   expect(host.textContent).not.toContain('Stock OK');
   expect(api.getProducts).toHaveBeenCalledOnce();
+});
+
+it('displays searchable R2 entry summaries and opens their real details', async () => {
+  const archive = vi.spyOn(api, 'listJournalArchiveEntries').mockResolvedValue({ data: [
+    { key: 'one', row: { created_at: '2026-10-20T12:00:00Z', method: 'GET', path: '/api/products', status: 200, ms: 14, username: 'alice' }, unreadable: false },
+    { key: 'bad', row: null, unreadable: true },
+  ], meta: { mode: 'buffered', next_cursor: null } });
+  const ApiLogPanel = (await import('../components/audit/ApiLogPanel')).default;
+  await act(async () => root.render(createElement(ApiLogPanel, { range: '24h', forceR2: true })));
+  expect(archive).toHaveBeenCalledOnce();
+  expect(host.textContent).toContain('ne peuvent pas être déchiffrées');
+  const select = host.querySelector('[aria-label="Entrée archivée"]') as any;
+  expect(select.textContent).toContain('/api/products');
+  await act(async () => { select.value = 'one'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+  const button = [...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === 'Voir les détails')!;
+  await act(async () => button.click());
+  expect(document.body.textContent).toContain('GET /api/products');
+  expect(document.body.textContent).toContain('200');
 });

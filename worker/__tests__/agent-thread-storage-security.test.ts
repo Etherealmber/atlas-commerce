@@ -33,3 +33,17 @@ describe('agent thread storage security', () => {
     expect(new TextDecoder().decode(put.mock.calls[0][1] as Uint8Array)).not.toContain('secret message');
   });
 });
+
+it('recovers a missing conversation title from its encrypted R2 messages', async () => {
+  const objects = new Map<string, Uint8Array>();
+  const images = {
+    put: async (key: string, value: Uint8Array) => { objects.set(key, value); },
+    get: async (key: string) => { const bytes = objects.get(key); return bytes ? { arrayBuffer: async () => bytes.slice().buffer } : null; },
+    list: async () => ({ objects: [...objects.keys()].map(key => ({ key, uploaded: new Date() })) }),
+  };
+  const env: any = { IMAGES: images, AGENT_CHAT_SECRET: 'test-secret' };
+  const router = app();
+  await router.fetch(new Request('https://example.test/api/admin/agent/threads/t1', { method: 'PUT', headers: { Authorization: 'Bearer session', 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'Sans titre', messages: [{ role: 'user', text: 'Chercher un produit' }] }) }), env);
+  const res = await router.fetch(new Request('https://example.test/api/admin/agent/threads', { headers: { Authorization: 'Bearer session' } }), env);
+  expect((await res.json() as any).data).toMatchObject([{ id: 't1', title: 'Chercher un produit', message_count: 1 }]);
+});

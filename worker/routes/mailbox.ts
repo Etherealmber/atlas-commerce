@@ -190,18 +190,23 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
     if (!gate.ok) return gate.response;
     const ids = await listAgentThreadKeys(c.env, gate.userKey);
     const threads: any[] = [];
-    for (const id of ids.slice(0, 40)) {
-      const data = await loadAgentThreadR2(c.env, gate.userKey, id);
-      if (data) {
-        threads.push({
+    // Loading sequentially made opening history wait for up to 40 R2 reads.
+    // Keep concurrency bounded while preserving the existing 40-item limit.
+    for (let offset = 0; offset < Math.min(ids.length, 40); offset += 5) {
+      const chunk = await Promise.all(ids.slice(offset, offset + 5).map(async (id) => {
+        const data = await loadAgentThreadR2(c.env, gate.userKey, id);
+        if (!data) return { id, title: id, updated_at: null, message_count: 0 };
+        const messages = Array.isArray(data.messages) ? data.messages : [];
+        const firstUser = messages.find((message: any) => message?.role === 'user' && typeof message.text === 'string' && message.text.trim());
+        const title = String(data.title || '').trim();
+        return {
           id,
-          title: data.title || 'Sans titre',
+          title: !title || title === 'Sans titre' ? String(firstUser?.text || title || 'Sans titre').trim().slice(0, 48) : title,
           updated_at: data.updated_at || data.stored_at || null,
-          message_count: Array.isArray(data.messages) ? data.messages.length : 0,
-        });
-      } else {
-        threads.push({ id, title: id, updated_at: null, message_count: 0 });
-      }
+          message_count: messages.length,
+        };
+      }));
+      threads.push(...chunk);
     }
     threads.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
     return c.json({ success: true, data: threads });

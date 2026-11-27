@@ -145,5 +145,16 @@ it('only lets explicitly reviewed read paths bypass the unrelated initialization
     expect(requiresAutoSqlMigrations('GET', path)).toBe(false);
     expect(requiresAutoSqlMigrations('POST', path)).toBe(true);
   }
-  for (const path of ['/api/stock/receive', '/api/payroll', '/api/assist/chat', '/api/dashboard/anything']) expect(requiresAutoSqlMigrations('GET', path)).toBe(true);
+  for (const path of ['/api/stock/receive', '/api/payroll', '/api/assist/approve', '/api/dashboard/anything']) expect(requiresAutoSqlMigrations('GET', path)).toBe(true);
+});
+
+it('skips the unrelated schema barrier only for reviewed agent chat and thread reads', () => {
+  for (const path of ['/api/assist/chat', '/api/assist/chat/stream']) {
+    expect(requiresAutoSqlMigrations('POST', path)).toBe(false);
+    expect(requiresAutoSqlMigrations('GET', path)).toBe(true);
+  }
+  expect(requiresAutoSqlMigrations('GET', '/api/admin/agent/threads')).toBe(false);
+  expect(requiresAutoSqlMigrations('GET', '/api/admin/agent/threads/abc')).toBe(false);
+  expect(requiresAutoSqlMigrations('PUT', '/api/admin/agent/threads/abc')).toBe(true);
+  expect(requiresAutoSqlMigrations('POST', '/api/assist/approve')).toBe(true);
 });

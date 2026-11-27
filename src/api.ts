@@ -1041,6 +1041,11 @@ export const api = {
     if (cursor) qs.set('cursor', cursor);
     return request<{ data: string[]; meta: { next_cursor: string | null; mode: string } }>(`/api/admin/journal-archive?${qs}`, { silent: true });
   },
+  listJournalArchiveEntries: (day: string, cursor?: string | null, kind: 'api' | 'audit' = 'api') => {
+    const qs = new URLSearchParams({ day, kind, include: 'entries' });
+    if (cursor) qs.set('cursor', cursor);
+    return request<{ data: Array<{ key: string; row: Record<string, any> | null; unreadable: boolean }>; meta: { next_cursor: string | null; mode: string } }>(`/api/admin/journal-archive?${qs}`, { silent: true });
+  },
   getJournalArchiveItem: (key: string, kind: 'api' | 'audit' = 'api') => request<{ data: any }>(`/api/admin/journal-archive/item?${new URLSearchParams({ key, kind })}`, { silent: true }),
   /** « Expliquer » — Groq (free tier, cached) explanation of one log line. */
   explainLogLine: (kind: 'audit' | 'api', id: number, language: 'fr' | 'en' | 'ar' = 'fr') =>

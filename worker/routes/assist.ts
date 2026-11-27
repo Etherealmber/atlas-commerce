@@ -1,6 +1,5 @@
 import type { Hono } from 'hono';
 import type { Env } from '../env';
-import { isQuickSaleIntent } from '../lib/quick-assist-intent';
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
 import {
   listAllToolNames,
@@ -55,155 +54,6 @@ interface AssistRouteDeps {
   userMail: (db: D1Database, username: string) => Promise<string | null>;
   syncMobileHub: (env: Env, extra?: { lastBarcode?: string | null; lastProductId?: number | null }) => Promise<void>;
   notifyAssistApproval: (env: any, username: string, title: string, body: string, data?: Record<string, string>) => Promise<any>;
-}
-
-type QuickSnap = {
-  pending: number;
-  lowStock: number;
-  lowNames: string[];
-  unpaidMad: number;
-  unpaidCount: number;
-  openQuotes: number;
-  salesTodayMad: number;
-  salesTodayCount: number;
-};
-
-function quickAssistHint(message: string, snap: QuickSnap): string | null {
-  const q = message
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
-  // Explicit "what can I do on X" only — never match generic chat / greetings
-  if (/\b(que faire|quoi faire|que puis-je faire|aide[- ]?moi)\b/.test(q) && /\brapport/.test(q)) {
-    return 'Sur Rapports: consultez CA, stock bas et clôture du jour, puis Copier le résumé ou Sauvegarde cloud.';
-  }
-  if (/\b(que faire|quoi faire|que puis-je faire|aide[- ]?moi)\b/.test(q) && /\b(produit|stock)\b/.test(q)) {
-    return 'Sur Produits/Stock: cherchez un article, ajustez les quantités ou traitez les alertes stock bas.';
-  }
-  if (/\b(que faire|quoi faire|que puis-je faire|aide[- ]?moi)\b/.test(q) && /\b(facture|devis)\b/.test(q)) {
-    return 'Sur Factures/Devis: créez un document, filtrez les impayés ou convertissez un devis.';
-  }
-  if (/\b(que faire|quoi faire|que puis-je faire|aide[- ]?moi)\b/.test(q) && /\b(tableau|accueil|dashboard)\b/.test(q)) {
-    return 'Sur le tableau de bord: lisez les KPI du jour, le stock bas et les actions en attente.';
-  }
-
-  if (/que faire ensuite|next action|que faire\b/.test(q)) {
-    const bits: string[] = [];
-    if (snap.pending > 0) bits.push(`${snap.pending} action(s) en attente`);
-    if (snap.lowStock > 0) bits.push(`${snap.lowStock} stock bas`);
-    if (snap.unpaidCount > 0) bits.push(`${snap.unpaidCount} impayé(s)`);
-    if (snap.openQuotes > 0) bits.push(`${snap.openQuotes} devis ouvert(s)`);
-    if (!bits.length) return 'Rien d’urgent: ventes et stocks sont calmes pour l’instant.';
-    return `Priorité: ${bits.slice(0, 3).join(', ')}.`;
-  }
-
-  if (/combien.*action|actions? en attente|pending/.test(q)) {
-    const n = snap.pending;
-    if (n === 0) return 'Aucune action en attente pour le moment.';
-    if (n === 1) return 'Il y a 1 action en attente dans la boîte d’actions.';
-    return `Il y a ${n} actions en attente dans la boîte d’actions.`;
-  }
-
-  if (/stock bas|rupture|reappro|alerte stock/.test(q)) {
-    if (snap.lowStock <= 0) return 'Aucun article en stock bas pour le moment.';
-    const names = snap.lowNames.slice(0, 3).join(', ');
-    const extra = snap.lowStock > 3 ? ` (+${snap.lowStock - 3} autres)` : '';
-    return names
-      ? `${snap.lowStock} article(s) en stock bas: ${names}${extra}.`
-      : `${snap.lowStock} article(s) en stock bas — ouvrez Produits.`;
-  }
-
-  if (/impay|credit client|cr[eé]ance|client.*doit|dette client|receivable/.test(q)) {
-    if (snap.unpaidCount <= 0 || snap.unpaidMad <= 0) {
-      return 'Aucun impayé client ouvert pour le moment.';
-    }
-    const mad = Math.round(snap.unpaidMad).toLocaleString('fr-MA');
-    return `${snap.unpaidCount} facture(s) impayée(s) pour ${mad} MAD au total.`;
-  }
-
-  if (/devis|quote/.test(q) && !/ligne/.test(q)) {
-    if (snap.openQuotes <= 0) return 'Aucun devis ouvert pour le moment.';
-    if (snap.openQuotes === 1) return 'Il y a 1 devis ouvert.';
-    return `Il y a ${snap.openQuotes} devis ouverts.`;
-  }
-
-  if (/vente.*(jour|aujourd)|ca du jour|chiffre.*jour|sales today/.test(q)) {
-    const mad = Math.round(snap.salesTodayMad).toLocaleString('fr-MA');
-    return `Ventes du jour: ${mad} MAD (${snap.salesTodayCount} pièce(s)).`;
-  }
-
-  if (isQuickSaleIntent(q)) {
-    return 'Utilisez Vente rapide ou créez une facture depuis Factures.';
-  }
-
-  if (/qui es[- ]tu|tu es qui|c.?est quoi atlas agent/.test(q)) {
-    return 'Je suis Atlas Agent, l’assistant intégré d’Atlas Commerce (stock, facturation, Maroc). Je peux t’aider sur le métier ou répondre à des questions générales — dis-moi ce dont tu as besoin.';
-  }
-
-  return null;
-}
-
-async function loadQuickSnap(env: Env): Promise<QuickSnap> {
-  const empty: QuickSnap = {
-    pending: 0,
-    lowStock: 0,
-    lowNames: [],
-    unpaidMad: 0,
-    unpaidCount: 0,
-    openQuotes: 0,
-    salesTodayMad: 0,
-    salesTodayCount: 0,
-  };
-  try {
-    const today = new Date().toISOString().slice(0, 10);
-    const [pending, low, unpaid, quotes, sales] = await Promise.all([
-      env.DB.prepare(
-        `SELECT COUNT(*) as n FROM mobile_actions WHERE status = 'pending'`,
-      ).first() as Promise<any>,
-      env.DB.prepare(
-        `SELECT name, stock_quantity, low_stock_threshold FROM products
-         WHERE COALESCE(is_active,1) = 1 AND COALESCE(track_inventory,1) = 1
-           AND COALESCE(stock_quantity,0) <= COALESCE(low_stock_threshold, 5)
-         ORDER BY stock_quantity ASC LIMIT 8`,
-      ).all() as Promise<any>,
-      env.DB.prepare(
-        `SELECT COUNT(*) as n, COALESCE(SUM(total - COALESCE(amount_paid,0)),0) as mad
-         FROM invoices WHERE status IN ('sent','partial','overdue')`,
-      ).first() as Promise<any>,
-      env.DB.prepare(
-        `SELECT COUNT(*) as n FROM invoices WHERE status IN ('quote','devis')`,
-      ).first() as Promise<any>,
-      env.DB.prepare(
-        `SELECT COUNT(*) as n, COALESCE(SUM(total),0) as mad FROM invoices
-         WHERE status NOT IN ('quote','devis','cancelled','remboursement')
-           AND date(issue_date) = date(?)`,
-      ).bind(today).first() as Promise<any>,
-    ]);
-    const lowRows = (low?.results || []) as any[];
-    return {
-      pending: Number(pending?.n || 0),
-      lowStock: lowRows.length
-        ? Number(
-            (
-              await env.DB.prepare(
-                `SELECT COUNT(*) as n FROM products
-                 WHERE COALESCE(is_active,1) = 1 AND COALESCE(track_inventory,1) = 1
-                   AND COALESCE(stock_quantity,0) <= COALESCE(low_stock_threshold, 5)`,
-              ).first() as any
-            )?.n || lowRows.length,
-          )
-        : 0,
-      lowNames: lowRows.map((r) => String(r.name || '').slice(0, 40)).filter(Boolean),
-      unpaidMad: Number(unpaid?.mad || 0),
-      unpaidCount: Number(unpaid?.n || 0),
-      openQuotes: Number(quotes?.n || 0),
-      salesTodayMad: Number(sales?.mad || 0),
-      salesTodayCount: Number(sales?.n || 0),
-    };
-  } catch {
-    return empty;
-  }
 }
 
 const AGENT_DAILY_LIMIT = 40000;
@@ -603,14 +453,22 @@ async function putAgentChatTurn(
 
 /** List recent Atlas Agent transcripts from R2 (owner/admin or own user) */
 
-// These legacy tools mutate business records immediately, without the proposal
-// approval flow. Do not expose them in chat until they have a server-side
-// confirmation mechanism; never rely on model instructions for consent.
-const UNCONFIRMED_MUTATION_TOOLS = new Set(['create_client', 'create_product', 'update_client', 'create_invoice_draft', 'create_quote_draft']);
+// Only reviewed read, draft and proposal tools are available in chat. Direct
+// mutations need a separate confirmation flow, and must not be enabled merely
+// by adding a new tool definition. The exact allowlist also keeps chat independent
+// of the global offline-operation migration barrier.
+const CHAT_SAFE_TOOLS = new Set([
+  'get_dashboard_snapshot', 'search_products', 'get_product', 'list_actions_pending',
+  'list_open_quotes', 'list_unpaid_invoices', 'warehouse_stock', 'draft_day_close_report',
+  'propose_inventory_adjustment', 'anomaly_notes', 'list_low_stock', 'search_clients',
+  'list_recent_invoices', 'get_invoice_brief', 'list_warehouses', 'summarize_pending_actions',
+  'draft_client_message', 'propose_quote_lines', 'closing_pack', 'explain_pending_action',
+  'SCAN_BARCODE', 'NAVIGATE', 'HAPTIC_FEEDBACK',
+]);
 
 function agentChatTools(role: string, knowledge: Awaited<ReturnType<typeof loadAgentKnowledge>> | null) {
   return [
-    ...toolsForRole(role).filter((d) => knowledge !== null && !UNCONFIRMED_MUTATION_TOOLS.has(d.function.name) && knowledge.toolPrefs[d.function.name] !== 0),
+    ...toolsForRole(role).filter((d) => knowledge !== null && CHAT_SAFE_TOOLS.has(d.function.name) && knowledge.toolPrefs[d.function.name] !== 0),
     ...KNOWLEDGE_TOOL_DEFS,
   ];
 }
@@ -1030,23 +888,6 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
       userMessage.trim(),
     );
   
-    // Deterministic short answers with live D1 data — only on the raw user message,
-    // and only when French is acceptable (the canned hints are French; en/ar go
-    // through the LLM so quick prompts honor the selected language too).
-    if (!isGreeting && (task === 'general' || !task) && (responseLanguage === null || responseLanguage === 'fr')) {
-      let quick: string | null = null;
-      try { quick = quickAssistHint(userMessage, await loadQuickSnap(c.env)); } catch { /* fall through to LLM */ }
-      if (quick) {
-        try {
-          const { existingPlain, etag } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
-          await putAgentChatTurn(c.env, { username, role, message, reply: quick, thread_id: threadId, prefetchedPlain: existingPlain, etag });
-        } catch {
-          return c.json({ success: false, error: tr(uiLang, 'agent_upstream'), code: 'assist_upstream' }, 502);
-        }
-        return c.json({ success: true, data: { reply: quick, model: 'local', provider: 'local', tool_trace: [], proposals: [], task } });
-      }
-    }
-  
     const tz = String(body.timezone || body.tz || 'Africa/Casablanca').slice(0, 64);
     const source = String(body.source || body.client || c.req.header('x-atlas-client') || 'web').slice(0, 32);
     const sourceRefined = source;
@@ -1279,20 +1120,8 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
         const send = (event: string, data: unknown) => {
           try { controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)); } catch { /* client gone */ }
         };
-        let phase: 'quick' | 'history' | 'provider' | 'audit' | 'transcript' = 'quick';
+        let phase: 'history' | 'provider' | 'audit' | 'transcript' = 'history';
         try {
-          // v0.7.8 — raccourci local identique au jumeau bufferisé (hint déterministe)
-          if (!isGreeting && (task === 'general' || !task) && (responseLanguage === null || responseLanguage === 'fr')) {
-            let quick: string | null = null;
-            try { quick = quickAssistHint(userMessage, await loadQuickSnap(c.env)); } catch { /* fall through to LLM */ }
-            if (quick) {
-              const { existingPlain, etag } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
-              await putAgentChatTurn(c.env, { username, role, message, reply: quick, thread_id: threadId, prefetchedPlain: existingPlain, etag });
-              send('token', { t: quick });
-              send('done', { reply: quick, model: 'local', provider: 'local', usage: null, documents: docsMeta, thread_id: threadId, tool_trace: [], proposals: [], task, history_turns: 0 });
-              return;
-            }
-          }
           // v0.7.7 — même savoir persistant que le jumeau bufferisé
           phase = 'history';
           const knowledge = await loadAgentKnowledge(c.env.DB, username).catch(() => null);

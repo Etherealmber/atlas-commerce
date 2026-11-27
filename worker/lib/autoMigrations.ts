@@ -29,10 +29,13 @@ export async function ensureAutoSqlMigrations(db: D1Database | null | undefined)
   });
 }
 
-/** These GET handlers do not use tables rebuilt by migrations 0013–0020.
- * Keep the allowlist exact and read-only: all other requests retain the
- * exclusive initialization barrier (including agent and inventory writes). */
+/** Only reviewed endpoints that never access the tables rebuilt by these
+ * migrations can bypass the global barrier. Agent chat exposes read tools and
+ * proposals only; approval and all business mutation routes remain guarded. */
 export function requiresAutoSqlMigrations(method: string, path: string): boolean {
-  if (method.toUpperCase() !== 'GET') return true;
+  const verb = method.toUpperCase();
+  if (verb === 'POST' && (path === '/api/assist/chat' || path === '/api/assist/chat/stream')) return false;
+  if (verb === 'GET' && (path === '/api/admin/agent/threads' || /^\/api\/admin\/agent\/threads\/[^/]+$/.test(path))) return false;
+  if (verb !== 'GET') return true;
   return !['/api/dashboard', '/api/admin/journal-mode', '/api/admin/journal-archive', '/api/admin/journal-archive/item'].includes(path);
 }
