@@ -4080,3 +4080,10 @@ html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-tools { backgr
 .delivery-note-row span { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 .delivery-note-row button { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 @media (max-width: 600px) { .delivery-notes-heading { flex-wrap: wrap; } }
+
+/* Archive date and action stay aligned and wrap on narrow screens. */
+.ac-journal-archive-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.ac-journal-archive-controls label { margin: 0; }
+html body aside.atlas-agent-panel .atlas-agent-meta { align-items: center; gap: 8px; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-meta { color: #b4bcc9; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-retry { background: #27272a !important; color: #f4f4f5 !important; border-color: #52525b !important; }

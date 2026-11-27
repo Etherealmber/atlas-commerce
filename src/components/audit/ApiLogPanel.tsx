@@ -8,6 +8,7 @@ import { AuditRequestDetails } from './AuditRequestDetails';
 import { AuditAgentExplanation } from './AuditAgentExplanation';
 import { t, useLang } from '../../i18n/core';
 import TopPageActions from '../TopPageActions';
+import DatePicker from '../DatePicker';
 
 const PAGE = 25;
 type Range = '24h' | '7d' | '30d';
@@ -252,8 +253,11 @@ function JournalArchive({ onOpen }: { onOpen: (row: any) => void }) {
   return <details className="ac-panel">
     <summary>{t('Archive chiffrée des appels API')}</summary>
     <p>{t('Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.')}</p>
-    <label>{t('Date UTC')} <input type="date" value={day} onChange={e => { setDay(e.target.value); setKeys([]); setCursor(null); setMessage(''); }} /></label>{' '}
-    <button className="secondary" type="button" disabled={busy || !day} onClick={() => void load()}>{t('Afficher les archives')}</button>
+    <div className="ac-journal-archive-controls">
+      <label htmlFor="journal-archive-day">{t('Date UTC')}</label>
+      <DatePicker id="journal-archive-day" value={day} onChange={value => { setDay(value); setKeys([]); setCursor(null); setMessage(''); }} />
+      <button className="secondary" type="button" disabled={busy || !day} onClick={() => void load()}>{t('Afficher les archives')}</button>
+    </div>
     {message && <p role="status">{message}</p>}
     <ul>{keys.map((key, index) => <li key={key}><button className="secondary" type="button" disabled={busy} onClick={() => void open(key)}><bdi dir="ltr">{key.split('/').pop()?.slice(0, 23) || index + 1}</bdi></button></li>)}</ul>
     {cursor && <button className="secondary" type="button" disabled={busy} onClick={() => void load(cursor)}>{t('Afficher plus')}</button>}
