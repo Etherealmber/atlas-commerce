@@ -56,3 +56,26 @@ it('retries a lost enqueue acknowledgement with the identical encrypted event', 
   await f.buffer.alarm();
   expect(f.objects.size).toBe(1);
 });
+
+it('exposes both encrypted outbox journals through the real R2 archive API without D1', async () => {
+  const { Hono } = await import('hono');
+  const { registerUsersAdminRoutes } = await import('../routes/usersAdmin');
+  const { recordApiJournal } = await import('../lib/journalSink');
+  const f = setup();
+  const router = new Hono<any>();
+  registerUsersAdminRoutes(router, { requireOwner: () => ({ ok: true, username: 'owner' }) } as any);
+  await recordApiJournal(f.env, f.env.DB, { method: 'POST', path: '/api/products?secret=ignored', status: 201, ms: 7, username: 'alice', role: 'owner', ip: '203.0.113.7', ua: null, request_id: null, surface: null, country: null, city: null, region: null, asn: null, as_org: null }, false);
+  await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { username: 'alice', action: 'product.create', entity: 'products', entity_id: 12 }));
+  const day = new Date().toISOString().slice(0, 10);
+  const list = async (kind: string) => {
+    const response = await router.request(`/api/admin/journal-archive?kind=${kind}&day=${day}&include=entries`, {}, f.env);
+    expect(response.status).toBe(200);
+    return await response.json() as any;
+  };
+  // An accepted event is not in R2 until the alarm drains the outbox.
+  expect((await list('api')).data).toHaveLength(0);
+  await f.buffer.alarm();
+  expect((await list('api')).data[0]).toMatchObject({ unreadable: false, row: { method: 'POST', path: '/api/products', status: 201, username: 'alice' } });
+  expect((await list('audit')).data[0]).toMatchObject({ unreadable: false, row: { action: 'product.create', entity: 'products', username: 'alice' } });
+  expect(f.writes()).toBe(0);
+});

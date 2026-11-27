@@ -6,3 +6,6 @@
 .ac-journal-archive [role="alert"] { color: #b91c1c; }
 html[data-theme="dark"] .ac-journal-archive [role="alert"] { color: #fca5a5; }
 html[data-theme="dark"] .ac-journal-browser p { color: #a1a1aa; }
+.ac-journal-results { margin: 12px 0; overflow-x: auto; }
+.ac-journal-results table { width: 100%; min-width: 650px; }
+.ac-journal-results td { overflow-wrap: anywhere; }

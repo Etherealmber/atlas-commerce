@@ -82,8 +82,11 @@ export async function listArchivedJournal(env: ArchiveEnv, day: string, cursor: 
   if (!enabled(env)) throw new Error('Journal archive disabled');
   const parsed = Date.parse(`${day}T00:00:00.000Z`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(parsed) || new Date(parsed).toISOString().slice(0, 10) !== day || parsed + 86400_000 <= now - RETENTION_MS || parsed > now + 86400_000) throw new Error('Invalid archive date');
+  // Even an empty page must not hide a missing or malformed decryption key.
+  await keyFromSecret(env);
   const result = await env.JOURNAL_ARCHIVE!.list({ prefix: `${kind}-journal/v1/${day}/`, limit: Math.max(1, Math.min(100, Math.floor(limit) || 100)), ...(cursor ? { cursor } : {}) });
-  return { keys: result.objects.map(o => o.key).filter(k => validKey(k, now, kind)), cursor: result.truncated ? result.cursor : null };
+  const keys = result.objects.map(o => o.key).filter(k => validKey(k, now, kind));
+  return { keys, invalidCount: result.objects.length - keys.length, cursor: result.truncated ? result.cursor : null };
 }
 
 export async function listArchivedApiCalls(env: ArchiveEnv, day: string, cursor?: string, now = Date.now()) {

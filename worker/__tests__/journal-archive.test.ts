@@ -86,3 +86,12 @@ it('lists decrypted R2 entries in bounded pages, surfaces unreadable items and e
   expect(data.data.find((x: any) => x.key === keys[1])).toMatchObject({ unreadable: true, row: null });
   expect(r2.list.mock.calls[0][0]).toMatchObject({ limit: 25 });
 });
+
+it('reports a missing encryption key even when the R2 day is empty', async () => {
+  const r2 = bucket(); const app = new Hono<any>();
+  registerUsersAdminRoutes(app, { requireOwner: () => ({ ok: true, username: 'owner' }) } as any);
+  const response = await app.request(`/api/admin/journal-archive?day=${new Date().toISOString().slice(0, 10)}&kind=audit&include=entries`, {}, { JOURNAL_ARCHIVE: r2, JOURNAL_ARCHIVE_MODE: 'buffered' });
+  expect(response.status).toBe(503);
+  expect((await response.json() as any).code).toBe('JOURNAL_ARCHIVE_UNAVAILABLE');
+  expect(r2.list).not.toHaveBeenCalled();
+});
