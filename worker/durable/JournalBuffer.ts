@@ -6,6 +6,7 @@ import type { Env } from '../env';
 const PREFIX = 'pending/';
 const MAX_BATCH = 25;
 const MAX_BYTES = 100_000;
+const CURSOR = 'meta/drain-cursor';
 const PATH = /^(?:api|audit)-journal\/v1\/\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f-]{36}\.journal$/;
 type Item = { path: string; bytes: Uint8Array };
 
@@ -44,22 +45,39 @@ export class JournalBuffer {
   }
 
   async alarm(): Promise<void> {
-    const items = await this.state.storage.list<Item>({ prefix: PREFIX, limit: MAX_BATCH });
+    const cursor = await this.state.storage.get<string>(CURSOR);
+    let items = await this.state.storage.list<Item>({ prefix: PREFIX, limit: MAX_BATCH, ...(cursor ? { startAfter: cursor } : {}) });
+    if (!items.size && cursor) {
+      await this.state.storage.delete(CURSOR);
+      items = await this.state.storage.list<Item>({ prefix: PREFIX, limit: MAX_BATCH });
+    }
     if (!items.size) return;
-    try {
-      if (!this.env.JOURNAL_ARCHIVE || this.env.JOURNAL_ARCHIVE === this.env.IMAGES) throw new Error('private journal bucket unavailable');
-      for (const [key, item] of items) {
-        await this.env.JOURNAL_ARCHIVE.put(item.path, item.bytes, { onlyIf: { etagDoesNotMatch: '*' }, httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'no-store' } });
-        const stored = await this.env.JOURNAL_ARCHIVE.get(item.path);
-        if (!stored || !equal(new Uint8Array(await stored.arrayBuffer()), item.bytes)) throw new Error('journal read-back mismatch');
-        await this.state.storage.delete(key);
-      }
-      if ((await this.state.storage.list({ prefix: PREFIX, limit: 1 })).size) await this.state.storage.setAlarm(Date.now() + 1000);
-    } catch {
-      // Retain the failed item and remaining items. Explicit rearming is needed
-      // for extended outages, beyond the platform's finite automatic retries.
+    const bucket = this.env.JOURNAL_ARCHIVE;
+    if (!bucket || bucket === this.env.IMAGES) {
       console.error('journal_buffer_drain_failed');
       await this.state.storage.setAlarm(Date.now() + 60_000);
+      return;
+    }
+    let failed = false;
+    for (const [key, item] of items) {
+      try {
+        // If-None-Match protects an existing immutable object on retries.
+        await bucket.put(item.path, item.bytes, { onlyIf: new Headers({ 'If-None-Match': '*' }), httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'no-store' } });
+        const stored = await bucket.get(item.path);
+        if (!stored || !equal(new Uint8Array(await stored.arrayBuffer()), item.bytes)) throw new Error('journal read-back mismatch');
+        await this.state.storage.delete(key);
+      } catch {
+        failed = true;
+        console.error('journal_buffer_item_failed');
+      }
+    }
+    // Even if one object fails, other items in this batch can make progress.
+    // Keep failed entries and explicitly rearm beyond the platform retry limit.
+    if ((await this.state.storage.list({ prefix: PREFIX, limit: 1 })).size) {
+      await this.state.storage.put(CURSOR, [...items.keys()].at(-1));
+      await this.state.storage.setAlarm(Date.now() + (failed ? 60_000 : 1000));
+    } else {
+      await this.state.storage.delete(CURSOR);
     }
   }
 }

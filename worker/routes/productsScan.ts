@@ -411,7 +411,7 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
       const pq = Number((product as any)?.stock_quantity || 0);
       if (product && (product as any).id) await placeProductStockOnDefault(c.env.DB, Number((product as any).id), pq);
     } catch { /* */ }
-    try { const su = sessionUserFromHeader(c.req.header('Authorization')); await writeAudit(c.env.DB, { username: su.username, role: su.role, action: 'product.create', entity: 'products', entity_id: String(result?.meta?.last_row_id || ''), detail: body?.name || '', ip: c.req.header('cf-connecting-ip') || '' }); } catch {}
+    try { const su = sessionUserFromHeader(c.req.header('Authorization')); await writeAudit(c.env.DB, { username: su.username, role: su.role, action: 'product.create', entity: 'products', entity_id: String(result?.meta?.last_row_id || ''), detail: body?.name || '', ip: c.req.header('cf-connecting-ip') || '' }); } catch { console.error('audit_enqueue_failed_after_mutation'); c.header('X-Atlas-Audit-Warning', 'enqueue-failed'); }
     await invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
     return c.json({ success: true, data: product ? scrubProductForRole(withInventoryActors(product as any), postRole) : product, message: 'Produit enregistré dans la base de données.' }, 201);
   });

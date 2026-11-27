@@ -376,7 +376,7 @@ export function registerFinanceRoutes(app: AtlasApp, deps: FinanceRouteDeps): vo
         payableDocs: summary.payables.documents.slice(0, 14),
         payableDocsTotal: summary.payables.documents.length,
       });
-      void deps.writeAudit(c.env.DB, {
+      await deps.writeAudit(c.env.DB, {
         username: auth.username,
         role: auth.role,
         action: 'finance_report_pdf',
@@ -384,7 +384,7 @@ export function registerFinanceRoutes(app: AtlasApp, deps: FinanceRouteDeps): vo
         entity_id: period,
         detail: 'Rapport mensuel PDF téléchargé',
         ip: deps.clientIp(c),
-      });
+      }).catch(() => { console.error('audit_enqueue_failed_after_report'); });
       return new Response(bytes as unknown as BodyInit, {
         headers: {
           'Content-Type': 'application/pdf',

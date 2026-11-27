@@ -6,7 +6,7 @@ import { readArchivedApiCall, readArchivedJournal, listArchivedJournal } from '.
 
 function setup() {
   const pending = new Map<string, any>(); const objects = new Map<string, Uint8Array>(); let alarm: number | null = null;
-  const storage: any = { async get(k: string) { return pending.get(k); }, async put(k: string, v: any) { pending.set(k, v); }, async delete(k: string) { return pending.delete(k); }, async getAlarm() { return alarm; }, async setAlarm(v: number) { alarm = v; }, async list(o: any) { return new Map([...pending].filter(([k]) => k.startsWith(o.prefix)).slice(0, o.limit)); }, async transaction(fn: any) { return fn(storage); } };
+  const storage: any = { async get(k: string) { return pending.get(k); }, async put(k: string, v: any) { pending.set(k, v); }, async delete(k: string) { return pending.delete(k); }, async getAlarm() { return alarm; }, async setAlarm(v: number) { alarm = v; }, async list(o: any) { return new Map([...pending].filter(([k]) => k.startsWith(o.prefix) && (!o.startAfter || k > o.startAfter)).slice(0, o.limit)); }, async transaction(fn: any) { return fn(storage); } };
   const bucket = { async list(options: { prefix: string }) { return { objects: [...objects.keys()].filter(k => k.startsWith(options.prefix)).map(key => ({ key })), truncated: false }; }, async put(k: string, b: Uint8Array) { if (!objects.has(k)) objects.set(k, b.slice()); }, async get(k: string) { const bytes = objects.get(k); return bytes ? { arrayBuffer: async () => bytes.slice().buffer } : null; } };
   let writes = 0; const db = { prepare() { writes++; throw new Error('D1 must not be used'); } };
   const env: any = { DB: db, JOURNAL_ARCHIVE_MODE: 'buffered', JOURNAL_ARCHIVE: bucket, JOURNAL_ENCRYPTION_KEY: btoa('k'.repeat(32)) };
@@ -36,4 +36,23 @@ describe('buffered R2 journal producers', () => {
     await expect(withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'test' }))).rejects.toThrow();
     expect(f.writes()).toBe(0);
   });
+});
+
+it('retries a lost enqueue acknowledgement with the identical encrypted event', async () => {
+  const f = setup();
+  const original = f.env.JOURNAL_BUFFER;
+  const bodies: string[] = [];
+  f.env.JOURNAL_BUFFER = { idFromName: () => 'id', get: () => ({ fetch: async (url: string, init: RequestInit) => {
+    bodies.push(String(init.body));
+    const response = await original.get().fetch(url, init);
+    if (bodies.length === 1) throw new Error('ack lost');
+    return response;
+  } }) };
+  await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'update' }));
+  expect(bodies).toHaveLength(2);
+  expect(bodies[0]).toBe(bodies[1]);
+  expect(f.pending.size).toBe(1);
+  expect(f.writes()).toBe(0);
+  await f.buffer.alarm();
+  expect(f.objects.size).toBe(1);
 });
