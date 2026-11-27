@@ -30,3 +30,24 @@ The existing indexes support kind/time charts, newest-ID pagination, retention d
 ## Diagnosing the outbox
 
 The owner-only journal view shows a sanitized last transfer failure (configuration, credentials, missing schema, rejected event/schema, rate limit, decryption, or service). It contains no event, URL or key and remains visible while the queue is nonempty, including when the Worker configuration is invalid. The queue retries automatically; it does not prove every upstream event was captured. Check that `JOURNAL_ENCRYPTION_KEY` has not changed, install `supabase/journal.sql`, verify the URL and server-side secret, and confirm that a new test event reaches the dashboard and the queue drains. Never change the encryption key while events are pending. If the dashboard says no alarm is scheduled with entries pending, investigate the Durable Object alarm and storage errors before attempting repair; do not delete the object or its data.
+
+### Diagnosing a reported missing function
+
+The `schema` transfer category means an RPC returned HTTP 404, not proof that a function is missing. Confirm the Worker URL points to the intended active project and its Data API is enabled and exposes the `public` schema. In that project's SQL editor, check the expected functions and `service_role` privileges without sharing secrets or journal contents:
+
+```sql
+select p.proname, pg_get_function_identity_arguments(p.oid) as arguments,
+       has_function_privilege('service_role', p.oid, 'EXECUTE') as service_role_can_execute
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname in
+  ('atlas_journal_ingest', 'atlas_journal_ingest_batch', 'atlas_journal_page')
+order by p.proname;
+```
+
+If missing or mismatched, have the project administrator review and apply `supabase/journal.sql` in the **correct project**. It changes permissions and configures a retention cron that deletes journal rows older than 30 days, so verify that policy and pg_cron availability first. Check Supabase's API schema cache if functions exist but the API still returns 404. The batch endpoint alone may be absent during an upgrade: the buffer attempts the single-event endpoint. After correction, observe automatic retries and confirm the backlog decreases and a new event appears. Do not delete the queue, change its encryption key, or paste credentials into chat. The displayed count is capped at 100+, not an exact queue size.
+
+## Historical migration preparation (not live)
+
+`worker/lib/journalSupabaseBackfill.ts` is an isolated D1-to-Supabase building block, not an enabled job or route. It reads bounded ID pages up to a supplied high-water mark, filters on a fixed cutoff, uses stable source keys, and returns a cursor only after a batch acknowledgement. It never deletes source rows. It does not migrate R2, schedule jobs, persist checkpoints, verify the destination, or reconcile duplicates. A batch acknowledgement does not prove row content matches if a key already exists. No live migration has been run.
+
+Before using it, build and test an operator-controlled runner and independent destination verification; inventory source formats, mutations, retention and the R2/D1 overlap. In particular, R2 shadow copies and D1 rows may represent the same event with different keys; blindly importing both could duplicate audit history. Use an immutable, unique source namespace, fixed snapshot/watermark and cutoff, account for writes around cutover and protect credentials and personal data. Verify completeness and duplicate policy in staging before any production import. Never delete source data without successful reconciliation and an approved retention/backup plan. The 30-day destination retention policy will exclude or remove older history.

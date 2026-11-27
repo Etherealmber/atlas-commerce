@@ -125,7 +125,12 @@ export class JournalBuffer {
         if (error instanceof JournalServiceError && (error.status === 400 || error.status === 404 || error.status === 422)) {
           for (const item of chunk) {
             try { await sendSingle(this.env, item.event); await this.state.storage.delete(item.key); }
-            catch (singleError) { markFailed(classify(singleError)); console.error('journal_buffer_item_failed'); }
+            catch (singleError) {
+              markFailed(classify(singleError)); console.error('journal_buffer_item_failed');
+              // A missing single-event endpoint cannot be repaired by sending
+              // the rest of the batch individually. Retain them for retry.
+              if (singleError instanceof JournalServiceError && singleError.status === 404) break;
+            }
           }
         } else {
           markFailed(classify(error));

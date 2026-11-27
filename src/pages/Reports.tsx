@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CalendarCheck,
@@ -25,6 +25,15 @@ import { draftReorderMessage, demandHint } from '../lib/assist';
 import { canAccessCompanySettings, getRole } from '../auth';
 import RefreshIconButton from '../components/RefreshIconButton';
 import { MetricSpark, MetricTrend } from '../components/MetricSpark';
+
+type ReportKey = 'aging' | 'tva' | 'reorder' | 'cogs' | 'period';
+type ReportStatus = 'loading' | 'ready' | 'error';
+
+function ReportPending({ status }: { status: ReportStatus }) {
+  return status === 'error'
+    ? <p role="alert">Impossible de charger cette section. Actualisez pour réessayer.</p>
+    : <div aria-busy="true" aria-label="Chargement du rapport"><PageSkeleton variant="table-only" /></div>;
+}
 
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
@@ -62,6 +71,9 @@ const PRESET_OPTIONS = [
 export default function Reports() {
   const { toast, alert } = useUi();
   const [loading, setLoading] = useState(false);
+  const [reportStatus, setReportStatus] = useState<Record<ReportKey, ReportStatus>>({ aging: 'loading', tva: 'loading', reorder: 'loading', cogs: 'loading', period: 'loading' });
+  const requests = useRef<Record<ReportKey, number>>({ aging: 0, tva: 0, reorder: 0, cogs: 0, period: 0 });
+  const loadOperation = useRef(0);
   const [aging, setAging] = useState<any>(null);
   const [tva, setTva] = useState<any>(null);
   const [reorder, setReorder] = useState<any[]>([]);
@@ -86,61 +98,43 @@ export default function Reports() {
     openReport(p, Object.keys(params).length ? params : undefined);
   };
 
+  const loadPart = useCallback(async (key: ReportKey, request: () => Promise<any>, apply: (value: any) => void) => {
+    const generation = ++requests.current[key];
+    setReportStatus(current => ({ ...current, [key]: 'loading' }));
+    try {
+      const result = await request();
+      if (requests.current[key] !== generation) return;
+      const data = result?.data;
+      if (key === 'reorder' ? !Array.isArray(data) : !data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid report response');
+      apply(data);
+      setReportStatus(current => ({ ...current, [key]: 'ready' }));
+    } catch {
+      if (requests.current[key] === generation) setReportStatus(current => ({ ...current, [key]: 'error' }));
+    }
+  }, []);
   const loadAll = useCallback(async (rangeFrom = from, rangeTo = to) => {
+    const operation = ++loadOperation.current;
     setLoading(true);
     try {
-      const [agingRes, tvaRes, reorderRes, cogsRes, periodRes] = await Promise.allSettled([
-        api.getAgingReport(),
-        api.getTvaReport(rangeFrom || undefined, rangeTo || undefined),
-        api.getReorderList(),
-        api.getCogsReport(rangeFrom || undefined, rangeTo || undefined),
-        api.getPeriodLock(),
+      await Promise.all([
+        loadPart('aging', () => api.getAgingReport(), d => setAging(d && typeof d === 'object' && !Array.isArray(d) ? d : null)),
+        loadPart('tva', () => api.getTvaReport(rangeFrom || undefined, rangeTo || undefined), d => setTva(d && typeof d === 'object' && !Array.isArray(d) ? d : null)),
+        loadPart('reorder', () => api.getReorderList(), d => setReorder(Array.isArray(d) ? d : [])),
+        loadPart('cogs', () => api.getCogsReport(rangeFrom || undefined, rangeTo || undefined), d => setCogs(d && typeof d === 'object' && !Array.isArray(d) ? d : null)),
+        loadPart('period', () => api.getPeriodLock(), d => setPeriod(d?.fiscal_locked_through || '')),
       ]);
-      if (agingRes.status === 'fulfilled') {
-        const d = (agingRes.value as any)?.data;
-        setAging(d && typeof d === 'object' && !Array.isArray(d) ? d : null);
-      }
-      if (tvaRes.status === 'fulfilled') {
-        const d = (tvaRes.value as any)?.data;
-        setTva(d && typeof d === 'object' && !Array.isArray(d) ? d : null);
-      }
-      if (reorderRes.status === 'fulfilled') {
-        const d = (reorderRes.value as any)?.data;
-        setReorder(Array.isArray(d) ? d : []);
-      }
-      if (cogsRes.status === 'fulfilled') {
-        const d = (cogsRes.value as any)?.data;
-        setCogs(d && typeof d === 'object' && !Array.isArray(d) ? d : null);
-      }
-      if (periodRes.status === 'fulfilled') {
-        const d = (periodRes.value as any)?.data;
-        setPeriod(d?.fiscal_locked_through || '');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [from, to]);
+    } finally { if (operation === loadOperation.current) setLoading(false); }
+  }, [from, to, loadPart]);
 
   const loadTvaAndCogs = async (rangeFrom = from, rangeTo = to) => {
+    const operation = ++loadOperation.current;
     setLoading(true);
     try {
-      const [tvaRes, cogsRes] = await Promise.allSettled([
-        api.getTvaReport(rangeFrom || undefined, rangeTo || undefined),
-        api.getCogsReport(rangeFrom || undefined, rangeTo || undefined),
+      await Promise.all([
+        loadPart('tva', () => api.getTvaReport(rangeFrom || undefined, rangeTo || undefined), d => setTva(d && typeof d === 'object' && !Array.isArray(d) ? d : null)),
+        loadPart('cogs', () => api.getCogsReport(rangeFrom || undefined, rangeTo || undefined), d => setCogs(d && typeof d === 'object' && !Array.isArray(d) ? d : null)),
       ]);
-      if (tvaRes.status === 'fulfilled') {
-        const d = (tvaRes.value as any)?.data;
-        setTva(d && typeof d === 'object' && !Array.isArray(d) ? d : null);
-      }
-      if (cogsRes.status === 'fulfilled') {
-        const d = (cogsRes.value as any)?.data;
-        setCogs(d && typeof d === 'object' && !Array.isArray(d) ? d : null);
-      }
-    } catch (e: any) {
-      toast(friendlyError(e), 'error');
-    } finally {
-      setLoading(false);
-    }
+    } finally { if (operation === loadOperation.current) setLoading(false); }
   };
 
   useEffect(() => {
@@ -169,16 +163,6 @@ export default function Reports() {
     );
   }, [aging]);
 
-  if (loading && !aging && !tva && !cogs && !reorder.length) {
-    return (
-      <div className="atlas-page ac-dash reports-page">
-        <div className="page-header dock-page-header">
-          <h1 className="sr-only">Rapports &amp; clôture</h1>
-        </div>
-        <PageSkeleton variant="reports" />
-      </div>
-    );
-  }
 
   return (
     <div className="atlas-page ac-dash reports-page">
@@ -227,7 +211,6 @@ export default function Reports() {
                   title={title}
                   className="ac-seg-btn"
                   aria-pressed={rangePreset === key}
-                  disabled={loading}
                   onClick={() => {
                     const r = presetRange(key);
                     setRangePreset(key);
@@ -246,7 +229,6 @@ export default function Reports() {
                 from={from}
                 to={to}
                 showPresets
-                disabled={loading}
                 onChange={(nextFrom, nextTo) => {
                   setRangePreset('custom');
                   setFrom(nextFrom);
@@ -263,24 +245,24 @@ export default function Reports() {
       <section className="ac-metric-grid" aria-label="Indicateurs financiers">
         <article className="ac-metric">
           <span className="ac-metric-label">Créances ouvertes</span>
-          <strong className="ac-metric-val">{fmt(totalAging)} MAD<MetricTrend k="receivables" invert /></strong>
-          <span className="ac-metric-meta">{(aging?.rows || []).length} facture(s) en attente</span>
+          <strong className="ac-metric-val">{reportStatus.aging === 'ready' ? `${fmt(totalAging)} MAD` : '—'}<MetricTrend k="receivables" invert /></strong>
+          <span className="ac-metric-meta">{reportStatus.aging === 'ready' ? `${(aging?.rows || []).length} facture(s) en attente` : 'Données indisponibles pour le moment'}</span>
           <MetricSpark k="receivables" invert unit="money" />
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">TVA nette</span>
-          <strong className="ac-metric-val">{fmt(Number(tva?.net_tva || 0))} MAD</strong>
-          <span className="ac-metric-meta">Collectée {fmt(Number(tva?.total_sales_tva || 0))} · Avoirs {fmt(Number(tva?.total_credits_tva || 0))}</span>
+          <strong className="ac-metric-val">{reportStatus.tva === 'ready' ? `${fmt(Number(tva?.net_tva || 0))} MAD` : '—'}</strong>
+          <span className="ac-metric-meta">{reportStatus.tva === 'ready' ? `Collectée ${fmt(Number(tva?.total_sales_tva || 0))} · Avoirs ${fmt(Number(tva?.total_credits_tva || 0))}` : 'Données indisponibles pour le moment'}</span>
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">COGS période</span>
-          <strong className="ac-metric-val">{fmt(Number(cogs?.total_cogs || 0))} MAD</strong>
+          <strong className="ac-metric-val">{reportStatus.cogs === 'ready' ? `${fmt(Number(cogs?.total_cogs || 0))} MAD` : '—'}</strong>
           <span className="ac-metric-meta">Méthode : {cogs?.method || 'FIFO / CUMP'}</span>
         </article>
         <article className="ac-metric">
           <span className="ac-metric-label">À réapprovisionner</span>
-          <strong className="ac-metric-val">{reorder.length} article(s)<MetricTrend k="low_stock" invert /></strong>
-          <span className="ac-metric-meta">{period ? `Clôturé jusqu’à ${period}` : 'Période ouverte'}</span>
+          <strong className="ac-metric-val">{reportStatus.reorder === 'ready' ? `${reorder.length} article(s)` : '—'}<MetricTrend k="low_stock" invert /></strong>
+          <span className="ac-metric-meta">{reportStatus.period !== 'ready' ? 'Période indisponible' : period ? `Clôturé jusqu’à ${period}` : 'Période ouverte'}</span>
           <MetricSpark k="low_stock" invert />
         </article>
       </section>
@@ -310,6 +292,7 @@ export default function Reports() {
           </div>
         </div>
 
+        {reportStatus.aging !== 'ready' ? <ReportPending status={reportStatus.aging} /> : <>
         <div className="ac-bento-buckets">
           {[
             ['Courant', aging?.buckets?.current],
@@ -360,6 +343,7 @@ export default function Reports() {
             </tbody>
           </table>
         </div>
+        </>}
       </section>
 
       {/* Sections 2–5: TVA + Réassort (left column) & COGS + Clôture fiscale (right column) */}
@@ -370,7 +354,7 @@ export default function Reports() {
             <div>
               <h2>Récapitulatif TVA</h2>
               <span className="ac-panel-sub">
-                Collectée : {fmt(tva?.total_sales_tva ?? 0)} · Avoirs : {fmt(tva?.total_credits_tva ?? 0)} · Net : {fmt(tva?.net_tva ?? 0)} MAD
+                {reportStatus.tva === 'ready' ? `Collectée : ${fmt(tva?.total_sales_tva ?? 0)} · Avoirs : ${fmt(tva?.total_credits_tva ?? 0)} · Net : ${fmt(tva?.net_tva ?? 0)} MAD` : 'Données en attente'}
               </span>
             </div>
             <div className="ac-head-actions">
@@ -405,7 +389,7 @@ export default function Reports() {
             </div>
           </div>
 
-          <div className="ac-bento-stack">
+          {reportStatus.tva !== 'ready' ? <ReportPending status={reportStatus.tva} /> : <div className="ac-bento-stack">
             <div>
               <h3 style={{ fontSize: 13.5, margin: '0 0 8px' }}>Ventes</h3>
               <div className="table-wrap">
@@ -451,7 +435,7 @@ export default function Reports() {
                 </table>
               </div>
             </div>
-          </div>
+          </div>}
         </section>
 
         <section className="ac-panel">
@@ -485,6 +469,7 @@ export default function Reports() {
             </button>
           </div>
 
+          {reportStatus.reorder !== 'ready' ? <ReportPending status={reportStatus.reorder} /> : <>
           <div className="table-wrap">
             <table>
               <thead>
@@ -531,6 +516,7 @@ export default function Reports() {
               {demandHint((reorder || []).slice(0, 6).map(() => 1))} — indication basée sur la liste de réassort.
             </p>
           </div>
+          </>}
         </section>
         </div>
 
@@ -548,9 +534,10 @@ export default function Reports() {
             </div>
             <span className="ac-status-pill">
               <Receipt size={13} strokeWidth={2} aria-hidden="true" />
-              {fmt(cogs?.total_cogs ?? 0)} MAD
+              {reportStatus.cogs === 'ready' ? `${fmt(cogs?.total_cogs ?? 0)} MAD` : '—'}
             </span>
           </div>
+          {reportStatus.cogs !== 'ready' ? <ReportPending status={reportStatus.cogs} /> : <>
           {cogs?.note && (
             <p className="muted" style={{ fontSize: 12.5, marginTop: 0, marginBottom: 12 }}>{cogs.note}</p>
           )}
@@ -574,6 +561,7 @@ export default function Reports() {
               </tbody>
             </table>
           </div>
+          </>}
         </section>
 
         <section className="ac-panel">
@@ -586,7 +574,7 @@ export default function Reports() {
             </div>
             <span className={`ac-status-pill ${period ? 'is-ok' : ''}`}>
               <Lock size={13} strokeWidth={2} aria-hidden="true" />
-              {period || 'Ouverte'}
+              {reportStatus.period === 'ready' ? (period || 'Ouverte') : 'Indisponible'}
             </span>
           </div>
 
@@ -608,16 +596,16 @@ export default function Reports() {
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
               placeholder="2026-06"
-              disabled={!isOwner}
+              disabled={!isOwner || reportStatus.period !== 'ready'}
             />
           </div>
           {isOwner ? (
             <div className="ac-head-actions">
-              <button type="button" onClick={() => void savePeriod(false)}>
+              <button type="button" disabled={reportStatus.period !== 'ready'} onClick={() => void savePeriod(false)}>
                 <CalendarCheck size={14} aria-hidden="true" />
                 Enregistrer
               </button>
-              <button type="button" className="secondary" onClick={() => void savePeriod(true)}>
+              <button type="button" className="secondary" disabled={reportStatus.period !== 'ready'} onClick={() => void savePeriod(true)}>
                 <AlertTriangle size={14} aria-hidden="true" />
                 Rouvrir tout
               </button>
