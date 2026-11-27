@@ -1,4 +1,5 @@
 import { finishAgentReply } from '../lib/agentMessages';
+import { ChevronDown, Plus, PackageSearch, ListChecks, FileText, ArrowUpRight, Sparkles, Search, Maximize2, Minimize2 } from 'lucide-react';
 /**
  * Atlas Agent — dock + P0/P1/P2: citations, tools, drafts, stream UX, history, voice, role chips.
  */
@@ -221,7 +222,7 @@ async function persistThreadR2(threadId: string, title: string, messages: any[])
     threadId,
     setTimeout(() => {
       _persistTimers.delete(threadId);
-      if (_persistInflight.has(threadId)) return;
+      if (_persistInflight.has(threadId)) { void persistThreadR2(threadId, titleSnap, snapshot); return; }
       _persistInflight.add(threadId);
       void api
         .putAgentThread(threadId, { title: titleSnap, messages: snapshot })
@@ -295,11 +296,11 @@ function compressImageDataUrl(dataUrl: string, maxDim = 1280, quality = 0.72): P
   });
 }
 
-function saveMsgs(threadId: string, msgs: Msg[]) {
+function saveMsgs(threadId: string, msgs: Msg[], syncRemote = true) {
   // v256 — keep (compressed) images in localStorage so they survive a page
   // refresh; drop blob preview URLs (they die with the page anyway). On quota
   // overflow, strip images from the oldest messages until the write fits.
-  let copy: any[] = msgs.slice(-40).map((m) => { const { imageUrls, ...rest } = m as any; return rest; });
+  let copy: any[] = msgs.filter((m) => !m.streaming).slice(-40).map((m) => { const { imageUrls, ...rest } = m as any; return rest; });
   for (let attempt = 0; attempt < 6; attempt++) {
     try {
       localStorage.setItem(msgsKey(threadId), JSON.stringify(copy));
@@ -312,12 +313,12 @@ function saveMsgs(threadId: string, msgs: Msg[]) {
   }
   try {
     const th = loadThreads().find((t) => t.id === threadId);
-    void persistThreadR2(threadId, th?.title || 'Sans titre', copy);
+    if (syncRemote) void persistThreadR2(threadId, th?.title || 'Sans titre', copy);
   } catch { /* */ }
 }
 
 function newThreadId() {
-  return `t-${Date.now().toString(36)}`;
+  return `t-${crypto.randomUUID()}`;
 }
 
 
@@ -602,17 +603,30 @@ export default function AtlasAgent() {
   const [resumedThread] = useState(() => {
     try { return !!(localStorage.getItem(activeThreadKey()) || localStorage.getItem(ACTIVE_THREAD_KEY)); } catch { return false; }
   });
-  const [threadId] = useState(() => {
+  const [threadId, setThreadId] = useState(() => {
     try {
       return localStorage.getItem(activeThreadKey()) || localStorage.getItem(ACTIVE_THREAD_KEY) || newThreadId();
     } catch {
       return newThreadId();
     }
   });
-  const [, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
+  const [threads, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
+  const [expanded, setExpanded] = useState(false);
   const [showExtras, setShowExtras] = useState<boolean>(() => {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
   });
+  useEffect(() => {
+    if (!historyOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('.atlas-agent-header-title')) setHistoryOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setHistoryOpen(false); };
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', escape); };
+  }, [historyOpen]);
   const [agentPolicy, setAgentPolicy] = useState<AgentPolicy | null>(null);
   // v0.7.7 — popup dédié « accès suspendu » : montré une fois par session
   const [blockedModalSeen, setBlockedModalSeen] = useState(() => {
@@ -727,7 +741,6 @@ export default function AtlasAgent() {
   const [activeTool, setActiveTool] = useState('');
   const [receivingReply, setReceivingReply] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const prevPath = useRef(location.pathname);
   const abortRef = useRef<AbortController | null>(null);
   const conversationRevision = useRef(0);
   const recognitionRef = useRef<any>(null);
@@ -767,8 +780,9 @@ export default function AtlasAgent() {
   }, [open, threadId]);
 
   useEffect(() => {
-    saveMsgs(threadId, msgs);
-  }, [msgs, threadId]);
+    // Never overwrite a remote conversation with a temporary welcome placeholder.
+    if (msgs.some((m) => m.role === 'user')) saveMsgs(threadId, msgs, !busy);
+  }, [msgs, threadId, busy]);
 
   // Hydrate conversation from sessionStorage + encrypted R2 (one file per thread)
   useEffect(() => {
@@ -868,27 +882,6 @@ export default function AtlasAgent() {
     };
   }, [open]);
 
-  useEffect(() => {
-    if (prevPath.current === location.pathname) return;
-    prevPath.current = location.pathname;
-    if (!open) return;
-    if (isPhoneShell) return;
-    // Keep existing thread messages when navigating — restore from session if state was empty
-    setMsgs((m) => {
-      let base = m;
-      if (!base.length) {
-        const local = loadMsgs(threadId);
-        if (local.length) base = local;
-      }
-      return [
-        ...base,
-        {
-          role: 'assistant' as const,
-          text: `Vous êtes sur « ${page.title} ». ${page.hint} Que puis-je faire ici ?`,
-        },
-      ];
-    });
-  }, [location.pathname, open, page.title, page.hint, isPhoneShell, threadId]);
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -910,7 +903,8 @@ export default function AtlasAgent() {
 
   const touchThread = (title: string) => {
     setThreads((prev) => {
-      const next = [{ id: threadId, title: title.slice(0, 48), updated: Date.now() }, ...prev.filter((t) => t.id !== threadId)].slice(0, 20);
+      const existing = prev.find((t) => t.id === threadId);
+      const next = [{ id: threadId, title: existing?.title || title.slice(0, 48), updated: Date.now() }, ...prev.filter((t) => t.id !== threadId)].slice(0, 20);
       saveThreads(next);
       return next;
     });
@@ -1292,7 +1286,17 @@ export default function AtlasAgent() {
             } else if (event === 'tool' && typeof data?.name === 'string') {
               setActiveTool('');
               setLiveTools((items) => [...items, { name: data.name, ok: data.ok !== false }]);
-            } else if (event === 'token') setReceivingReply(true);
+            } else if (event === 'token' && typeof data?.t === 'string' && data.t) {
+              setReceivingReply(true);
+              setMsgs((messages) => {
+                let index = -1;
+                messages.forEach((message, i) => { if (message.role === 'assistant' && message.streaming) index = i; });
+                if (index < 0) return [...messages, { role: 'assistant', text: data.t, streaming: true, prompt: q }];
+                const next = [...messages];
+                next[index] = { ...next[index], text: next[index].text + data.t };
+                return next;
+              });
+            }
           },
         });
         if (ac.signal.aborted) return;
@@ -1329,7 +1333,7 @@ export default function AtlasAgent() {
         abortRef.current = null;
       }
     },
-    [busy, input, attachments, page, threadId, applyAction, location.pathname],
+    [busy, input, attachments, page, threadId, applyAction, location.pathname, agentPolicy],
   );
 
   const stop = () => {
@@ -1357,6 +1361,24 @@ export default function AtlasAgent() {
     setMsgs((m) => [...m, { role: 'assistant', text: `J’ouvre « ${label} » pour vous.` }]);
   };
 
+
+  const switchThread = (id: string) => {
+    if (busy || loadingThread || id === threadId) { setHistoryOpen(false); return; }
+    conversationRevision.current += 1;
+    const local = loadMsgs(id);
+    setThreadId(id);
+    setMsgs(local.length ? local : [WELCOME]);
+    setPendingAction(null);
+    setAttachments([]);
+    lastFilesRef.current = [];
+    setInput('');
+    setExpandedTools({});
+    setHistoryOpen(false);
+  };
+  const activeTitle = threads.find((thread) => thread.id === threadId)?.title || 'Nouvelle conversation';
+  const showWelcome = !loadingThread && !busy && !msgs.some((message) => message.role === 'user');
+  const hasStreamingText = msgs.some((message) => message.streaming && message.text.trim());
+  const visibleThreads = threads.filter((thread) => thread.title.toLocaleLowerCase().includes(historySearch.trim().toLocaleLowerCase()));
 
   const hideAgent = ['/settings', '/about', '/whats-new', '/login', '/welcome', '/privacy', '/terms', '/licenses'].some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
@@ -1387,7 +1409,7 @@ export default function AtlasAgent() {
       </button>
       )}
 
-      <aside className={`atlas-agent-panel ${open ? 'open' : ''}`} aria-hidden={!open} aria-label="Atlas Agent" style={{ width: panelWidth }}>
+      <aside className={`atlas-agent-panel ${open ? 'open' : ''}`} aria-hidden={!open} aria-label="Atlas Agent" style={{ width: expanded ? 'min(960px, 100vw)' : panelWidth }}>
         <div
           className="atlas-agent-resize"
           role="separator"
@@ -1399,13 +1421,24 @@ export default function AtlasAgent() {
           }}
         />
         <header className="atlas-agent-head">
-          <div className="atlas-agent-identity">
-            <span className="atlas-agent-identity-mark" aria-hidden="true">✦</span>
-            <div><strong>Atlas Agent</strong>
-            <span>Je suis là pour vous aider sur Atlas Commerce</span></div>
+          <div className="atlas-agent-header-title">
+            <span className="atlas-agent-header-mark" aria-hidden="true"><Sparkles size={17} /></span>
+            <button type="button" className="atlas-agent-history-trigger" aria-label="Historique des conversations" aria-expanded={historyOpen} aria-controls="atlas-agent-history-menu" onClick={() => setHistoryOpen((value) => !value)}>
+              <span><small>ATLAS AGENT</small><strong>{activeTitle}</strong></span><ChevronDown size={15} aria-hidden="true" />
+            </button>
+            {historyOpen && <div id="atlas-agent-history-menu" className="atlas-agent-history-popover" onKeyDown={(event) => { if (event.key === 'Escape') setHistoryOpen(false); }}>
+              <label className="atlas-agent-history-search"><Search size={15} aria-hidden="true" /><input aria-label="Rechercher une conversation" placeholder="Rechercher…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /></label>
+              <div className="atlas-agent-history-caption">Conversations récentes</div>
+              <div className="atlas-agent-history-list">
+                {visibleThreads.length ? visibleThreads.map((thread) => <button type="button" key={thread.id} disabled={busy || loadingThread} className={`atlas-agent-history-choice${thread.id === threadId ? ' is-current' : ''}`} onClick={() => switchThread(thread.id)}><span>{thread.title}</span>{thread.id === threadId && <span aria-label="Conversation actuelle">•</span>}</button>) : <p>Aucune conversation trouvée.</p>}
+              </div>
+              <button type="button" className="atlas-agent-history-new" disabled={busy || loadingThread} onClick={() => switchThread(newThreadId())}><Plus size={15} /> Nouvelle conversation</button>
+            </div>}
           </div>
           {!isPhoneShell && (
           <div className="atlas-agent-head-actions">
+<button type="button" className="atlas-agent-iconbtn" aria-label={expanded ? 'Réduire le panneau' : 'Agrandir le panneau'} aria-pressed={expanded} title={expanded ? 'Réduire' : 'Agrandir'} onClick={() => setExpanded((value) => !value)}>{expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
+<button type="button" className="atlas-agent-iconbtn atlas-agent-new" disabled={busy} aria-label="Nouvelle conversation" title="Nouvelle conversation" onClick={() => switchThread(newThreadId())}><Plus size={18} /></button>
 <button
               type="button"
               className={`atlas-agent-iconbtn${showExtras ? ' on' : ''}`}
@@ -1445,39 +1478,6 @@ export default function AtlasAgent() {
         
 
 
-        <div className="atlas-agent-pagechip" title={page.path}>
-          <span className="dot" />
-          <div>
-            <em>Page actuelle</em>
-            <strong>{page.title}</strong>
-          </div>
-        </div>
-
-
-        {msgs.length <= 1 && (
-          <div className="atlas-agent-greeting">
-            <strong>{timeGreeting().hello}</strong>
-            <span>{timeGreeting().sub}</span>
-            <div className="atlas-agent-chips atlas-agent-chips--readable">
-              {(isPhoneShell
-                ? [
-                    { label: 'Stock bas', prompt: 'Résumé stock bas' },
-                    { label: 'Actions', prompt: 'Combien d’actions en attente ?' },
-                  ]
-                : [
-                    { label: 'Nouveau client', prompt: 'Créer un client' },
-                    { label: 'Dépense', prompt: 'Ajouter une dépense' },
-                    { label: 'Rapport du jour', prompt: 'Rapport des ventes du jour' },
-                  ]
-              ).map((c) => (
-                <button key={c.label} type="button" onClick={() => void send(c.prompt)}>
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {pendingAction && (
           <div className="atlas-agent-confirm-card" role="status">
             <p>{pendingAction.label}</p>
@@ -1493,8 +1493,22 @@ export default function AtlasAgent() {
         )}
 
         <div className="atlas-agent-body" role="log" aria-label="Conversation Atlas Agent" aria-live="polite" aria-relevant="additions">
+          {showWelcome && <section className="atlas-agent-welcome" aria-label="Bienvenue dans Atlas Agent">
+            <div className="atlas-agent-welcome-art" aria-hidden="true"><span /><span /><Sparkles size={29} /></div>
+            <p className="atlas-agent-welcome-eyebrow">VOTRE ASSISTANT ATLAS</p>
+            <h2>{timeGreeting().hello}.</h2>
+            <p className="atlas-agent-welcome-sub">Comment puis-je vous aider aujourd’hui ?</p>
+            <div className="atlas-agent-welcome-cards" aria-label="Questions suggérées">
+              {[
+                { Icon: PackageSearch, label: 'Surveiller le stock', detail: 'Voir les produits en stock bas', prompt: 'Quels produits sont en stock bas ?' },
+                { Icon: ListChecks, label: 'Actions en attente', detail: 'Savoir quoi traiter en priorité', prompt: 'Quelles actions sont en attente ?' },
+                ...(!stockOnly && canOfficeWork() ? [{ Icon: FileText, label: 'Suivre les factures', detail: 'Consulter les factures impayées', prompt: 'Quelles factures sont impayées ?' }] : []),
+              ].map(({ Icon, label, detail, prompt }) => <button type="button" key={label} disabled={busy || !!agentPolicy?.blocked} onClick={() => void send(prompt)}><span className="atlas-agent-card-icon"><Icon size={17} /></span><span><strong>{label}</strong><small>{detail}</small></span><ArrowUpRight size={15} className="atlas-agent-card-arrow" /></button>)}
+            </div>
+            <div className="atlas-agent-context"><span /> Page actuelle : <strong>{page.title}</strong></div>
+          </section>}
           {loadingThread && !msgs.some((m) => m.role === 'user') && <AtlasAgentShimmerBody rows={2} />}
-          {!(loadingThread && !msgs.some((m) => m.role === 'user')) && msgs.filter((m) => !(m.streaming && !String(m.text || '').trim())).map((m, i) => (
+          {!(loadingThread && !msgs.some((m) => m.role === 'user')) && msgs.map((m, i) => ((m.streaming && !String(m.text || '').trim()) || (i === 0 && m.role === 'assistant' && m.text === WELCOME.text)) ? null : (
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
               <span className="atlas-agent-msg-label">{m.role === 'assistant' ? 'Atlas Agent' : 'Vous'}</span>
               <div className="atlas-agent-bubble">
@@ -1731,10 +1745,10 @@ export default function AtlasAgent() {
               )}
             </div>
           ))}
-          {busy && (
+          {busy && (!hasStreamingText || liveTools.length > 0 || activeTool) && (
             <div className="atlas-agent-msg assistant">
               <span className="atlas-agent-msg-label">Atlas Agent</span>
-              <div className="atlas-agent-bubble thinking atlas-agent-thinking-row" role="status">
+              {!hasStreamingText && <div className="atlas-agent-bubble thinking atlas-agent-thinking-row" role="status">
 
                 <LatticeLoader
                   status="working"
@@ -1757,7 +1771,7 @@ export default function AtlasAgent() {
                 <button type="button" className="atlas-agent-stop secondary" onClick={stop} title="Arrêter la réception ; une action déjà lancée peut se poursuivre">
                   Arrêter
                 </button>
-              </div>
+              </div>}
               {(liveTools.length > 0 || activeTool) && <div className="atlas-agent-live-activity" aria-label="Activité des outils">
                 <strong>Activité</strong>
                 {liveTools.map((tool, index) => <div key={index}><span>{toolLabel(tool.name)}</span><span>{tool.ok ? 'Terminé' : 'Échec'}</span></div>)}
@@ -1906,6 +1920,7 @@ export default function AtlasAgent() {
           )}
           {!agentPolicy?.blocked && (
           <PromptBar
+            key={threadId}
             placeholder="Écrire un message…"
             sources={[
               {

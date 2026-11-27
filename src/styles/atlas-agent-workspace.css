@@ -1,0 +1,62 @@
+/* Atlas Agent workspace — scoped to the dock, not global app surfaces. */
+html body aside.atlas-agent-panel {
+  --agent-surface: #fff; --agent-canvas: #f8faf9; --agent-ink: #18231f;
+  --agent-muted: #687a72; --agent-line: #e4ebe7; --agent-accent: #167a5b;
+  background: var(--agent-canvas) !important; color: var(--agent-ink) !important;
+}
+html body aside.atlas-agent-panel .atlas-agent-head {
+  position: relative; z-index: 4; min-height: 66px; padding: 12px 14px !important;
+  background: var(--agent-surface) !important; border-color: var(--agent-line) !important;
+}
+.atlas-agent-header-title { display: flex; align-items: center; gap: 9px; min-width: 0; flex: 1; }
+html body aside.atlas-agent-panel .atlas-agent-head .atlas-agent-header-mark {
+  display: grid; place-items: center; width: 36px; height: 36px; flex: none; margin: 0;
+  border-radius: 12px; color: #fff !important; background: #164f40; box-shadow: 0 4px 12px #164f4029;
+}
+html body aside.atlas-agent-panel .atlas-agent-head button.atlas-agent-history-trigger:not(#agent-ui-a) {
+  display: flex !important; align-items: center; gap: 6px; min-width: 0; padding: 3px 0 !important;
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+  color: var(--agent-ink) !important; text-align: start;
+}
+html body aside.atlas-agent-panel .atlas-agent-history-trigger > span { display: flex; flex-direction: column; min-width: 0; margin: 0 !important; }
+html body aside.atlas-agent-panel .atlas-agent-history-trigger small { color: var(--agent-muted); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+html body aside.atlas-agent-panel .atlas-agent-history-trigger strong { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px !important; color: var(--agent-ink) !important; }
+.atlas-agent-history-popover { position: absolute; inset-inline-start: 12px; top: calc(100% - 4px); width: min(320px, calc(100vw - 32px)); padding: 9px; border: 1px solid var(--agent-line); background: var(--agent-surface); border-radius: 15px; box-shadow: 0 16px 45px #12241b26; z-index: 10; }
+.atlas-agent-history-search { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--agent-line); border-radius: 10px; color: var(--agent-muted); }
+html body aside.atlas-agent-panel .atlas-agent-history-search input { width: 100%; height: 36px; border: 0 !important; outline: 0; box-shadow: none !important; background: transparent !important; color: var(--agent-ink) !important; font-size: 13px; }
+.atlas-agent-history-caption { padding: 12px 8px 6px; color: var(--agent-muted); font-size: 11px; font-weight: 700; }
+.atlas-agent-history-list { max-height: 240px; overflow-y: auto; }
+.atlas-agent-history-list p { padding: 4px 8px; color: var(--agent-muted); font-size: 12px; }
+html body aside.atlas-agent-panel button.atlas-agent-history-choice:not(#agent-ui-a),
+html body aside.atlas-agent-panel button.atlas-agent-history-new:not(#agent-ui-a) { width: 100%; min-height: 37px; display: flex; align-items: center; gap: 8px; padding: 8px !important; border: 0 !important; border-radius: 9px !important; background: transparent !important; color: var(--agent-ink) !important; box-shadow: none !important; text-align: start; font-size: 12px; }
+html body aside.atlas-agent-panel button.atlas-agent-history-choice:hover,
+html body aside.atlas-agent-panel button.atlas-agent-history-choice.is-current { background: #e9f3ee !important; color: #12583f !important; }
+.atlas-agent-history-choice span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html body aside.atlas-agent-panel button.atlas-agent-history-new { border-top: 1px solid var(--agent-line) !important; border-radius: 0 !important; margin-top: 6px; font-weight: 700; }
+html body aside.atlas-agent-panel .atlas-agent-body:not(#agent-ui-a):not(#agent-ui-b) { padding: 18px 16px 14px !important; background: var(--agent-canvas) !important; gap: 18px !important; }
+.atlas-agent-welcome { margin: auto 0; padding: 20px 2px; text-align: center; color: var(--agent-ink); }
+.atlas-agent-welcome-art { position: relative; display: grid; place-items: center; width: 82px; height: 82px; margin: 0 auto 19px; border-radius: 28px; background: linear-gradient(145deg, #d9f2e4, #eff9f4); color: #177b5a; transform: rotate(-6deg); }
+.atlas-agent-welcome-art > svg { z-index: 1; transform: rotate(6deg); }
+.atlas-agent-welcome-art span { position: absolute; width: 17px; height: 17px; border-radius: 6px; background: #b5e6cd; top: -5px; inset-inline-end: 5px; }
+.atlas-agent-welcome-art span + span { width: 10px; height: 10px; top: auto; bottom: 6px; inset-inline-start: -5px; background: #75c6a0; }
+.atlas-agent-welcome-eyebrow { margin: 0 0 7px; color: var(--agent-accent); font-size: 10px; letter-spacing: .13em; font-weight: 800; }
+.atlas-agent-welcome h2 { margin: 0; font-size: 24px; line-height: 1.2; letter-spacing: -.04em; color: var(--agent-ink); }
+.atlas-agent-welcome-sub { margin: 8px 0 22px; font-size: 13px; color: var(--agent-muted); }
+.atlas-agent-welcome-cards { display: grid; gap: 8px; width: 100%; max-width: 350px; margin: 0 auto; }
+html body aside.atlas-agent-panel .atlas-agent-welcome-cards button:not(#agent-ui-a):not(#agent-ui-b) { display: flex !important; align-items: center; gap: 11px; width: 100%; min-height: 62px; padding: 10px 12px !important; border: 1px solid var(--agent-line) !important; border-radius: 13px !important; background: var(--agent-surface) !important; color: var(--agent-ink) !important; box-shadow: 0 2px 5px #10291d08 !important; text-align: start; }
+html body aside.atlas-agent-panel .atlas-agent-welcome-cards button:hover { border-color: #91cbb0 !important; transform: translateY(-1px); }
+.atlas-agent-card-icon { width: 36px; height: 36px; display: grid; place-items: center; flex: none; border-radius: 10px; color: #167a5b; background: #edf8f1; }
+.atlas-agent-welcome-cards button > span:nth-child(2) { flex: 1; min-width: 0; }
+.atlas-agent-welcome-cards strong, .atlas-agent-welcome-cards small { display: block; }
+.atlas-agent-welcome-cards strong { font-size: 12.5px; font-weight: 700; }
+.atlas-agent-welcome-cards small { margin-top: 3px; font-size: 11.5px; color: var(--agent-muted); }
+.atlas-agent-card-arrow { color: #9aaba1; }
+.atlas-agent-context { display: inline-flex; align-items: center; gap: 5px; margin-top: 23px; color: var(--agent-muted); font-size: 11px; }
+.atlas-agent-context span { width: 6px; height: 6px; border-radius: 50%; background: #2ea678; }
+html body aside.atlas-agent-panel .atlas-agent-foot { background: var(--agent-canvas) !important; border-color: var(--agent-line) !important; padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)) !important; }
+html body aside.atlas-agent-panel .atlas-agent-foot .prompt-bar__field { border-radius: 16px !important; border-color: var(--agent-line) !important; background: var(--agent-surface) !important; }
+html body aside.atlas-agent-panel .atlas-agent-foot .prompt-bar__field:focus-within { border-color: #62ae89 !important; box-shadow: 0 0 0 3px #70bd9726 !important; }
+html body aside.atlas-agent-panel .atlas-agent-msg.user .atlas-agent-bubble { background: #e5f3eb !important; border-color: #d3eade !important; color: #17372a !important; }
+html body aside.atlas-agent-panel .atlas-agent-msg.assistant .atlas-agent-bubble:not(.thinking) { background: var(--agent-surface) !important; border-color: var(--agent-line) !important; color: var(--agent-ink) !important; }
+html body aside.atlas-agent-panel .atlas-agent-live-activity { border-inline-start: 2px solid #afdcc5; padding-inline-start: 10px; color: var(--agent-muted); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .atlas-agent-welcome-cards button { transition: none !important; } }

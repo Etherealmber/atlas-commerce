@@ -8036,3 +8036,30 @@ html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-head-actions .atlas
 }
 html body .atlas-agent-panel .atlas-agent-body:not(#agent-ui-a):not(#agent-ui-b) { gap: 16px !important; }
 html body .atlas-agent-panel .atlas-agent-bubble:not(#agent-ui-a):not(#agent-ui-b) { line-height: 1.6 !important; font-weight: 400 !important; }
+
+/* Atlas Agent workspace — dark surfaces and readable controls. */
+html[data-theme="dark"] body aside.atlas-agent-panel:not(#agent-workspace-a):not(#agent-workspace-b) {
+  --agent-surface: #191e1c; --agent-canvas: #101513; --agent-ink: #edf5f0;
+  --agent-muted: #a3b4aa; --agent-line: #34423a; --agent-accent: #82d7ab;
+  background: var(--agent-canvas) !important; color: var(--agent-ink) !important;
+}
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-head:not(#agent-workspace-a),
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-history-popover { background: var(--agent-surface) !important; border-color: var(--agent-line) !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-body:not(#agent-ui-a):not(#agent-ui-b),
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-foot:not(#agent-workspace-a) { background: var(--agent-canvas) !important; border-color: var(--agent-line) !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-welcome-cards button:not(#agent-ui-a):not(#agent-ui-b),
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-foot .prompt-bar__field:not(#agent-workspace-a) { background: var(--agent-surface) !important; border-color: var(--agent-line) !important; color: var(--agent-ink) !important; -webkit-text-fill-color: var(--agent-ink) !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-history-trigger:not(#agent-ui-a),
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-history-choice:not(#agent-ui-a),
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-history-new:not(#agent-ui-a),
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-history-search input { color: var(--agent-ink) !important; -webkit-text-fill-color: var(--agent-ink) !important; background: transparent !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-history-choice.is-current:not(#agent-ui-a),
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-history-choice:hover:not(#agent-ui-a) { background: #263d31 !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-welcome h2,
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-history-trigger strong { color: var(--agent-ink) !important; -webkit-text-fill-color: var(--agent-ink) !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-welcome-sub,
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-welcome-cards small { color: var(--agent-muted) !important; -webkit-text-fill-color: var(--agent-muted) !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-welcome-art { background: linear-gradient(145deg, #204735, #1d3328); color: #a0e6be; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-card-icon { background: #263e31; color: #9de1ba; -webkit-text-fill-color: currentColor; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-msg.user .atlas-agent-bubble:not(#agent-workspace-a) { background: #243b2e !important; border-color: #365540 !important; color: #e4f5e9 !important; -webkit-text-fill-color: #e4f5e9 !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-msg.assistant .atlas-agent-bubble:not(.thinking):not(#agent-workspace-a) { background: var(--agent-surface) !important; border-color: var(--agent-line) !important; color: var(--agent-ink) !important; -webkit-text-fill-color: var(--agent-ink) !important; }
