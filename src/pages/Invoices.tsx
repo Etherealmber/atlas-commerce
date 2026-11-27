@@ -186,12 +186,12 @@ export default function Invoices() {
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
     else setLoading(true);
-    Promise.all([api.getInvoices(filter || undefined), api.getProducts(), api.getClients()])
-      .then(([i, p, c]) => { setList(i.data); setProducts(p.data); setClients(c.data); })
-      .finally(() => {
-        setLoading(false);
-        setRefreshing(false);
-      });
+    void api.getInvoices(filter || undefined)
+      .then(i => setList(i.data || []))
+      .catch(() => { /* preserve the last list; API reports the error */ })
+      .finally(() => { setLoading(false); setRefreshing(false); });
+    void api.getProducts().then(p => setProducts(p.data || [])).catch(() => {});
+    void api.getClients().then(c => setClients(c.data || [])).catch(() => {});
   };
   
   useEffect(() => {

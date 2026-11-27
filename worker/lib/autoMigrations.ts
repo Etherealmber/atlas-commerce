@@ -38,5 +38,5 @@ export function requiresAutoSqlMigrations(method: string, path: string): boolean
   if (verb === 'GET' && path === '/api/admin/agent/threads') return false;
   if ((verb === 'GET' || verb === 'PUT' || verb === 'DELETE') && /^\/api\/admin\/agent\/threads\/[^/]+$/.test(path)) return false;
   if (verb !== 'GET') return true;
-  return !['/api/dashboard', '/api/admin/journal-mode', '/api/admin/audit', '/api/admin/api-log', '/api/admin/journal-buffer-status', '/api/admin/journal-archive', '/api/admin/journal-archive/item'].includes(path);
+  return !['/api/products', '/api/clients', '/api/vendors', '/api/invoices', '/api/bills', '/api/dashboard', '/api/admin/journal-mode', '/api/admin/audit', '/api/admin/api-log', '/api/admin/journal-buffer-status', '/api/admin/journal-archive', '/api/admin/journal-archive/item'].includes(path);
 }

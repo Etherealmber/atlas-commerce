@@ -114,26 +114,19 @@ export default function QuickSale() {
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
     else setLoading(true);
-    Promise.all([
-      api.getInvoices(filter || undefined, { kind: 'quick_sale' }).catch(() => ({ data: [] })),
-      api.getProducts({ include_variants: true } as any).catch(() => ({ data: [] })),
-      api.getClients().catch(() => ({ data: [] })),
-      api.getInvoices(undefined, { kind: 'all' } as any).catch(() => ({ data: [] })),
-    ])
-      .then(([i, p, c, all]: any[]) => {
-        setList(i.data || []);
-        setProducts(p.data || []);
-        setClients(c.data || []);
-        const allArr: any[] = all.data || [];
-        const isVR = (x: any) => /^VR[-/]/.test(x.number || '') || ['quick_sale', 'ticket'].includes(x.doc_kind || '');
-        const isWR = (x: any) => /^WR[-/]/.test(x.number || '') || (x.doc_kind || '') === 'remboursement';
-        setCashIn(allArr.filter((x) => isVR(x) && x.status === 'paid').reduce((s2, x) => s2 + (Number(x.amount_paid) || Number(x.total) || 0), 0));
-        setWrTotal(allArr.filter((x) => isWR(x) && x.status !== 'cancelled').reduce((s2, x) => s2 + (Number(x.total) || 0), 0));
-      })
-      .finally(() => {
-        setLoading(false);
-        setRefreshing(false);
-      });
+    void api.getInvoices(filter || undefined, { kind: 'quick_sale' })
+      .then(i => setList(i.data || []))
+      .catch(() => { /* preserve the last list; API reports the error */ })
+      .finally(() => { setLoading(false); setRefreshing(false); });
+    void api.getProducts({ include_variants: true } as any).then(p => setProducts(p.data || [])).catch(() => {});
+    void api.getClients().then(c => setClients(c.data || [])).catch(() => {});
+    void api.getInvoices(undefined, { kind: 'all' }).then(all => {
+      const allArr: any[] = all.data || [];
+      const isVR = (x: any) => /^VR[-/]/.test(x.number || '') || ['quick_sale', 'ticket'].includes(x.doc_kind || '');
+      const isWR = (x: any) => /^WR[-/]/.test(x.number || '') || (x.doc_kind || '') === 'remboursement';
+      setCashIn(allArr.filter((x) => isVR(x) && x.status === 'paid').reduce((s2, x) => s2 + (Number(x.amount_paid) || Number(x.total) || 0), 0));
+      setWrTotal(allArr.filter((x) => isWR(x) && x.status !== 'cancelled').reduce((s2, x) => s2 + (Number(x.total) || 0), 0));
+    }).catch(() => {});
   };
   
   useEffect(() => {

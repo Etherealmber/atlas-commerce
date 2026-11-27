@@ -193,13 +193,10 @@ export default function Products() {
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
     else setLoading(true);
-    Promise.all([
-      api.getProducts({ limit: 200 }),
-      api.getStockLocations().catch(() => ({ data: [] as any[] })),
-    ])
-      .then(([prodRes, locRes]: any[]) => {
+    void api.getStockLocations().then(locRes => setStockLocations(locRes?.data || [])).catch(() => {});
+    api.getProducts({ limit: 200 })
+      .then(prodRes => {
         setList(prodRes.data || []);
-        setStockLocations(locRes?.data || []);
         // Placements load on demand via loadPlacements() — avoids N+1 on list
       })
       .catch((e: any) => {
