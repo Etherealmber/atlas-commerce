@@ -1,10 +1,11 @@
 import { finishAgentReply } from '../lib/agentMessages';
-import { ChevronDown, Plus, PackageSearch, ListChecks, FileText, ArrowUpRight, Sparkles, Search, Maximize2, Minimize2, Trash2 } from 'lucide-react';
+import { ChevronDown, Plus, PackageSearch, ListChecks, FileText, ArrowUpRight, Search, Maximize2, Minimize2, Trash2 } from 'lucide-react';
 /**
  * Atlas Agent — dock + P0/P1/P2: citations, tools, drafts, stream UX, history, voice, role chips.
  */
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import LatticeLoader from './ui/LatticeLoader';
+import AtlasAgentMascot from '../mobile/AtlasAgentMascot';
 import ConfirmDialog from './ConfirmDialog';
 import { AtlasAgentShimmerBody } from './PageSkeleton';
 import { bumpAtlasLayer } from './GlobalSearchPanel';
@@ -566,6 +567,7 @@ export default function AtlasAgent() {
   });
   const [threads, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [mascotHint, setMascotHint] = useState('');
   const [historySearch, setHistorySearch] = useState('');
   const [historyError, setHistoryError] = useState(false);
   const [historyPending, setHistoryPending] = useState(false);
@@ -575,7 +577,7 @@ export default function AtlasAgent() {
   const [expanded, setExpanded] = useState(() => {
     try { return localStorage.getItem('atlas_agent_expanded') === '1'; } catch { return false; }
   });
-  useEffect(() => { try { localStorage.setItem('atlas_agent_expanded', expanded ? '1' : '0'); } catch { /* storage unavailable */ } }, [expanded]);
+  useEffect(() => { try { localStorage.setItem('atlas_agent_expanded', expanded ? '1' : '0'); } catch { /* storage unavailable */ } setHistoryOpen(false); }, [expanded]);
   const [showExtras, setShowExtras] = useState<boolean>(() => {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
   });
@@ -1418,29 +1420,45 @@ export default function AtlasAgent() {
   const hideAgent = ['/settings', '/about', '/whats-new', '/login', '/welcome', '/privacy', '/terms', '/licenses'].some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
   );
+  useEffect(() => {
+    if (open || isPhoneShell || hideAgent) { setMascotHint(''); return; }
+    const suggestions = ['Besoin d’aide ? Touchez-moi !', 'Une question sur cette page ? Je peux vous aider.', 'Un coup de main avec votre stock ?', 'Je suis là si vous avez besoin d’aide.'];
+    let timer: ReturnType<typeof setTimeout>;
+    let hideTimer: ReturnType<typeof setTimeout>;
+    const cycle = () => {
+      if (document.visibilityState !== 'hidden' && !document.querySelector('.modal-overlay, .modal-backdrop, .ph-modal-bg')) {
+        setMascotHint(suggestions[Math.floor(Math.random() * suggestions.length)]);
+        try { sessionStorage.setItem('atlas_agent_hint_at', String(Date.now())); } catch { /* storage unavailable */ }
+        hideTimer = setTimeout(() => setMascotHint(''), 12000);
+      }
+      timer = setTimeout(cycle, 300000 + Math.random() * 60000);
+    };
+    let last = 0;
+    try { last = Number(sessionStorage.getItem('atlas_agent_hint_at')) || 0; } catch { /* storage unavailable */ }
+    timer = setTimeout(cycle, Math.max(15000, last + 300000 - Date.now()));
+    return () => { clearTimeout(timer); clearTimeout(hideTimer); };
+  }, [open, isPhoneShell, hideAgent, location.pathname]);
   if (hideAgent) return null;
 
+  const openAgent = () => {
+    setMascotHint(''); setOpen(true);
+    try { document.documentElement.classList.add('atlas-agent-docked'); sessionStorage.setItem(OPEN_KEY, '1'); } catch { /* storage unavailable */ }
+  };
   return (
     <>
+{!isPhoneShell && !open && mascotHint && <div className="atlas-agent-mascot-hint" role="status">
+  <button type="button" className="atlas-agent-hint-open" onClick={openAgent}>{mascotHint}</button>
+  <button type="button" className="atlas-agent-hint-close" aria-label="Masquer le conseil" onClick={() => setMascotHint('')}>×</button>
+</div>}
 {!isPhoneShell && !open && (
             <button
         type="button"
         className="atlas-agent-fab atlas-agent-fab-premium"
         aria-label="Ouvrir Atlas Agent"
         title="Atlas Agent"
-        onClick={() => {
-          setOpen(true);
-          try {
-            document.documentElement.classList.add('atlas-agent-docked');
-            sessionStorage.setItem(OPEN_KEY, '1');
-          } catch { /* */ }
-        }}
+        onClick={openAgent}
       >
-        <span className="atlas-agent-fab-ring" aria-hidden />
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round">
-          <path d="M12 3l1.6 4.8L18.5 9.5l-4.9 1.6L12 16l-1.6-4.9L5.5 9.5l4.9-1.7L12 3z" />
-          <path d="M19 4v3M17.5 5.5h3" strokeWidth="1.5" />
-        </svg>
+        <AtlasAgentMascot size={46} />
       </button>
       )}
 
@@ -1456,7 +1474,7 @@ export default function AtlasAgent() {
           }}
         />
         {expanded && !isPhoneShell && <nav className="atlas-agent-workspace-sidebar" aria-label="Conversations Atlas Agent">
-          <div className="atlas-agent-workspace-brand"><span className="atlas-agent-sidebar-mark"><Sparkles size={16} /></span><strong>Atlas Agent</strong></div>
+          <div className="atlas-agent-workspace-brand"><span className="atlas-agent-sidebar-mark"><AtlasAgentMascot size={32} /></span><strong>Atlas Agent</strong></div>
           <button type="button" className="atlas-agent-sidebar-new" disabled={busy || loadingThread || syncStatus === 'pending' || syncStatus === 'saving'} onClick={() => switchThread(newThreadId())}><Plus size={16} /> Nouvelle conversation</button>
           <label className="atlas-agent-history-search"><Search size={15} aria-hidden="true" /><input aria-label="Rechercher dans les conversations" placeholder="Rechercher…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /></label>
           <div className="atlas-agent-history-caption">Conversations récentes</div>
@@ -1470,7 +1488,8 @@ export default function AtlasAgent() {
         <div className="atlas-agent-main">
         <header className="atlas-agent-head">
           <div className="atlas-agent-header-title">
-            <span className="atlas-agent-header-mark" aria-hidden="true"><Sparkles size={17} /></span>
+            <span className="atlas-agent-header-mark" aria-hidden="true"><AtlasAgentMascot size={36} /></span>
+            <span className="atlas-agent-workspace-title">{activeTitle}</span>
             <button type="button" className="atlas-agent-history-trigger" aria-label="Historique des conversations" aria-expanded={historyOpen} aria-controls="atlas-agent-history-menu" onClick={() => setHistoryOpen((value) => !value)}>
               <span><small>ATLAS AGENT</small><strong>{activeTitle}</strong></span><ChevronDown size={15} aria-hidden="true" />
             </button>
@@ -1549,7 +1568,7 @@ export default function AtlasAgent() {
 
         <div className="atlas-agent-body" role="log" aria-label="Conversation Atlas Agent" aria-live="polite" aria-relevant="additions">
           {showWelcome && <section className="atlas-agent-welcome" aria-label="Bienvenue dans Atlas Agent">
-            <div className="atlas-agent-welcome-art" aria-hidden="true"><span /><span /><Sparkles size={29} /></div>
+            <div className="atlas-agent-welcome-art" aria-hidden="true"><AtlasAgentMascot size={66} /></div>
             <p className="atlas-agent-welcome-eyebrow">VOTRE ASSISTANT ATLAS</p>
             <h2>{timeGreeting().hello}.</h2>
             <p className="atlas-agent-welcome-sub">Comment puis-je vous aider aujourd’hui ?</p>
@@ -1588,8 +1607,8 @@ export default function AtlasAgent() {
                 </div>
               )}
 
-              <span className="atlas-agent-msg-label">{m.role === 'assistant' ? 'Atlas Agent' : 'Vous'}</span>
               <div className="atlas-agent-bubble">
+                <span className={m.role === 'assistant' ? 'atlas-agent-msg-label' : 'sr-only'}>{m.role === 'assistant' ? 'Atlas Agent' : 'Vous'}</span>
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
                 {m.role === 'user' && ((m as any).fileNames || []).length ? (
                   <div className="atlas-agent-msg-files">
@@ -1803,7 +1822,6 @@ export default function AtlasAgent() {
           ))}
           {busy && (!hasStreamingText || liveTools.length > 0 || activeTool) && (
             <div className="atlas-agent-msg assistant">
-              <span className="atlas-agent-msg-label">Atlas Agent</span>
               {!hasStreamingText && <div className="atlas-agent-bubble thinking atlas-agent-thinking-row" role="status">
 
                 <LatticeLoader
