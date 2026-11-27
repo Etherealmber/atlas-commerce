@@ -104,3 +104,16 @@ it('does not fall back to D1 or R2 if Supabase configuration is missing', async 
   expect(put).not.toHaveBeenCalled();
   expect(f.pending.size).toBe(0);
 });
+it('reports safe actionable diagnostics to owners without exposing upstream details', async () => {
+  const f = setup(); const app = new Hono<any>();
+  registerUsersAdminRoutes(app, { requireOwner: () => ({ ok: true, username: 'owner' }) } as any);
+  delete f.env.SUPABASE_JOURNAL_SECRET;
+  let res = await app.request('/api/admin/audit', {}, f.env);
+  expect(await res.json()).toMatchObject({ code: 'JOURNAL_SUPABASE_UNAVAILABLE', reason: 'configuration' });
+  f.env.SUPABASE_JOURNAL_SECRET = 'sb_secret_test';
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('secret internals', { status: 404 })));
+  res = await app.request('/api/admin/audit', {}, f.env);
+  const data: any = await res.json();
+  expect(data.reason).toBe('schema');
+  expect(JSON.stringify(data)).not.toContain('secret internals');
+});
