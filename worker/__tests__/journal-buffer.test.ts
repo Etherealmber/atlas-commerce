@@ -27,7 +27,7 @@ describe('encrypted journal outbox building block', () => {
   it('reports a bounded backlog and alarm without exposing journal data', async () => {
     const f = setup(); await f.enqueue();
     const res = await f.buffer.fetch(new Request('https://journal/health'));
-    expect(await res.json()).toEqual({ pending_at_least: 1, has_more: false, alarm_scheduled: true });
+    expect(await res.json()).toEqual({ pending_at_least: 1, has_more: false, alarm_scheduled: true, last_failure: null });
   });
   it('accepts identical retries but refuses conflicting ciphertext', async () => {
     const f = setup(); expect((await f.enqueue()).status).toBe(202); expect((await f.enqueue()).status).toBe(202);

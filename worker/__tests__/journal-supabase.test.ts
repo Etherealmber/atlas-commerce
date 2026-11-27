@@ -117,3 +117,23 @@ it('reports safe actionable diagnostics to owners without exposing upstream deta
   expect(data.reason).toBe('schema');
   expect(JSON.stringify(data)).not.toContain('secret internals');
 });
+it('reports a sanitized queue failure to an owner and clears it after successful drain', async () => {
+  const f = setup();
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('key and URL must not leak', { status: 403 })));
+  await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'safe diagnostic' }));
+  await f.buffer.alarm();
+  const app = new Hono<any>();
+  registerUsersAdminRoutes(app, { requireOwner: () => ({ ok: true, username: 'owner' }) } as any);
+  delete f.env.SUPABASE_JOURNAL_SECRET; // health remains available even with broken config
+  let response = await app.request('/api/admin/journal-buffer-status', {}, f.env);
+  const data: any = await response.json();
+  expect(data.data.last_failure.reason).toBe('credentials');
+  expect(data.data.config_valid).toBe(false);
+  expect(data.data.pending_at_least).toBe(1);
+  expect(JSON.stringify(data)).not.toMatch(/key and URL|safe diagnostic|sb_secret/);
+  f.env.SUPABASE_JOURNAL_SECRET = 'sb_secret_test';
+  vi.stubGlobal('fetch', vi.fn(async (_url: string, init: any) => Response.json({ accepted: true, count: JSON.parse(init.body).p_items.length })));
+  await f.buffer.alarm();
+  response = await app.request('/api/admin/journal-buffer-status', {}, f.env);
+  expect((await response.json() as any).data).toMatchObject({ pending_at_least: 0, last_failure: null });
+});
