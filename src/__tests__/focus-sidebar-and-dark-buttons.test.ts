@@ -439,6 +439,7 @@ describe('FocusSidebar, clean focus topbar, and dark-mode button contrast', () =
     vi.spyOn(api, 'getMe').mockResolvedValue({ data: { is_owner: true, role: 'owner', username: 'admin' } } as any);
     vi.spyOn(api, 'getAdminUsers').mockResolvedValue({ data: { owner: null, users: [] } } as any);
     vi.spyOn(api, 'getAdminConfig').mockResolvedValue({ data: {} } as any);
+    vi.spyOn(api, 'getJournalMode').mockResolvedValue({ data: { mode: 'legacy' } });
     const auditSpy = vi.spyOn(api, 'getAuditLog').mockResolvedValue({
       data: [
         {

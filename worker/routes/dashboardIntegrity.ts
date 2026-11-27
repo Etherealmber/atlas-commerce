@@ -289,7 +289,6 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
     const limited = refreshLimitGate(c, 'nav-badges', 45);
     if (limited) return limited;
     try {
-      await ensureCoreIndexes(c.env.DB);
       const canSeePayroll = !(await requireEmployeeAdmin(c));
       const NAV_BADGES_TTL = 300;
       const cached = await doCacheGet<any>(c.env.MOBILE_HUB, c.env.CACHE, 'nav-badges', NAV_BADGES_TTL);
@@ -298,6 +297,7 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
           'Cache-Control': 'private, max-age=60',
         });
       }
+      await ensureCoreIndexes(c.env.DB);
       const [invRow, billRow, lowStock, pendingActions, employees_pay_due] = await Promise.all([
         c.env.DB.prepare(
           `SELECT
@@ -399,7 +399,6 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
         meta: { privacy: 'inventory-policy' },
       });
     }
-    await ensureCoreIndexes(c.env.DB);
     // DO + memory cache reduces D1 reads & avoids KV write limits.
     const ttl = Math.max(120, Math.min(1800, Number(c.env.CACHE_TTL_SECONDS || DEFAULT_CACHE_TTL)));
     const cached = await doCacheGet<any>(c.env.MOBILE_HUB, c.env.CACHE, 'dash', ttl);
@@ -407,6 +406,7 @@ export function registerDashboardIntegrityRoutes(app: Hono<any>, deps: Dashboard
       return c.json({ success: true, data: cached, meta: { cache: 'hit' } });
     }
   
+    await ensureCoreIndexes(c.env.DB);
     await ensurePaymentHistoryTable(c.env.DB);
     await ensureInvoiceRefundColumns(c.env.DB);
     await ensureExpenseTypeColumn(c.env.DB);

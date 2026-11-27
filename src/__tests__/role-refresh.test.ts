@@ -50,3 +50,15 @@ it('discards an in-flight old-account response after switching accounts', async 
   await expect(request).rejects.toThrow('La session a changé');
   expect(getToken()).toBe('bob-token');
 });
+
+it('does not retry a D1 quota error or a server-requested cooldown', async () => {
+  for (const [body, headers] of [
+    [{ code: 'DB_QUOTA_EXCEEDED', error: 'Quota atteint' }, {}],
+    [{ code: 'SERVICE_UNAVAILABLE', error: 'Initialisation en cours' }, { 'Retry-After': '3' }],
+  ] as const) {
+    const mock = vi.fn(async () => new Response(JSON.stringify(body), { status: 503, headers: { 'Content-Type': 'application/json', ...headers } }));
+    vi.stubGlobal('fetch', mock);
+    await expect(api.getDashboard()).rejects.toMatchObject({ code: body.code });
+    expect(mock).toHaveBeenCalledTimes(1);
+  }
+});

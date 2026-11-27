@@ -33,7 +33,7 @@ function statusTone(st: number) {
  * Retention is not guaranteed until verified archival and purge are active. Each row shows the city, country and operator (VPN flag),
  * with inspectable request details.
  */
-export default function ApiLogPanel({ range, dockActions = true }: { range: Range; dockActions?: boolean }) {
+export default function ApiLogPanel({ range, dockActions = true, forceR2 = false }: { range: Range; dockActions?: boolean; forceR2?: boolean }) {
   useLang();
   const [rows, setRows] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -41,7 +41,7 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
   const generation = useRef(0);
   const lastAttempt = useRef(0);
   const [error, setError] = useState(false);
-  const [r2Only, setR2Only] = useState(false);
+  const [r2Only, setR2Only] = useState(forceR2);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusFilter>('');
   const [q, setQ] = useState('');
@@ -84,15 +84,16 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
   }, [range, status, q]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load(null, true); }, [range, status]);
+  useEffect(() => { if (!forceR2) void load(null, true); }, [range, status, forceR2]);
   useEffect(() => {
+    if (forceR2 || r2Only) return;
     const refreshIfStale = () => {
       if (document.visibilityState === 'visible' && stack.length === 1 && Date.now() - lastAttempt.current >= 300_000) void load(null, true);
     };
     const timer = window.setInterval(refreshIfStale, 60_000);
     document.addEventListener('visibilitychange', refreshIfStale);
     return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', refreshIfStale); };
-  }, [load, stack.length]);
+  }, [load, stack.length, forceR2, r2Only]);
   useEffect(() => () => { generation.current++; }, []);
 
   const days = Array.isArray(stats?.by_day) ? stats.by_day.slice(-14) : [];
@@ -252,16 +253,23 @@ function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const generation = useRef(0);
   const load = async (next?: string) => {
+    const requestId = ++generation.current;
     setBusy(true); setMessage('');
     try {
       const result = await api.listJournalArchive(day, next, kind);
+      if (requestId !== generation.current) return;
       setKeys(current => next ? [...current, ...result.data] : result.data);
       setCursor(result.meta.next_cursor);
       if (!result.data.length && !next) setMessage(t('Aucune entrée archivée pour cette date.'));
-    } catch { setKeys([]); setCursor(null); setMessage(t('Archive indisponible ou non configurée.')); }
-    finally { setBusy(false); }
+    } catch { if (requestId === generation.current) { setKeys([]); setCursor(null); setMessage(t('Archive indisponible ou non configurée.')); } }
+    finally { if (requestId === generation.current) setBusy(false); }
   };
+  useEffect(() => {
+    if (r2Only && day) void load();
+    return () => { generation.current++; };
+  }, [day, kind, r2Only]);
   const open = async (key: string) => {
     setBusy(true); setMessage('');
     try { const result = await api.getJournalArchiveItem(key, kind); if (kind === 'audit') setAuditEntry(result.data); else onOpen(result.data); }

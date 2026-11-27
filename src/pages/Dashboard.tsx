@@ -138,6 +138,9 @@ export default function Dashboard() {
   const stockOnly = isStockRole();
   const [data, setData] = useState<any>(null);
   const [actions, setActions] = useState<any[]>([]);
+  const [actionsStatus, setActionsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [productsStatus, setProductsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [reload, setReload] = useState(0);
   const [products, setProducts] = useState<any[]>([]);
   const [pending, setPending] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -201,7 +204,9 @@ export default function Dashboard() {
   }, [attEmpId, attDays]);
 
   useEffect(() => {
+    if (stockOnly) return;
     let stopped = false;
+    let inFlight = false;
     let timer: number | null = null;
     let failStreak = 0;
     let lastLoadedAt = 0;
@@ -223,39 +228,37 @@ export default function Dashboard() {
     };
 
     const load = async (soft = false) => {
+      if (inFlight || stopped) return;
+      inFlight = true;
       if (!soft) setLoading(true);
       try {
-        const wantProducts = !soft || Date.now() - productsLoadedAt >= PRODUCTS_REFRESH_MS;
-        const [dash, ac, pr, st] = await Promise.all([
-          api.getDashboard().catch((e) => {
-            throw e;
-          }),
-          api.listMobileActions({ status: 'all', limit: 12 }).catch(() => ({ data: [] })),
-          wantProducts
-            // Light projection: only the columns this page shows (name, sku,
-            // stock, threshold, small artwork) — no `SELECT *`, no inline
-            // megabyte photos, no schema checks, shared DO cache.
-            ? api.getProducts({ include_variants: true, fields: 'light' }).catch(() => null)
-            : Promise.resolve(null),
-          api.getMobileActionStats().catch(() => ({ data: { pending: 0 } })),
-        ]);
+        // Render the primary dashboard as soon as it arrives. Optional lists
+        // must not keep the entire page behind a skeleton or compete with the
+        // first dashboard read on a cold D1 database.
+        const dash = await api.getDashboard();
         if (stopped) return;
         lastLoadedAt = Date.now();
         setData(dash.data);
-        setActions(ac.data || []);
-        if (pr) {
-          productsLoadedAt = Date.now();
-          setProducts(pr.data || []);
-        }
-        setPending(Number(st.data?.pending || 0));
         setError('');
+        setLoading(false);
         failStreak = 0;
+        const wantProducts = !soft || Date.now() - productsLoadedAt >= PRODUCTS_REFRESH_MS;
+        await Promise.all([
+          api.listMobileActions({ status: 'all', limit: 12 }).then((result) => { if (!stopped) { setActions(result.data || []); setActionsStatus('ready'); } }).catch(() => { if (!stopped) setActionsStatus('error'); }),
+          wantProducts
+            ? api.getProducts({ include_variants: true, fields: 'light' }).then((result) => {
+              if (!stopped) { productsLoadedAt = Date.now(); setProducts(result.data || []); setProductsStatus('ready'); }
+            }).catch(() => { if (!stopped) setProductsStatus('error'); })
+            : Promise.resolve(),
+          api.getMobileActionStats().then((result) => { if (!stopped) setPending(Number(result.data?.pending || 0)); }).catch(() => {}),
+        ]);
       } catch (e: any) {
         if (!stopped) {
           setError(e.message || 'Erreur réseau');
           failStreak += 1;
         }
       } finally {
+        inFlight = false;
         if (!stopped) {
           setLoading(false);
           schedule();
@@ -277,7 +280,7 @@ export default function Dashboard() {
       if (timer) window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, []);
+  }, [stockOnly, reload]);
 
   const filteredSeries = useMemo(() => {
     const series = data?.monthlySeries || data?.monthly_series || data?.cashflow || [];
@@ -349,6 +352,7 @@ export default function Dashboard() {
       <div className="ac-dash ac-dash-page ac-dash-error">
         <strong>Impossible de charger le tableau de bord</strong>
         <p>{error}</p>
+        <button type="button" onClick={() => setReload((n) => n + 1)}>Réessayer</button>
       </div>
     );
   }
@@ -783,7 +787,7 @@ export default function Dashboard() {
               <ArrowRight className="ac-dash-link-arrow" size={14} strokeWidth={2.25} aria-hidden="true" />
             </Link>
           </div>
-          {pendingActions.length === 0 ? (
+          {actionsStatus === 'loading' ? <p role="status">Chargement…</p> : actionsStatus === 'error' ? <p role="alert">Impossible de charger les actions.</p> : pendingActions.length === 0 ? (
             <div className="ac-dash-empty">
               <div className="ae-ico">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -822,7 +826,7 @@ export default function Dashboard() {
               <ArrowRight className="ac-dash-link-arrow" size={14} strokeWidth={2.25} aria-hidden="true" />
             </Link>
           </div>
-          {lowList.length === 0 ? (
+          {productsStatus === 'loading' ? <p role="status">Chargement…</p> : productsStatus === 'error' ? <p role="alert">Impossible de charger les produits.</p> : lowList.length === 0 ? (
             <div className="ac-dash-empty">
               <div className="atlas-empty-icon" aria-hidden><IconPackage size={32} /></div>
               <strong>Stock OK</strong>
