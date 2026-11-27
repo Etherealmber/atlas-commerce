@@ -105,6 +105,10 @@ export async function buildDemoEnv(env: Env, db: D1Database, sandboxKey: string)
   demo.ADMIN_USERNAME = DEMO_USERNAME;
   demo.ADMIN_PASSWORD = DEMO_PASSWORD;
   demo.JWT_SECRET = await sha256Hex(`atlas-demo-session|${env.JWT_SECRET || env.ADMIN_PASSWORD || 'local'}`);
+  // A demo still persists encrypted, sandbox-prefixed agent transcripts. It
+  // must not reuse production chat/backup secrets, nor a public fallback key.
+  const master = String(env.JWT_SECRET || env.ADMIN_PASSWORD || '').trim();
+  if (master) demo.AGENT_CHAT_SECRET = await sha256Hex(`atlas-demo-agent-chat|${master}|${sandboxKey}`);
   demo.OTP_FROM = 'demo@atlas.invalid';
   demo.OTP_TO = 'demo@atlas.invalid';
   demo.ATLAS_DEMO = '1';

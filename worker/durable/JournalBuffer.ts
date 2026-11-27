@@ -17,7 +17,13 @@ export class JournalBuffer {
   constructor(private readonly state: DurableObjectState, private readonly env: Env) {}
 
   async fetch(request: Request): Promise<Response> {
-    if (request.method !== 'POST' || new URL(request.url).pathname !== '/enqueue') return new Response(null, { status: 404 });
+    const path = new URL(request.url).pathname;
+    if (request.method === 'GET' && path === '/health') {
+      const entries = await this.state.storage.list({ prefix: PREFIX, limit: 101 });
+      const alarm = await this.state.storage.getAlarm();
+      return Response.json({ pending_at_least: Math.min(entries.size, 100), has_more: entries.size > 100, alarm_scheduled: alarm !== null }, { headers: { 'Cache-Control': 'no-store' } });
+    }
+    if (request.method !== 'POST' || path !== '/enqueue') return new Response(null, { status: 404 });
     const length = Number(request.headers.get('content-length') || 0);
     if (length > 150_000) return new Response(null, { status: 413 });
     const input = await request.json().catch(() => null) as { path?: unknown; ciphertext?: unknown } | null;
@@ -25,12 +31,12 @@ export class JournalBuffer {
     let bytes: Uint8Array;
     try { bytes = Uint8Array.from(atob(input.ciphertext), c => c.charCodeAt(0)); } catch { return new Response(null, { status: 400 }); }
     if (bytes.length < 32 || bytes.length > MAX_BYTES || new TextDecoder().decode(bytes.slice(0, 4)) !== 'AJR1') return new Response(null, { status: 400 });
-    const path = input.path;
-    const key = PREFIX + path;
+    const objectPath = input.path;
+    const key = PREFIX + objectPath;
     const ok = await this.state.storage.transaction(async tx => {
       const existing = await tx.get<Item>(key);
       if (existing && !equal(existing.bytes, bytes)) return false;
-      if (!existing) await tx.put(key, { path, bytes });
+      if (!existing) await tx.put(key, { path: objectPath, bytes });
       if (await tx.getAlarm() === null) await tx.setAlarm(Date.now() + 1000);
       return true;
     });

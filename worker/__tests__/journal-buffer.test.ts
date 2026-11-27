@@ -24,6 +24,11 @@ describe('encrypted journal outbox building block', () => {
     f.setFail(true); await f.buffer.alarm(); expect(f.pending.size).toBe(1);
     f.setFail(false); await f.buffer.alarm(); expect(f.pending.size).toBe(0); expect(f.objects.get(path)).toEqual(bytes);
   });
+  it('reports a bounded backlog and alarm without exposing journal data', async () => {
+    const f = setup(); await f.enqueue();
+    const res = await f.buffer.fetch(new Request('https://journal/health'));
+    expect(await res.json()).toEqual({ pending_at_least: 1, has_more: false, alarm_scheduled: true });
+  });
   it('accepts identical retries but refuses conflicting ciphertext', async () => {
     const f = setup(); expect((await f.enqueue()).status).toBe(202); expect((await f.enqueue()).status).toBe(202);
     const changed = bytes.slice(); changed[8] = 42; expect((await f.enqueue(changed)).status).toBe(409);

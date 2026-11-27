@@ -29,6 +29,7 @@ import { seedDemoData } from './seed';
 
 export const DEMO_TOKEN_PREFIX = 'atlasdemo.';
 const MAX_NEW_SANDBOXES_PER_IP_PER_DAY = 8;
+const MAX_DEMO_LOGINS_PER_IP_PER_DAY = 120;
 
 type AppFetch = (req: Request, env: Env, ctx: ExecutionContext) => Response | Promise<Response>;
 type TurnstileCheck = (env: Env, token: string, ip: string, native: boolean) => Promise<{ ok: boolean; error?: string }>;
@@ -319,6 +320,16 @@ async function handleDemoLogin(
   const ts = await verifyTurnstile(env, String(body.turnstile_token || body['cf-turnstile-response'] || ''), ip, native);
   if (!ts.ok) return json({ success: false, code: 'TURNSTILE_FAILED', error: ts.error || 'Vérification anti-robot requise.' }, 403);
 
+  // Separate public-demo abuse budget; never consume a real-account budget.
+  // Limit even resumed sessions so the gateway cannot be used without bound.
+  if (!isDevMachineHost(new URL(request.url))) {
+    const loginQuota = hubStub(env, `demo-login-ip:${(await sha256Hex(`atlas-demo-ip|${ip}`)).slice(0, 32)}`);
+    let result: any;
+    try { result = loginQuota && await callHub(loginQuota, '/ip-quota', { max: MAX_DEMO_LOGINS_PER_IP_PER_DAY }); }
+    catch { result = null; }
+    if (!result || typeof result.ok !== 'boolean') return json({ success: false, code: 'DEMO_UNAVAILABLE', error: 'Le mode démo est temporairement indisponible.' }, 503);
+    if (!result.ok) return json({ success: false, code: 'DEMO_QUOTA', error: 'Trop de connexions de démo depuis ce réseau aujourd’hui. Réessayez demain.' }, 429);
+  }
   const fp = await fingerprintHash(request, body);
   const stub = hubStub(env, `demo:${fp}`);
   if (!stub) return json({ success: false, code: 'DEMO_UNAVAILABLE', error: 'Le mode démo est indisponible sur ce déploiement.' }, 503);

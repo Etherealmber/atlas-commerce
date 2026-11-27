@@ -1558,7 +1558,7 @@ export default function AtlasAgent() {
                   >
                     <IconCopy />
                   </button>
-                  {m.prompt ? (
+                  {m.prompt && !m.failed ? (
                     <button
                       type="button"
                       className="atlas-agent-msg-act"

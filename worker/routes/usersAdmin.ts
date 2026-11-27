@@ -332,6 +332,23 @@ app.get('/api/admin/audit', async (c) => {
   });
 });
 
+/** Owner-only, bounded backlog visibility. No event content or key is returned. */
+app.get('/api/admin/journal-buffer-status', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  c.header('Cache-Control', 'no-store');
+  if (c.env.JOURNAL_ARCHIVE_MODE !== 'buffered' || !c.env.JOURNAL_BUFFER || !c.env.JOURNAL_ARCHIVE || c.env.JOURNAL_ARCHIVE === c.env.IMAGES) {
+    return c.json({ success: false, code: 'JOURNAL_UNCONFIGURED', error: 'Journal R2 non configuré.' }, 503);
+  }
+  try {
+    const stub = c.env.JOURNAL_BUFFER.get(c.env.JOURNAL_BUFFER.idFromName('journal-v1'));
+    const res = await stub.fetch('https://journal-buffer/health');
+    if (!res.ok) throw new Error('unavailable');
+    const data = await res.json();
+    return c.json({ success: true, data });
+  } catch { return c.json({ success: false, code: 'JOURNAL_UNAVAILABLE', error: 'État du journal indisponible.' }, 503); }
+});
+
 /** Owner/admin access to the optional private shadow archive; never expose bucket URLs. */
 app.get('/api/admin/journal-archive', async (c) => {
   const gate = requireOwner(c);

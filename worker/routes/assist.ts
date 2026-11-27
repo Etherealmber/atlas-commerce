@@ -1320,7 +1320,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
               model,
               system,
               message: finalMessage,
-              maxTokens: c.env.ATLAS_DEMO === '1' ? 200 : isGreeting ? 300 : 700,
+              maxTokens: c.env.ATLAS_DEMO === '1' ? 512 : isGreeting ? 768 : 1600,
               maxRounds: c.env.ATLAS_DEMO === '1' ? 1 : undefined,
               tools: chatTools,
               executor: agentKnowledgeExecutor(c, username, role, chatTools),

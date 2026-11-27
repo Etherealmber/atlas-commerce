@@ -223,6 +223,33 @@ describe('R2 agent conversation handling & backup cron D1 read reduction', () =>
     expect(r2Put).toHaveBeenCalledTimes(putCount);
   });
 
+  it('stores demo chat encrypted with an isolated derived key and returns a streaming reply', async () => {
+    const { registerAssistRoutes } = await import('../routes/assist');
+    const { buildDemoEnv } = await import('../lib/demo/demoEnv');
+    const { DemoD1 } = await import('../lib/demo/demoD1');
+    const objects = new Map<string, Uint8Array>();
+    const bucket = {
+      list: async ({ prefix }: any) => ({ objects: [...objects.keys()].filter(k => k.startsWith(prefix)).map(key => ({ key })), truncated: false }),
+      get: async (key: string) => { const data = objects.get(key); return data ? { etag: Buffer.from(data).toString('base64'), arrayBuffer: async () => data.slice().buffer } : null; },
+      put: async (key: string, value: Uint8Array) => { objects.set(key, value.slice()); return { key, etag: Buffer.from(value).toString('base64') }; },
+    };
+    const db = new DemoD1(async () => ({ ok: true, result: { columns: [], rows: [], meta: {} } }), 'fp:1');
+    const demo: any = await buildDemoEnv({ JWT_SECRET: 'private-key', IMAGES: bucket } as any, db as any, 'fp:1');
+    demo.GROQ_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('data: {"choices":[{"delta":{"content":"Réponse démo"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })));
+    const app = new Hono<any>();
+    registerAssistRoutes(app, { sessionUserFromHeader: () => ({ username: 'test', role: 'owner' }), clientIp: () => '127.0.0.1', writeAudit: async () => {} } as any);
+    const response = await app.request('/api/assist/chat/stream', { method: 'POST', headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'test', user_message: 'test', thread_id: 'demo' }) }, demo);
+    const events = await response.text();
+    expect(events).toContain('event: done');
+    expect(events).toContain('Réponse démo');
+    const [key, bytes] = [...objects.entries()][0];
+    expect(key).toBe('demo/fp:1/agent-chats/v2/test/demo.conv');
+    expect(new TextDecoder().decode(bytes.slice(0, 4))).toBe('ACH2');
+    expect(new TextDecoder().decode(bytes)).not.toContain('Réponse démo');
+    vi.unstubAllGlobals();
+  });
+
   it('POST /api/cron/backup-execute skips redundant D1 table dumps when no business mutation occurred', async () => {
     const { registerBackupRoutes } = await import('../routes/backups');
     const app = new Hono<{ Bindings: any }>();

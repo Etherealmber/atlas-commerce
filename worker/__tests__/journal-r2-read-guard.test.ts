@@ -14,3 +14,17 @@ it('never reads legacy D1 journal views in buffered R2 mode', async () => {
   }
   expect(prepare).not.toHaveBeenCalled();
 });
+
+it('allows only an owner to inspect bounded outbox health', async () => {
+  const app = new Hono<any>();
+  let allowed = false;
+  registerUsersAdminRoutes(app as any, { requireOwner: (c: any) => allowed ? { ok: true, username: 'owner' } : { ok: false, response: c.json({ error: 'Forbidden' }, 403) } } as any);
+  const fetch = vi.fn(async () => Response.json({ pending_at_least: 2, has_more: false, alarm_scheduled: true }));
+  const env = { JOURNAL_ARCHIVE_MODE: 'buffered', JOURNAL_ARCHIVE: {}, JOURNAL_BUFFER: { idFromName: () => 'id', get: () => ({ fetch }) } };
+  expect((await app.fetch(new Request('https://example.com/api/admin/journal-buffer-status'), env)).status).toBe(403);
+  expect(fetch).not.toHaveBeenCalled();
+  allowed = true;
+  const res = await app.fetch(new Request('https://example.com/api/admin/journal-buffer-status'), env);
+  expect(res.status).toBe(200);
+  expect(await res.json()).toMatchObject({ data: { pending_at_least: 2, alarm_scheduled: true } });
+});
