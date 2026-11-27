@@ -1,4 +1,4 @@
-/** Experimental encrypted R2 journal outbox. Not bound or used by production.
+/** Encrypted R2 journal outbox; buffered mode is disabled until configured.
  * Accepted items and their alarm are persisted atomically; retry writes use the
  * same immutable key and ciphertext. Does not guarantee upstream capture. */
 import type { Env } from '../env';
@@ -6,7 +6,7 @@ import type { Env } from '../env';
 const PREFIX = 'pending/';
 const MAX_BATCH = 25;
 const MAX_BYTES = 100_000;
-const PATH = /^api-journal\/v1\/\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f-]{36}\.journal$/;
+const PATH = /^(?:api|audit)-journal\/v1\/\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f-]{36}\.journal$/;
 type Item = { path: string; bytes: Uint8Array };
 
 function equal(a: Uint8Array, b: Uint8Array) {

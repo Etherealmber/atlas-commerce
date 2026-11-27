@@ -21,6 +21,7 @@ export interface Env {
   /** Optional private R2 shadow journal; never bind the public image bucket. */
   JOURNAL_ARCHIVE?: R2Bucket;
   JOURNAL_ARCHIVE_MODE?: string;
+  JOURNAL_BUFFER?: DurableObjectNamespace;
   /** Optional best-effort audit shadow, disabled unless explicitly enabled. */
   JOURNAL_AUDIT_SHADOW?: string;
   JOURNAL_AUDIT_NAMESPACE?: string;

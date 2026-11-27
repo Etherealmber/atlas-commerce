@@ -616,9 +616,7 @@ export function registerPublicSignedRoutes(app: Hono<any>, deps: PublicSignedRou
     const neu = Array.from(crypto.getRandomValues(new Uint8Array(12))).map((b) => b.toString(16).padStart(2, '0')).join('');
     await c.env.DB.prepare(`UPDATE invoices SET public_token = ? WHERE id = ?`).bind(neu, id).run();
     try {
-      await c.env.DB.prepare(
-        `INSERT INTO audit_log (action, entity, entity_id, detail, created_at) VALUES ('revoke_public_token','invoice',?, 'rotated', datetime('now'))`
-      ).bind(id).run();
+      await writeAudit(c.env.DB, { action: 'revoke_public_token', entity: 'invoice', entity_id: id, detail: 'rotated' });
     } catch { /* */ }
     return c.json({ success: true, message: 'Ancien QR situation invalidé. Réimprimez le document pour un nouveau lien.' });
   });
@@ -804,9 +802,7 @@ export function registerPublicSignedRoutes(app: Hono<any>, deps: PublicSignedRou
     // Audit (no long-term IP storage — hash prefix only)
     try {
       const ipHash = (ip || '').slice(0, 8);
-      await c.env.DB.prepare(
-        `INSERT INTO audit_log (action, entity, entity_id, detail, created_at) VALUES (?, ?, ?, ?, datetime('now'))`
-      ).bind('public_situation_open', 'invoice', seed.id, `token_ok ip8=${ipHash}`).run();
+      await writeAudit(c.env.DB, { action: 'public_situation_open', entity: 'invoice', entity_id: seed.id, detail: `token_ok ip8=${ipHash}` });
     } catch { /* audit table may vary */ }
   
     const settings = await c.env.DB.prepare(`SELECT * FROM company_settings WHERE id = 1`).first() as any;

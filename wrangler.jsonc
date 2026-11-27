@@ -75,6 +75,11 @@
       "binding": "IMAGES",
       "bucket_name": "company-stock-images",
       "preview_bucket_name": "company-stock-images-preview"
+    },
+    {
+      "binding": "JOURNAL_ARCHIVE",
+      "bucket_name": "atlas-commerce-private-api-journal-1",
+      "preview_bucket_name": "atlas-commerce-private-api-journal-preview"
     }
   ],
   "send_email": [
@@ -166,6 +171,10 @@
         "class_name": "AgentQuotaHub"
       },
       {
+        "name": "JOURNAL_BUFFER",
+        "class_name": "JournalBuffer"
+      },
+      {
         "name": "DEMO_HUB",
         "class_name": "DemoHub"
       }
@@ -191,6 +200,10 @@
     {
       "tag": "v5-demo-hub",
       "new_sqlite_classes": ["DemoHub"]
+    },
+    {
+      "tag": "v6-journal-buffer",
+      "new_sqlite_classes": ["JournalBuffer"]
     }
   ],
   // Workers Logs + Traces (dashboard Observability toggles also work after deploy)

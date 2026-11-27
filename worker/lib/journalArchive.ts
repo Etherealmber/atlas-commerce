@@ -9,7 +9,7 @@ const MAGIC = new TextEncoder().encode('AJR1');
 type ArchiveEnv = { IMAGES?: R2Bucket; JOURNAL_ARCHIVE?: R2Bucket; JOURNAL_ARCHIVE_MODE?: string; JOURNAL_ENCRYPTION_KEY?: string };
 
 function enabled(env: ArchiveEnv): boolean {
-  if (env.JOURNAL_ARCHIVE_MODE !== 'shadow' && env.JOURNAL_ARCHIVE_MODE !== 'r2') return false;
+  if (env.JOURNAL_ARCHIVE_MODE !== 'shadow' && env.JOURNAL_ARCHIVE_MODE !== 'r2' && env.JOURNAL_ARCHIVE_MODE !== 'buffered') return false;
   if (!env.JOURNAL_ARCHIVE) throw new Error('Journal archive bucket missing');
   if (env.JOURNAL_ARCHIVE === env.IMAGES) throw new Error('Journal archive requires a separate private bucket');
   return true;
