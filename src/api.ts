@@ -466,6 +466,7 @@ export const api = {
     message: string,
     opts?: {
       task?: string;
+      silent?: boolean;
       timezone?: string;
       thread_id?: string;
       user_message?: string;
@@ -499,6 +500,7 @@ export const api = {
     }>(opts?.onAgentEvent ? '/api/assist/chat/stream' : '/api/assist/chat', {
       method: 'POST',
       signal: opts?.signal,
+      silent: opts?.silent,
       onAgentEvent: opts?.onAgentEvent,
       body: JSON.stringify({
         message,

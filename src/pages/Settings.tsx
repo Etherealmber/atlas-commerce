@@ -986,7 +986,7 @@ if (loading && !settings) return (
         </div>
       ) : null}
 
-      <section className="ac-metric-grid" aria-label="État de la configuration">
+      <section className="ac-metric-grid ac-settings-metrics" aria-label="État de la configuration">
         <article className="ac-metric">
           <span className="ac-metric-label">Section active</span>
           <strong className="ac-metric-val">{TAB_TITLES[activeTab] || 'Profil'}</strong>
@@ -2643,7 +2643,7 @@ if (loading && !settings) return (
       )}
 
       {activeTab === 'categories' && officeSettings && (
-        <div className="ac-panel">
+        <div className="ac-panel ac-settings-catalog">
           <div className="ac-settings-panel-head">
             <div>
               <h2>Catégories de produits &amp; unités</h2>

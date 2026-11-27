@@ -174,6 +174,7 @@ export async function groqChat(opts: {
   message: string;
   maxTokens?: number;
   temperature?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   images?: string[];
   messages?: any[];
   fetchImpl?: typeof fetch;
@@ -198,6 +199,7 @@ export async function groqChat(opts: {
           model,
           temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.55,
           max_tokens: maxTokens,
+          ...(opts.reasoningEffort && model.startsWith('openai/gpt-oss') ? { reasoning_effort: opts.reasoningEffort } : {}),
           messages: opts.messages || [
             { role: 'system', content: opts.system },
             activeImages.length
