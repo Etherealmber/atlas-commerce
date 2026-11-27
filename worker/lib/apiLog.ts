@@ -40,6 +40,7 @@ export type ApiLogRow = ApiLogGeo & {
   ua: string | null;
   request_id: string | null;
   surface: string | null;
+  device_context?: Record<string, unknown>;
 };
 
 /** Paths never journaled: probes and high-frequency polling. */

@@ -20,7 +20,7 @@ it('queues encrypted API and audit events and delivers to Supabase without R2 or
   const f = setup(); const events = new Map<string, any>();
   const fetch = vi.fn(async (_url: string, init: any) => { const body = JSON.parse(init.body); expect(init.headers.apikey).toBe('sb_secret_test'); expect(init.headers.Authorization).toBeUndefined(); for (const event of body.p_items) events.set(event.p_key, event); return Response.json({ accepted: true, count: body.p_items.length }); });
   vi.stubGlobal('fetch', fetch);
-  await enqueueBufferedApi(f.env, { method: 'GET', path: '/api/products?token=private', status: 200, ms: 3, username: 'alice', role: 'owner', ip: null, ua: null, request_id: null, surface: null, country: null, city: null, region: null, asn: null, as_org: null });
+  await enqueueBufferedApi(f.env, { method: 'GET', path: '/api/products?token=private', status: 200, ms: 3, username: 'alice', role: 'owner', ip: null, ua: null, request_id: null, surface: null, country: null, city: null, region: null, asn: null, as_org: null, device_context: { language: 'fr-FR', timezone: 'Africa/Casablanca' } });
   await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { username: 'alice', action: 'product.create', entity: 'products', entity_id: 42 }));
   expect(f.pending.size).toBe(2);
   for (const item of f.pending.values()) expect(new TextDecoder().decode(item.bytes)).not.toContain('alice');
@@ -28,6 +28,7 @@ it('queues encrypted API and audit events and delivers to Supabase without R2 or
   expect(f.pending.size).toBe(0); expect(fetch).toHaveBeenCalledTimes(1); expect(events.size).toBe(2); expect(f.db.prepare).not.toHaveBeenCalled();
   const rows = [...events.values()];
   expect(rows.find(r => r.p_kind === 'api').p_data.path).toBe('/api/products');
+  expect(rows.find(r => r.p_kind === 'api').p_data.device_context).toEqual({ language: 'fr-FR', timezone: 'Africa/Casablanca' });
   expect(rows.find(r => r.p_kind === 'audit').p_data).toMatchObject({ action: 'product.create', entity_id: '42' });
 });
 it('retains encrypted items on failed delivery and retries the same id after lost acknowledgement', async () => {
@@ -49,7 +50,7 @@ it('guards credentials and provides authorized Supabase pages without D1 fallbac
   expect(await res.json()).toMatchObject({ data: [{ action: 'create' }], meta: { stats: { total: 1 } } });
   expect((await app.request('/api/admin/api-log?cursor=bad', {}, f.env)).status).toBe(400);
   expect((await app.request('/api/admin/audit/export', {}, f.env)).status).toBe(409);
-  expect((await app.request('/api/admin/audit/explain', { method: 'POST' }, f.env)).status).toBe(409);
+  expect((await app.request('/api/admin/audit/explain', { method: 'POST' }, f.env)).status).toBe(400);
   expect(f.db.prepare).not.toHaveBeenCalled();
 });
 
@@ -147,4 +148,29 @@ it('does not fan out a whole batch when both Supabase journal functions return 4
   expect(fetch).toHaveBeenCalledTimes(2);
   expect([...f.pending.keys()].filter(k => k.startsWith('pending/'))).toHaveLength(10);
   expect((await (await f.buffer.fetch(new Request('https://journal/health'))).json() as any).last_failure.reason).toBe('schema');
+});
+
+it('explains an owner-selected Supabase event without using the legacy journal', async () => {
+  const f = setup(); const app = new Hono<any>(); let allowed = false;
+  registerUsersAdminRoutes(app, { requireOwner: (c: any) => allowed ? { ok: true, username: 'owner' } : { ok: false, response: c.json({ error: 'Forbidden' }, 403) } } as any);
+  const fetch = vi.fn(async (url: string, init: any) => {
+    expect(url).toContain('/rpc/atlas_journal_page');
+    expect(JSON.parse(init.body)).toMatchObject({ p_kind: 'api', p_cursor: 43, p_limit: 1, p_stats: false });
+    return Response.json({ data: [{ id: 42, method: 'GET', path: '/api/products', status: 200 }], meta: {} });
+  }); vi.stubGlobal('fetch', fetch);
+  const body = JSON.stringify({ kind: 'api', id: 42 });
+  expect((await app.request('/api/admin/audit/explain', { method: 'POST', body }, f.env)).status).toBe(403);
+  expect(fetch).not.toHaveBeenCalled();
+  allowed = true;
+  const res = await app.request('/api/admin/audit/explain', { method: 'POST', body }, f.env);
+  expect(res.status).toBe(200);
+  expect((await res.json() as any).data).toMatchObject({ source: 'rules' });
+  expect(f.db.prepare).not.toHaveBeenCalled();
+});
+it('does not explain a different or expired Supabase event', async () => {
+  const f = setup(); const app = new Hono<any>();
+  registerUsersAdminRoutes(app, { requireOwner: () => ({ ok: true, username: 'owner' }) } as any);
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json({ data: [{ id: 41 }], meta: {} })));
+  const res = await app.request('/api/admin/audit/explain', { method: 'POST', body: JSON.stringify({ kind: 'api', id: 42 }) }, f.env);
+  expect(res.status).toBe(404);
 });

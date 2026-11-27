@@ -1,3 +1,4 @@
+import { parseJournalDeviceContext } from './lib/journalDeviceContext';
 import { withBufferedJournal } from './lib/journalBuffered';
 import { otpCopy } from './lib/otpCopy';
 import { withAuditShadow } from './lib/auditShadow';
@@ -375,6 +376,7 @@ app.use('/api/*', async (c, next) => {
           ua: c.req.header('User-Agent') || null,
           request_id: String(c.get('requestId') || '') || null,
           surface: String(c.get('bffSurface') || '') || null,
+          device_context: parseJournalDeviceContext(c.req.header('X-Atlas-Journal-Context')),
           ...geoFromCf((c.req.raw as any).cf),
         };
         const response = c.res;
@@ -490,7 +492,7 @@ app.use('*', cors({
     return 'https://stock.afmarbre.com';
   },
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Accept-Language', 'Authorization', 'DPoP', 'X-Api-Key', 'Idempotency-Key', 'X-Device-Fingerprint', 'X-Atlas-Client', 'X-Admin-Backup-Token', 'X-Backup-Signature', 'X-Backup-Timestamp'],
+  allowHeaders: ['Content-Type', 'Accept-Language', 'Authorization', 'DPoP', 'X-Api-Key', 'Idempotency-Key', 'X-Device-Fingerprint', 'X-Atlas-Journal-Context', 'X-Atlas-Client', 'X-Admin-Backup-Token', 'X-Backup-Signature', 'X-Backup-Timestamp'],
   maxAge: 86400,
 }));
 

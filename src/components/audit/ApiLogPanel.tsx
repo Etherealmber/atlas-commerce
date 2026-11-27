@@ -236,7 +236,7 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
         <div className="audit-detail-modal audit-detail-modal--expanded card" role="dialog" aria-modal="true" aria-labelledby="api-log-detail-title" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setDetail(null); }}>
           <div className="audit-detail-heading"><h3 id="api-log-detail-title">Détails de la requête</h3><button type="button" className="secondary" aria-label="Fermer" onClick={() => setDetail(null)}>×</button></div>
           <p className="audit-request-summary"><bdi dir="ltr" translate="no">{detail.method} {detail.path} · {detail.status} · {detail.ms} ms</bdi></p>
-          {!supabase && Number(detail.id) > 0 && <AuditAgentExplanation key={detail.id} id={Number(detail.id)} kind="api" />}
+          {Number(detail.id) > 0 && <AuditAgentExplanation key={detail.id} id={Number(detail.id)} kind="api" />}
           <h4>Détails de la connexion</h4>
           <AuditRequestDetails row={detail} kind="api" />
           <button type="button" className="secondary" onClick={() => setDetail(null)}>Fermer</button>

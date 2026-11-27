@@ -27,7 +27,7 @@ export default function Privacy() {
             d’authentification, des informations techniques (adresse IP, appareil et journaux), ainsi
             que des données métier : clients, employés, documents, factures et opérations de stock.
             Ces données servent notamment à fournir le service, gérer les accès, assurer la sécurité
-            et répondre aux besoins métier et obligations légales de l’exploitant.</p>
+            et répondre aux besoins métier et obligations légales de l’exploitant. Pour les journaux techniques, le navigateur peut transmettre sa langue, son fuseau horaire, son orientation, la taille de son écran, son thème préféré et la présence d’un écran tactile ; ces informations déclaratives peuvent être absentes ou inexactes.</p>
           <p>Si Atlas Agent est utilisé, les messages et les données nécessaires à la réponse peuvent
             être traités et transmis au fournisseur d’IA configuré. Ne soumettez des données sensibles
             que conformément aux instructions de votre organisation.</p>

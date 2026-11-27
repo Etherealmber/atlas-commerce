@@ -4256,7 +4256,7 @@ if (needsCompanySettings && loading && !settings) return (
                   <dd className="audit-detail-full" translate="no" dir="auto">{auditDetailRow.detail || '—'}</dd>
                 </div>
               </dl>
-              {journalMode !== 'supabase' && Number(auditDetailRow.id) > 0 && <AuditAgentExplanation key={auditDetailRow.id} id={Number(auditDetailRow.id)} />}
+              {Number(auditDetailRow.id) > 0 && <AuditAgentExplanation key={auditDetailRow.id} id={Number(auditDetailRow.id)} />}
               <h4>Détails de la connexion</h4>
               <AuditRequestDetails row={auditDetailRow} kind="audit" />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
