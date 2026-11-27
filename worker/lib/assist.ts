@@ -412,6 +412,7 @@ export async function groqChatStreamWithTools(opts: {
         model,
         temperature: 0.55,
         max_tokens: maxTokens,
+        ...(model.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}),
         stream: true,
         stream_options: { include_usage: true },
         tools: opts.tools,
@@ -430,6 +431,7 @@ export async function groqChatStreamWithTools(opts: {
     let buf = '';
     let roundText = '';
     let streamCompleted = false;
+    let finishReason = '';
     const callsByIndex = new Map<number, { id: string; name: string; args: string }>();
     for (;;) {
       const { done, value } = await reader.read();
@@ -449,7 +451,7 @@ export async function groqChatStreamWithTools(opts: {
         let j: any = null;
         try { j = JSON.parse(payload); } catch { continue; }
         if (j?.model) lastModel = String(j.model);
-        if (j?.choices?.[0]?.finish_reason) streamCompleted = true;
+        if (j?.choices?.[0]?.finish_reason) { finishReason = String(j.choices[0].finish_reason); streamCompleted = true; }
         const delta = String(j?.choices?.[0]?.delta?.content || '');
         if (delta) {
           roundText += delta;
@@ -473,9 +475,8 @@ export async function groqChatStreamWithTools(opts: {
         }
       }
     }
-    if (!streamCompleted && callsByIndex.size > 0) {
-      throw new Error('Flux amont interrompu prématurément avant achèvement du tool_call.');
-    }
+    if (!streamCompleted) throw new Error('Flux amont interrompu prématurément.');
+    if (finishReason === 'length') throw new Error('Réponse amont incomplète : limite atteinte.');
     const calls = [...callsByIndex.entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([, v]) => v)

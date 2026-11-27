@@ -131,20 +131,19 @@ export const METRIC_INDEXES: readonly string[] = [
   'CREATE INDEX IF NOT EXISTS idx_metrics_expenses_day ON expenses(COALESCE(expense_date, created_at))',
   'CREATE INDEX IF NOT EXISTS idx_metrics_bills_issue ON bills(issue_date)',
   'CREATE INDEX IF NOT EXISTS idx_metrics_invoices_issue ON invoices(issue_date)',
-  'CREATE INDEX IF NOT EXISTS idx_metrics_audit_created ON audit_log(created_at)',
   'CREATE INDEX IF NOT EXISTS idx_metrics_attendance_day ON employee_attendance(work_date)',
   'CREATE INDEX IF NOT EXISTS idx_metrics_cash_shifts_closed ON cash_shifts(closed_at)',
 ];
 
-export async function ensureMetricSnapshots(db: D1Database): Promise<void> {
-  await schemaOnceForDb(db, 'metric_snapshots_v2', async () => {
+export async function ensureMetricSnapshots(db: D1Database, includeLegacyAudit = true): Promise<void> {
+  await schemaOnceForDb(db, includeLegacyAudit ? 'metric_snapshots_v2' : 'metric_snapshots_v2_r2', async () => {
     // Defensive fallback only — migration 0022 owns the table.
     await db.prepare(
       `CREATE TABLE IF NOT EXISTS metric_snapshots (
          day TEXT NOT NULL, key TEXT NOT NULL, value REAL NOT NULL DEFAULT 0,
          updated_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (day, key))`,
     ).run();
-    for (const sql of METRIC_INDEXES) {
+    for (const sql of [...METRIC_INDEXES, ...(includeLegacyAudit ? ['CREATE INDEX IF NOT EXISTS idx_metrics_audit_created ON audit_log(created_at)'] : [])]) {
       try { await db.prepare(sql).run(); } catch { /* optional module table or column missing */ }
     }
   });
@@ -221,7 +220,7 @@ export async function currentLevels(db: D1Database): Promise<Record<string, numb
 }
 
 /** Daily totals for every flow metric over `dates`. */
-export async function dailyFlows(db: D1Database, dates: string[]): Promise<Record<string, number[]>> {
+export async function dailyFlows(db: D1Database, dates: string[], includeLegacyAudit = true): Promise<Record<string, number[]>> {
   const start = dates[0];
   const index = new Map(dates.map((d, i) => [d, i]));
   const series: Record<string, number[]> = {};
@@ -268,7 +267,7 @@ export async function dailyFlows(db: D1Database, dates: string[]): Promise<Recor
     rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM stock_movements WHERE ${since('created_at')} GROUP BY d`, start),
     rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM mobile_actions WHERE ${since('created_at')} GROUP BY d`, start),
     rows(db, `SELECT ${day('completed_at')} AS d, COUNT(*) AS n FROM mobile_actions WHERE status = 'done' AND ${since('completed_at')} GROUP BY d`, start),
-    rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM audit_log WHERE ${since('created_at')} GROUP BY d`, start),
+    includeLegacyAudit ? rows(db, `SELECT ${day('created_at')} AS d, COUNT(*) AS n FROM audit_log WHERE ${since('created_at')} GROUP BY d`, start) : Promise.resolve([]),
     rows(db, `SELECT ${day('work_date')} AS d,
         SUM(CASE WHEN check_in IS NOT NULL AND check_in != '' AND COALESCE(status, '') NOT IN ('absent', 'excused') THEN 1 ELSE 0 END) AS present,
         SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absent
@@ -277,7 +276,7 @@ export async function dailyFlows(db: D1Database, dates: string[]): Promise<Recor
       WHERE status = 'closed' AND ${since('closed_at')} GROUP BY d`, start),
   ]);
 
-  for (const k of Object.keys(METRIC_KINDS)) if (METRIC_KINDS[k] === 'flow') ensure(k);
+  for (const k of Object.keys(METRIC_KINDS)) if (METRIC_KINDS[k] === 'flow' && (includeLegacyAudit || k !== 'audit_events')) ensure(k);
   for (const r of inv) {
     add('sales_fa', r.d, r.fa_total); add('sales_vr', r.d, r.vr_total);
     add('sales', r.d, num(r.fa_total) + num(r.vr_total));
@@ -379,7 +378,8 @@ export function registerMetricsRoutes(app: Hono<any>, deps: MetricsRouteDeps): v
     const days = Math.max(7, Math.min(30, Math.floor(Number(c.req.query('days')) || 7)));
     const dates = dayKeys(days);
     // Key contains « dash » so business writes (bumpCacheGen) invalidate it.
-    const cacheKey = `dash-metrics:${days}:${dates[dates.length - 1]}`;
+    const includeLegacyAudit = c.env.JOURNAL_ARCHIVE_MODE !== 'buffered' || c.env.ATLAS_DEMO === '1';
+    const cacheKey = `dash-metrics:${includeLegacyAudit ? 'legacy' : 'r2'}:${days}:${dates[dates.length - 1]}`;
     let full = await doCacheGet<{ dates: string[]; series: Record<string, (number | null)[]> }>(c.env.MOBILE_HUB, c.env.CACHE, cacheKey, 300);
     let cache = 'hit';
     if (!full) {
@@ -395,8 +395,8 @@ export function registerMetricsRoutes(app: Hono<any>, deps: MetricsRouteDeps): v
     if (!full) {
       cache = 'miss';
       const db = c.env.DB as D1Database;
-      try { await ensureMetricSnapshots(db); } catch { /* read-only tenant: snapshots skipped */ }
-      const [levelsNow, flows] = await Promise.all([currentLevels(db), dailyFlows(db, dates)]);
+      try { await ensureMetricSnapshots(db, includeLegacyAudit); } catch { /* read-only tenant: snapshots skipped */ }
+      const [levelsNow, flows] = await Promise.all([currentLevels(db), dailyFlows(db, dates, includeLegacyAudit)]);
       try { await recordMetricSnapshots(db, dates[dates.length - 1], levelsNow); } catch { /* best effort */ }
       const levels = await levelSeries(db, dates, levelsNow, flows);
       full = { dates, series: { ...flows, ...levels } };

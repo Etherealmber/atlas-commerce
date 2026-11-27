@@ -209,6 +209,10 @@ app.put('/api/admin/users/:id', async (c) => {
 app.get('/api/admin/audit', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+    return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 503);
+  }
   await ensureSecurityTables(c.env.DB);
 
   // Cursor-based (keyset) pagination — stable and cheap on D1 free tier.
@@ -328,6 +332,23 @@ app.get('/api/admin/audit', async (c) => {
   });
 });
 
+/** Owner-only, bounded backlog visibility. No event content or key is returned. */
+app.get('/api/admin/journal-buffer-status', async (c) => {
+  const gate = requireOwner(c);
+  if (!gate.ok) return gate.response;
+  c.header('Cache-Control', 'no-store');
+  if (c.env.JOURNAL_ARCHIVE_MODE !== 'buffered' || !c.env.JOURNAL_BUFFER || !c.env.JOURNAL_ARCHIVE || c.env.JOURNAL_ARCHIVE === c.env.IMAGES) {
+    return c.json({ success: false, code: 'JOURNAL_UNCONFIGURED', error: 'Journal R2 non configuré.' }, 503);
+  }
+  try {
+    const stub = c.env.JOURNAL_BUFFER.get(c.env.JOURNAL_BUFFER.idFromName('journal-v1'));
+    const res = await stub.fetch('https://journal-buffer/health');
+    if (!res.ok) throw new Error('unavailable');
+    const data = await res.json();
+    return c.json({ success: true, data });
+  } catch { return c.json({ success: false, code: 'JOURNAL_UNAVAILABLE', error: 'État du journal indisponible.' }, 503); }
+});
+
 /** Owner/admin access to the optional private shadow archive; never expose bucket URLs. */
 app.get('/api/admin/journal-archive', async (c) => {
   const gate = requireOwner(c);
@@ -363,6 +384,10 @@ app.get('/api/admin/journal-archive/item', async (c) => {
 app.get('/api/admin/api-log', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+    return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 503);
+  }
   await ensureApiLogTable(c.env.DB);
   const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 40)));
   const cursorId = Math.max(0, Math.floor(Number(c.req.query('cursor') || 0))) || 0;
@@ -442,6 +467,10 @@ app.get('/api/admin/api-log', async (c) => {
 app.post('/api/admin/audit/explain', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+    return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 503);
+  }
   const body = (await c.req.json().catch(() => ({}))) as { kind?: string; id?: unknown; language?: string };
   const kind = body.kind === 'api' ? 'api' : 'audit';
   const id = Math.floor(Number(body.id));
@@ -480,6 +509,10 @@ app.post('/api/admin/audit/explain', async (c) => {
 app.get('/api/admin/audit/export', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+    return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 503);
+  }
   await ensureSecurityTables(c.env.DB);
   const format = ((c.req.query('format') || 'csv').toLowerCase() === 'json') ? 'json' : 'csv';
   const max = Math.min(2000, Math.max(1, Number(c.req.query('limit') || 500)));

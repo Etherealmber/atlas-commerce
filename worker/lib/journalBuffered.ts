@@ -27,8 +27,19 @@ export async function enqueueBufferedJournal(env: Env, kind: 'api' | 'audit', da
   if (bytes.length > 100_000) throw new Error('Journal event too large');
   let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte);
   const stub = env.JOURNAL_BUFFER.get(env.JOURNAL_BUFFER.idFromName('journal-v1'));
-  const response = await stub.fetch('https://journal-buffer/enqueue', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, ciphertext: btoa(binary) }) });
-  if (!response.ok) throw new Error('Journal buffer rejected event');
+  // Reuse exactly the same id and ciphertext if the acknowledgement is lost.
+  // A new id here would duplicate an event that was already accepted.
+  const body = JSON.stringify({ path, ciphertext: btoa(binary) });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await stub.fetch('https://journal-buffer/enqueue', { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+      if (response.ok) return;
+      if (response.status < 500) throw new Error('Journal buffer rejected event');
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Journal buffer rejected event') throw error;
+    }
+  }
+  throw new Error('Journal buffer unavailable');
 }
 
 export async function enqueueBufferedApi(env: Env, row: ApiLogRow): Promise<void> {

@@ -136,3 +136,12 @@ describe('GET /api/metrics/daily recompute floor', () => {
     expect(counter.n - before).toBeLessThan(8);
   });
 });
+
+it('does not read or report legacy D1 audit events when R2-only mode is selected', async () => {
+  const sql: string[] = [];
+  const db: any = { prepare(query: string) { sql.push(query); return { bind() { return this; }, async all() { return { results: [] }; }, async first() { return null; }, async run() { return {}; } }; } };
+  const series = await dailyFlows(db, dayKeys(7), false);
+  await ensureMetricSnapshots(db, false);
+  expect(sql.some(q => /\baudit_log\b/i.test(q))).toBe(false);
+  expect(series).not.toHaveProperty('audit_events');
+});

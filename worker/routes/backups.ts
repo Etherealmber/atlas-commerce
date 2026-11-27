@@ -2,6 +2,7 @@ import type { Hono } from 'hono';
 import { afterBusinessMutation } from '../lib/delete-coord';
 import { enqueue } from '../lib/job-queue';
 import { purgeOldLogs } from '../lib/apiLog';
+import { withBufferedJournal } from '../lib/journalBuffered';
 
 interface BackupRouteDeps {
   requireOwner: (c: any) => { ok: true; username: string } | { ok: false; response: Response };
@@ -1649,13 +1650,13 @@ export function registerBackupRoutes(app: Hono<any>, deps: BackupRouteDeps): voi
         }
   
         try {
-          await writeAudit(env.DB, {
+          await withBufferedJournal(env, () => writeAudit(env.DB, {
             username, role: 'owner', action: 'backup.restore', entity: 'backups',
             entity_id: (key || 'upload').split('/').pop() || 'upload',
             detail: `Restauration démarrée (${tableOrder.length} tables)`,
             ip,
-          });
-        } catch { /* */ }
+          }));
+        } catch { console.error('audit_enqueue_failed_after_restore'); }
       } catch (e: any) {
         const msg = e?.message || 'Erreur restauration';
         await setRestoreJob(env, {

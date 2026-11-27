@@ -157,6 +157,18 @@ describe('POST /api/expenses — owner/admin authorization (v264 audit fix)', ()
     expect(auditSpy.mock.calls[0][1]).toMatchObject({ username: 'boss', role: 'owner', action: 'expense.create' });
   });
 
+  it('keeps the committed expense successful but signals an audit enqueue failure', async () => {
+    auditSpy.mockRejectedValueOnce(new Error('journal unavailable'));
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const res = await call('/api/expenses', VALID, 'owner-tok');
+      expect(res.status).toBe(201);
+      expect(res.headers.get('X-Atlas-Audit-Warning')).toBe('enqueue-failed');
+      expect(await rowCount()).toBe(1);
+      expect(log).toHaveBeenCalledWith('audit_enqueue_failed_after_mutation');
+    } finally { log.mockRestore(); }
+  });
+
   it('admin can create a ledger entry (201)', async () => {
     const res = await call('/api/expenses', VALID, 'admin-tok');
     expect(res.status).toBe(201);

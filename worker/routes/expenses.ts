@@ -115,10 +115,10 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
     } catch { /* attribution is best-effort; the entry itself is saved */ }
     const expense = await c.env.DB.prepare(`SELECT * FROM expenses WHERE id = ?`).bind(result.meta.last_row_id).first();
     await deps.invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
-    void deps.writeAudit(c.env.DB, {
+    await deps.writeAudit(c.env.DB, {
       username: gate.username, role: gate.role, action: 'expense.create', entity: 'expenses',
       entity_id: String((expense as any)?.id ?? ''), detail: `${type}:${safeAmount}`, ip: deps.clientIp(c),
-    });
+    }).catch(() => { console.error('audit_enqueue_failed_after_mutation'); c.header('X-Atlas-Audit-Warning', 'enqueue-failed'); });
     const msg = type === 'income' ? 'Recette enregistrée dans la base de données.' : 'Dépense enregistrée dans la base de données.';
     return c.json({ success: true, data: expense, message: msg }, 201);
   });
@@ -149,10 +149,10 @@ export function registerExpenseWriteRoutes(app: AtlasApp, deps: ExpenseWriteDeps
       inserted++;
     }
     if (inserted > 0) await deps.invalidateDashboardCache(c.env.CACHE, c.env.MOBILE_HUB);
-    void deps.writeAudit(c.env.DB, {
+    await deps.writeAudit(c.env.DB, {
       username: gate.username, role: gate.role, action: 'expense.import', entity: 'expenses',
       detail: `inserted=${inserted}`, ip: deps.clientIp(c),
-    });
+    }).catch(() => { console.error('audit_enqueue_failed_after_mutation'); c.header('X-Atlas-Audit-Warning', 'enqueue-failed'); });
     return c.json({ success: true, message: `${inserted} écriture(s) importée(s).`, count: inserted });
   });
 }

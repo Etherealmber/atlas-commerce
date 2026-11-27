@@ -506,3 +506,15 @@ describe('demo request production D1 isolation', () => {
     expect(prod.prepare).not.toHaveBeenCalled();
   });
 });
+
+it('derives a separate non-public chat encryption key per sandbox generation', async () => {
+  const db = new DemoD1(async () => ({ ok: false }), 'key-test');
+  const env = { JWT_SECRET: 'private-master', ADMIN_PASSWORD: 'other', AGENT_CHAT_SECRET: 'prod-chat' } as any;
+  const first = await buildDemoEnv(env, db as any, 'fp:1');
+  const same = await buildDemoEnv(env, db as any, 'fp:1');
+  const other = await buildDemoEnv(env, db as any, 'fp:2');
+  expect((first as any).AGENT_CHAT_SECRET).toBe((same as any).AGENT_CHAT_SECRET);
+  expect((first as any).AGENT_CHAT_SECRET).not.toBe((other as any).AGENT_CHAT_SECRET);
+  expect((first as any).AGENT_CHAT_SECRET).not.toBe(env.AGENT_CHAT_SECRET);
+  expect((await buildDemoEnv({} as any, db as any, 'fp:1') as any).AGENT_CHAT_SECRET).toBeUndefined();
+});

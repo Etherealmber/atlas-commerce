@@ -31,6 +31,7 @@ import './styles/button-groups.css'; /* one height per button row + popup footer
 import './styles/form-controls.css'; /* date pickers, selects, settings top actions, product grid */
 import './styles/tables.css'; /* one modern look for every list table */
 import './styles/guard-confirm.css'; /* « Abandonner la saisie ? » above dialogs */
+import './styles/atlas-agent-workspace.css'; /* Agent workspace, before dark overrides */
 import './styles/dark-force.css'; /* absolute last — dark surfaces */
 import { isNativeApp } from './config';
 import { applyDensityFromStorage } from './lib/density';

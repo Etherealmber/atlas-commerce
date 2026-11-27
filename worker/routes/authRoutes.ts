@@ -4,6 +4,8 @@ import type { Env } from '../env';
 import { addColumnIfMissing } from '../lib/schema';
 import { normalizeRole } from '../lib/rbac';
 import { inDemoScope } from '../lib/dataScope';
+import { isDemoD1 } from '../lib/demo/demoD1';
+import { DEMO_PASSWORD, DEMO_USERNAME } from '../lib/demo/policy';
 import { registerDesktopAuthRoutes } from './desktopAuth';
 import { registerDesktopNativeDiscovery } from './desktopNativeDiscovery';
 import { registerDesktopPilotWebView } from '../lib/desktop-pilot-webview';
@@ -134,8 +136,15 @@ app.post('/api/auth/login', async (c) => {
   await ensureSecurityTables(c.env.DB);
   try { await purgeEphemeralSecurityData(c.env.DB); } catch { /* */ }
 
-  const limitResponse = await credentialAttemptGate(c, username, 'password');
-  if (limitResponse) return limitResponse;
+  // Only the gateway-verified public demo identity inside disposable SQLite
+  // bypasses the account attempt budget. The gateway's Turnstile and bounded
+  // session/network quotas still apply; normal accounts keep all protections.
+  const verifiedDemo = c.env.ATLAS_DEMO === '1' && inDemoScope() && isDemoD1(c.env.DB)
+    && username === DEMO_USERNAME && password === DEMO_PASSWORD;
+  if (!verifiedDemo) {
+    const limitResponse = await credentialAttemptGate(c, username, 'password');
+    if (limitResponse) return limitResponse;
+  }
 
   const ownerUser = getOwnerUsername(c.env);
   let role = 'user';
@@ -208,7 +217,7 @@ app.post('/api/auth/login', async (c) => {
 
   // The gateway has already verified Turnstile and routed these credentials to
   // disposable demo SQLite. Never use this exception for a production request.
-  if (c.env.ATLAS_DEMO === '1' && inDemoScope() && username === 'test') {
+  if (verifiedDemo) {
     await trustDevice(c.env.DB, fingerprint, ip, username, c.req.header('User-Agent') || '');
     await recordLogin(c.env.DB, ip, fingerprint, true, ua, true);
     await writeAudit(c.env.DB, { username, role, action: 'auth.login', entity: 'session', detail: 'demo_sandbox', ip });
