@@ -112,6 +112,22 @@ it('Product wizard matches employee look and blocks advancing when name is empty
   expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('nom du produit');
 });
 
+it('shows variant validation and API failures inside the product wizard', async () => {
+  vi.mocked(api.getProducts).mockResolvedValue({ data: [{ id: 42, name: 'Marbre', price: 10, category: 'Général', unit: 'unité' }] } as any);
+  vi.spyOn(api, 'getVariants').mockResolvedValue({ data: [] } as any);
+  vi.spyOn(api, 'createVariant').mockRejectedValueOnce(new Error('SKU déjà utilisé'));
+  await renderPage(createElement(Products));
+  await clickText(host, 'Modifier Marbre');
+  for (let i = 0; i < 4; i++) await clickText(dlg(), 'Continuer');
+  await clickText(dlg(), 'Ajouter la variante');
+  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('Libellé de variante obligatoire');
+  const input = dlg().querySelector<HTMLInputElement>('input[placeholder="ex. M / Rouge"]')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'Rouge'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  expect(dlg().querySelector('[role="alert"]')).toBeNull();
+  await clickText(dlg(), 'Ajouter la variante');
+  expect(dlg().querySelector('[role="alert"]')?.textContent).toContain('SKU déjà utilisé');
+});
+
 it('Invoice wizard matches employee look and blocks advancing when client name is empty', async () => {
   await renderPage(createElement(Invoices));
   await clickText(host, 'Créer une facture');

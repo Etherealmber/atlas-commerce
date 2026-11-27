@@ -162,7 +162,9 @@ export default function Products() {
   const localizedStockLabel = (product: any) => dualStockLabel({ ...product, unit: unitLabel(product.unit), secondary_unit: unitLabel(product.secondary_unit) });
   const [variants, setVariants] = useState<any[]>([]);
   const [variantForm, setVariantForm] = useState({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
+  const [lookupFeedback, setLookupFeedback] = useState<{ message: string; kind: 'error' | 'success' } | null>(null);
   const [savingVariant, setSavingVariant] = useState(false);
+  const [variantFeedback, setVariantFeedback] = useState<{ message: string; kind: 'error' | 'success' } | null>(null);
 
   const emptyForm = {
     name: '', sku: '', description: '', category: 'Général', unit: 'unité', secondary_unit: '', secondary_unit_factor: '', price: 0, cost: 0,
@@ -236,7 +238,7 @@ export default function Products() {
         sku: pre.sku ?? '',
       }));
       setModalError(''); wz.reset();
-      setShow(true);
+      setLookupFeedback(null); setShow(true);
 
     });
   }, []);
@@ -246,13 +248,14 @@ export default function Products() {
   const addCategory = async () => {
     const name = await prompt({ title: 'Nouvelle catégorie', placeholder: 'Nom de la catégorie' });
     if (!name?.trim()) return;
+    setLookupFeedback(null);
     try {
-      const res: any = await api.createCategory({ name: name.trim() });
-      flash(res.message || 'Catégorie créée.');
+      const res: any = await api.createCategory({ name: name.trim() }, { silent: true });
+      setLookupFeedback({ message: res.message || 'Catégorie créée.', kind: 'success' });
       await loadLookups();
       setForm((f: any) => ({ ...f, category: name.trim() }));
     } catch (e: any) {
-      flash(e.message || 'Erreur catégorie', 'error');
+      setLookupFeedback({ message: e.message || 'Erreur catégorie', kind: 'error' });
     }
   };
 
@@ -263,13 +266,14 @@ export default function Products() {
       placeholder: 'Nom de l\'unité',
     });
     if (!name?.trim()) return;
+    setLookupFeedback(null);
     try {
-      const res: any = await api.createUnit({ name: name.trim() });
-      flash(res.message || 'Unité créée.');
+      const res: any = await api.createUnit({ name: name.trim() }, { silent: true });
+      setLookupFeedback({ message: res.message || 'Unité créée.', kind: 'success' });
       await loadLookups();
       setForm((f: any) => ({ ...f, [target]: name.trim() }));
     } catch (e: any) {
-      flash(e.message || 'Erreur unité', 'error');
+      setLookupFeedback({ message: e.message || 'Erreur unité', kind: 'error' });
     }
   };
 
@@ -293,7 +297,7 @@ export default function Products() {
     setEditing(null);
     setVariants([]);
     setVariantForm({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
-    setModalError(''); wz.reset(); setShow(true);
+    setModalError(''); wz.reset(); setLookupFeedback(null); setShow(true);
   };
   // Scan page → "Créer produit" on an open creation request: open the form
   // with the scanned barcode (and optional name) prefilled. Price stays empty
@@ -319,14 +323,16 @@ export default function Products() {
     setEditing(null);
     setVariants([]);
     setVariantForm({ variant_label: '', sku: '', barcode: '', price: '', stock_quantity: '0' });
-    setModalError(''); wz.reset(); setShow(true);
+    setModalError(''); wz.reset(); setLookupFeedback(null); setShow(true);
     window.history.replaceState({}, '');
   }, [location.state]);
   const openEdit = async (p: any) => {
+    setVariantFeedback(null);
+    setLookupFeedback(null);
     setForm({ ...p, tax_rate: p.tax_rate ?? '', ...parseBulkFromProduct(p) });
     setEditing(p);
     setVariantForm({ variant_label: '', sku: '', barcode: '', price: String(p.price ?? ''), stock_quantity: '0' });
-    setModalError(''); wz.reset(); setShow(true);
+    setModalError(''); wz.reset(); setLookupFeedback(null); setShow(true);
     try {
       const res = await api.getVariants(p.id);
       setVariants(res.data || []);
@@ -352,9 +358,10 @@ export default function Products() {
   const saveVariant = async () => {
     if (!editing?.id) return;
     if (!variantForm.variant_label.trim()) {
-      flash('Libellé de variante obligatoire (ex. M / Rouge).', 'error');
+      setVariantFeedback({ message: 'Libellé de variante obligatoire (ex. M / Rouge).', kind: 'error' });
       return;
     }
+    setVariantFeedback(null);
     setSavingVariant(true);
     try {
       await api.createVariant(editing.id, {
@@ -364,12 +371,14 @@ export default function Products() {
         price: variantForm.price !== '' ? Number(variantForm.price) : undefined,
         stock_quantity: Number(variantForm.stock_quantity || 0),
       });
-      flash('Variante créée.');
+      setVariantFeedback({ message: 'Variante créée.', kind: 'success' });
       setVariantForm({ variant_label: '', sku: '', barcode: '', price: String(editing.price ?? ''), stock_quantity: '0' });
-      const res = await api.getVariants(editing.id);
-      setVariants(res.data || []);
+      try {
+        const res = await api.getVariants(editing.id);
+        setVariants(res.data || []);
+      } catch { setVariantFeedback({ message: 'Variante créée. Rechargez pour actualiser la liste.', kind: 'success' }); }
     } catch (e: any) {
-      flash(e.message || 'Erreur variante', 'error');
+      setVariantFeedback({ message: e.message || 'Erreur variante', kind: 'error' });
     } finally {
       setSavingVariant(false);
     }
@@ -380,13 +389,13 @@ export default function Products() {
     if (!ok) return;
     try {
       await api.deleteVariant(vid);
-      flash('Variante désactivée.');
+      setVariantFeedback({ message: 'Variante désactivée.', kind: 'success' });
       if (editing?.id) {
         const res = await api.getVariants(editing.id);
         setVariants(res.data || []);
       }
     } catch (e: any) {
-      flash(e.message || 'Erreur', 'error');
+      setVariantFeedback({ message: e.message || 'Erreur', kind: 'error' });
     }
   };
 
@@ -803,7 +812,7 @@ export default function Products() {
                       title="Aucun produit"
                       description="Ajoutez des articles avec stock, prix et seuil bas pour piloter les ventes et les alertes."
                       actionLabel="Ajouter mon premier produit"
-                      onAction={() => { setEditing(null); setForm(emptyForm); setModalError(''); wz.reset(); setShow(true); }}
+                      onAction={() => { setEditing(null); setForm(emptyForm); setModalError(''); wz.reset(); setLookupFeedback(null); setShow(true); }}
                       icon="package"
                     />
                   </td>
@@ -1010,6 +1019,7 @@ export default function Products() {
             })()}
               </StepBody>
             <StepBody active={wz.step === 2}>
+            <ModalFormError message={lookupFeedback?.message} kind={lookupFeedback?.kind} />
             <div className="grid grid-2">
               <div className="form-row">
                 <label>Catégorie</label>
@@ -1174,7 +1184,7 @@ export default function Products() {
                   </div>
                 )}
                 <div className="grid grid-2">
-                  <div className="form-row"><label>Libellé *</label><input value={variantForm.variant_label} onChange={(e) => setVariantForm({ ...variantForm, variant_label: e.target.value })} placeholder="ex. M / Rouge" /></div>
+                  <div className="form-row"><label>Libellé *</label><input value={variantForm.variant_label} onChange={(e) => { setVariantForm({ ...variantForm, variant_label: e.target.value }); if (variantFeedback) setVariantFeedback(null); }} placeholder="ex. M / Rouge" /></div>
                   <div className="form-row"><label>SKU</label><input value={variantForm.sku} onChange={(e) => setVariantForm({ ...variantForm, sku: e.target.value })} /></div>
                 </div>
                 <div className="grid grid-3">
@@ -1182,6 +1192,7 @@ export default function Products() {
                   <div className="form-row"><label>Prix</label><NumberField value={Number(variantForm.price || 0)} onValueChange={(n) => setVariantForm({ ...variantForm, price: String(n) })} /></div>
                   <div className="form-row"><label>Stock initial</label><NumberField value={Number(variantForm.stock_quantity || 0)} onValueChange={(n) => setVariantForm({ ...variantForm, stock_quantity: String(n) })} /></div>
                 </div>
+                <ModalFormError message={variantFeedback?.message} kind={variantFeedback?.kind} />
                 <button type="button" className="secondary" style={{ marginBottom: 4 }} onClick={saveVariant} disabled={savingVariant}>
                   {savingVariant ? 'Ajout…' : '+ Ajouter la variante'}
                 </button>

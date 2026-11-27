@@ -417,18 +417,25 @@ async function readDesktopManifest(env: Partial<Env>): Promise<{
 
   if (env.IMAGES) {
     try {
-      const head = await env.IMAGES.head(DESKTOP_JSON_KEY);
-      if (head) jsonMeta = { size: head.size, uploaded: head.uploaded ? new Date(head.uploaded).toISOString() : null };
-      const obj = await env.IMAGES.get(DESKTOP_JSON_KEY);
-      if (obj) {
-        manifest = JSON.parse(await obj.text()) as DesktopManifest;
-        source = 'r2';
+      // R2 reports missing HeadObject/GetObject as error spans even when the
+      // Worker handles null. List the exact prefix before reading an optional
+      // release; never mistake a longer similarly named key for the object.
+      const listed = await env.IMAGES.list({ prefix: DESKTOP_JSON_KEY, limit: 1 });
+      const meta = listed.objects.find(o => o.key === DESKTOP_JSON_KEY);
+      if (meta) {
+        jsonMeta = { size: meta.size, uploaded: meta.uploaded ? new Date(meta.uploaded).toISOString() : null };
+        const obj = await env.IMAGES.get(DESKTOP_JSON_KEY);
+        if (obj) {
+          manifest = JSON.parse(await obj.text()) as DesktopManifest;
+          source = 'r2';
+        }
       }
-    } catch { /* ignore invalid JSON */ }
+    } catch { /* existing DB fallback; R2 failures are not interpreted as published releases */ }
     try {
-      const h = await env.IMAGES.head(DESKTOP_LATEST_EXE_KEY);
-      if (h) exeMeta = { size: h.size, uploaded: h.uploaded ? new Date(h.uploaded).toISOString() : null };
-    } catch { /* */ }
+      const listed = await env.IMAGES.list({ prefix: DESKTOP_LATEST_EXE_KEY, limit: 1 });
+      const meta = listed.objects.find(o => o.key === DESKTOP_LATEST_EXE_KEY);
+      if (meta) exeMeta = { size: meta.size, uploaded: meta.uploaded ? new Date(meta.uploaded).toISOString() : null };
+    } catch { /* metadata remains unknown */ }
   }
 
   if (!manifest && env.DB) {

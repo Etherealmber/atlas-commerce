@@ -1,4 +1,9 @@
 import { scopedKey } from './dataScope';
+import { AppError } from './errors';
+
+export class SchemaBusyError extends AppError {
+  constructor() { super('SERVICE_UNAVAILABLE', 'Initialisation en cours. Réessayez dans quelques instants.'); }
+}
 /**
  * Shared idempotent schema helpers.
  *
@@ -55,7 +60,7 @@ export async function schemaOnceForDb(db: D1Database, key: string, fn: () => Pro
       await new Promise<void>(resolve => setTimeout(resolve, 20));
     }
     if (_dbSchemaDone.get(root)?.has(key)) return;
-    if (active.has(key)) throw new Error('Schema initialization busy; retry request');
+    if (active.has(key)) throw new SchemaBusyError();
     active.add(key);
   }
   try {

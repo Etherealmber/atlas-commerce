@@ -67,6 +67,7 @@ import { recordApiJournal } from './lib/journalSink';
 import { canMutateBusiness, normalizeRole } from './lib/rbac';
 import { apiFail, apiOk } from './lib/api-response';
 import { toClientError } from './lib/errors';
+import { SchemaBusyError } from './lib/schema';
 import { repairProductSearchIndex } from './lib/reliability';
 import { androidReleaseRouter, serveAppUpdatesAsset } from './routes/androidRelease';
 import { desktopReleaseRouter } from './routes/desktopRelease';
@@ -1326,6 +1327,10 @@ app.onError(async (err, c) => {
   const errPath = new URL(c.req.url).pathname;
   if (errPath.startsWith(`${NATIVE_V2}/`) || errPath.startsWith(`${NATIVE_V3}/`)) {
     return c.json({ success: false, code: 'UNAVAILABLE', error: 'Connexion indisponible.' }, 503);
+  }
+  if (err instanceof SchemaBusyError) {
+    c.header('Retry-After', '3');
+    return apiFail(c, err.message, 'SERVICE_UNAVAILABLE');
   }
   // Authentication errors may contain request secrets; never log their raw exceptions.
   try { if (!errPath.startsWith('/api/reports/') && !errPath.startsWith('/api/auth/') && !errPath.startsWith(EMBEDDED_CHALLENGE_PATH) && !errPath.startsWith(V3_WEBVIEW_CHALLENGE_PATH) && !errPath.startsWith(V3_BROWSER_CHALLENGE_PATH)) console.error('[onError]', c.get('requestId') || '-', c.req.method, errPath, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }

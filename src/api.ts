@@ -92,7 +92,7 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
         continue;
       }
       const msg = 'Pas de connexion réseau — vérifiez internet ou réessayez';
-      try { uiToast(msg, 'error'); } catch { /* */ }
+      if (!options?.silent) { try { uiToast(msg, 'error'); } catch { /* */ } }
       throw new Error(msg, { cause: e });
     }
   }
@@ -650,11 +650,11 @@ export const api = {
   // Variants
   getVariants: (productId: number) => request<{ data: any[]; parent?: any }>(`/api/products/${productId}/variants`),
   createVariant: (productId: number, body: any) =>
-    request(`/api/products/${productId}/variants`, { method: 'POST', body: JSON.stringify(body) }),
+    request(`/api/products/${productId}/variants`, { method: 'POST', body: JSON.stringify(body), silent: true }),
   updateVariant: (variantId: number, body: any) =>
     request(`/api/products/variants/${variantId}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteVariant: (variantId: number, body?: any) =>
-    request(`/api/products/variants/${variantId}`, { method: 'DELETE', body: JSON.stringify(body || {}) }),
+    request(`/api/products/variants/${variantId}`, { method: 'DELETE', body: JSON.stringify(body || {}), silent: true }),
 
   // Barcode scan (mobile APK)
   scanBarcode: (code: string) =>
@@ -1193,7 +1193,7 @@ export const api = {
   updateMe: (body: any) => request('/api/auth/me', { method: 'PATCH', body: JSON.stringify(body) }),
 
   getCategories: () => request<{ data: any[] }>('/api/categories'),
-  createCategory: (body: any) => request('/api/categories', { method: 'POST', body: JSON.stringify(body) }),
+  createCategory: (body: any, options?: { silent?: boolean }) => request('/api/categories', { method: 'POST', body: JSON.stringify(body), silent: options?.silent }),
   updateCategory: (id: number, body: any) =>
     request(`/api/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteCategory: (id: number | string | null, confirm_password: string = '', name?: string) =>
@@ -1203,7 +1203,7 @@ export const api = {
     }),
 
   getUnits: () => request<{ data: any[] }>('/api/units'),
-  createUnit: (body: any) => request('/api/units', { method: 'POST', body: JSON.stringify(body) }),
+  createUnit: (body: any, options?: { silent?: boolean }) => request('/api/units', { method: 'POST', body: JSON.stringify(body), silent: options?.silent }),
   updateUnit: (id: number, body: any) =>
     request(`/api/units/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteUnit: (id: number | string | null, confirm_password: string = '', name?: string) =>
