@@ -1097,7 +1097,7 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
     const product = await c.env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(id).first() as any;
     if (!product) return c.json({ success: false, error: 'Produit introuvable' }, 404);
     const label = `Produit ${product.name}${product.sku ? ` (${product.sku})` : ''}`;
-    const result = await issueDeleteOtp(c.env, 'product', String(id), label, `Code de suppression — ${label}`);
+    const result = await issueDeleteOtp(c.env, 'product', String(id), label, `Code de suppression — ${label}`, { language: c.req.header('Accept-Language') });
     return c.json({ success: true, message: result.message, emailed: result.emailed, otp: result.emailed ? undefined : result.otp });
   });
   
@@ -1178,7 +1178,7 @@ export function registerProductsScanRoutes(app: Hono<any>, deps: ProductsScanRou
     if (!products?.length) return c.json({ success: false, error: 'Aucun produit trouvé' }, 404);
     const resourceId = ids.slice().sort((a, b) => a - b).join(',');
     const label = `${products.length} produit(s) : ${(products as any[]).map((x) => x.name).join(', ')}`;
-    const result = await issueDeleteOtp(c.env, 'products_bulk', resourceId, label, `Code de suppression — ${products.length} produit(s)`);
+    const result = await issueDeleteOtp(c.env, 'products_bulk', resourceId, label, `Code de suppression — ${products.length} produit(s)`, { language: c.req.header('Accept-Language') });
     return c.json({ success: true, message: result.message, emailed: result.emailed, otp: result.emailed ? undefined : result.otp, count: products.length });
   });
   

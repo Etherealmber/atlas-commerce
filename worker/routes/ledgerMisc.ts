@@ -189,7 +189,7 @@ app.post('/api/settings/account/request-delete-otp', async (c) => {
   if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
   const session = sessionUserFromHeader(c.req.header('Authorization'));
   const username = String(session.username || '').toLowerCase();
-  const res = await issueDeleteOtp(c.env, 'account-delete', username, 'votre compte Atlas Commerce', 'Code de confirmation — suppression de compte', { toEmail: await userMail(c.env.DB, username) });
+  const res = await issueDeleteOtp(c.env, 'account-delete', username, 'votre compte Atlas Commerce', 'Code de confirmation — suppression de compte', { toEmail: await userMail(c.env.DB, username), language: c.req.header('Accept-Language') });
   return c.json({ success: true, emailed: res.emailed, message: res.message, otp: res.emailed ? undefined : res.otp });
 });
 

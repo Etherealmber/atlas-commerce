@@ -539,6 +539,30 @@ describe('controlled two-account shared-egress regression (local, not staging)',
 /* eslint-enable no-await-in-loop */
 
 describe('OTP delivery failures', () => {
+  it('uses the existing email binding when Resend rejects the request', async () => {
+    env.ENVIRONMENT = 'production';
+    env.RESEND_API_KEY = 'test-only-key';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 401 }));
+    try {
+      const result = await login({ username: 'admin', password: 'OwnerPass123!', fingerprint: 'resend-fallback' });
+      expect(result.body.needs_otp).toBe(true);
+      expect(result.body.token).toBeUndefined();
+      expect(sendSpy).toHaveBeenCalledOnce();
+    } finally { fetchSpy.mockRestore(); }
+  });
+  it('fails closed when Resend and the email binding both reject delivery', async () => {
+    env.ENVIRONMENT = 'production';
+    env.RESEND_API_KEY = 'test-only-key';
+    sendSpy.mockRejectedValue(new Error('restricted destination'));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 403 }));
+    try {
+      const result = await login({ username: 'admin', password: 'OwnerPass123!', fingerprint: 'all-transports-failed' });
+      expect(result.status).toBe(503);
+      expect(result.body.code).toBe('OTP_DELIVERY_FAILED');
+      expect(result.body.token).toBeUndefined();
+    } finally { fetchSpy.mockRestore(); }
+  });
+
   it('does not bypass OTP or report success when production has no email transport', async () => {
     env.ENVIRONMENT = 'production';
     delete env.EMAIL;
@@ -558,6 +582,14 @@ describe('OTP delivery failures', () => {
 
 
 describe('localized OTP email', () => {
+  it.each([['fr', 'fr', 'Code de vérification'], ['en', 'en', 'Your verification code'], ['ar', 'ar', 'رمز التحقق'], ['de', 'fr', 'Code de vérification']])('uses %s requested locale and falls back to French', async (language, expected, phrase) => {
+    const result = await login({ username: 'admin', password: 'OwnerPass123!', fingerprint: `email-${language}` }, testIp, { 'Accept-Language': language });
+    expect(result.status).toBe(200);
+    const sent = sendSpy.mock.calls[0][0];
+    expect(sent.html).toContain(`<html lang="${expected}"`);
+    expect(sent.text).toContain(phrase);
+  });
+
   it('renders Arabic right to left while keeping the one-time code left to right', async () => {
     const result = await login({ username: 'admin', password: 'OwnerPass123!', fingerprint: 'arabic-email' }, testIp, { 'Accept-Language': 'ar' });
     expect(result.status).toBe(200);

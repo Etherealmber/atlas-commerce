@@ -49,6 +49,7 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
   const fp = await getCachedFingerprint().catch(() => 'none');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Accept-Language': getLang(),
     'X-Device-Fingerprint': fp,
     ...(options?.headers as Record<string, string>),
   };

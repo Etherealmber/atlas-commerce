@@ -1273,7 +1273,7 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
     const bill = await c.env.DB.prepare(`SELECT * FROM bills WHERE id = ?`).bind(id).first() as any;
     if (!bill) return c.json({ success: false, error: 'Facture d\'achat introuvable' }, 404);
     const label = `Facture d'achat ${bill.number}`;
-    const result = await issueDeleteOtp(c.env, 'bill', String(id), label, `Code de suppression — ${label}`);
+    const result = await issueDeleteOtp(c.env, 'bill', String(id), label, `Code de suppression — ${label}`, { language: c.req.header('Accept-Language') });
     return c.json({ success: true, message: result.message, emailed: result.emailed, otp: result.emailed ? undefined : result.otp });
   });
   
@@ -1333,7 +1333,7 @@ export function registerBillsReceiptsRoutes(app: Hono<any>, deps: BillsReceiptsR
     if (!bills?.length) return c.json({ success: false, error: 'Aucune facture d\'achat trouvée' }, 404);
     const resourceId = ids.slice().sort((a, b) => a - b).join(',');
     const label = `${bills.length} facture(s) d'achat : ${(bills as any[]).map((x) => x.number).join(', ')}`;
-    const result = await issueDeleteOtp(c.env, 'bills_bulk', resourceId, label, `Code de suppression — ${bills.length} facture(s) d'achat`);
+    const result = await issueDeleteOtp(c.env, 'bills_bulk', resourceId, label, `Code de suppression — ${bills.length} facture(s) d'achat`, { language: c.req.header('Accept-Language') });
     return c.json({ success: true, message: result.message, emailed: result.emailed, otp: result.emailed ? undefined : result.otp, count: bills.length });
   });
   

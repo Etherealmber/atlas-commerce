@@ -17,6 +17,7 @@ type ClientRouteDeps = {
     id: string,
     label: string,
     subject: string,
+    options?: { language?: string },
   ) => Promise<{ message: string; emailed: boolean; otp?: string }>;
   requireBizMutator: (
     c: any,
@@ -153,7 +154,7 @@ export function registerClientRoutes(app: Hono<any>, deps: ClientRouteDeps): voi
     const client = await c.env.DB.prepare(`SELECT * FROM clients WHERE id = ?`).bind(id).first() as any;
     if (!client) return c.json({ success: false, error: 'Client introuvable' }, 404);
     const label = `Client ${client.name}`;
-    const result = await issueDeleteOtp(c.env, 'client', String(id), label, `Code de suppression — ${label}`);
+    const result = await issueDeleteOtp(c.env, 'client', String(id), label, `Code de suppression — ${label}`, { language: c.req.header('Accept-Language') });
     return c.json({ success: true, message: result.message, emailed: result.emailed, otp: result.emailed ? undefined : result.otp });
   });
 
@@ -196,7 +197,7 @@ export function registerClientRoutes(app: Hono<any>, deps: ClientRouteDeps): voi
     if (!clients?.length) return c.json({ success: false, error: 'Aucun client trouvé' }, 404);
     const resourceId = ids.slice().sort((a, b) => a - b).join(',');
     const label = `${clients.length} client(s) : ${(clients as any[]).map((x) => x.name).join(', ')}`;
-    const result = await issueDeleteOtp(c.env, 'clients_bulk', resourceId, label, `Code de suppression — ${clients.length} client(s)`);
+    const result = await issueDeleteOtp(c.env, 'clients_bulk', resourceId, label, `Code de suppression — ${clients.length} client(s)`, { language: c.req.header('Accept-Language') });
     return c.json({ success: true, message: result.message, emailed: result.emailed, otp: result.emailed ? undefined : result.otp, count: clients.length });
   });
 

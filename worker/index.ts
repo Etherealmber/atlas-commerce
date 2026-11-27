@@ -489,7 +489,7 @@ app.use('*', cors({
     return 'https://stock.afmarbre.com';
   },
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'DPoP', 'X-Api-Key', 'Idempotency-Key', 'X-Device-Fingerprint', 'X-Atlas-Client', 'X-Admin-Backup-Token', 'X-Backup-Signature', 'X-Backup-Timestamp'],
+  allowHeaders: ['Content-Type', 'Accept-Language', 'Authorization', 'DPoP', 'X-Api-Key', 'Idempotency-Key', 'X-Device-Fingerprint', 'X-Atlas-Client', 'X-Admin-Backup-Token', 'X-Backup-Signature', 'X-Backup-Timestamp'],
   maxAge: 86400,
 }));
 
@@ -2195,6 +2195,7 @@ async function sendOtpMail(
       console.error('otp_binding_failed');
     }
   }
+  if (!key && !env.EMAIL?.send) console.error('otp_transport_unconfigured');
   return false;
 }
 
