@@ -36,7 +36,8 @@
     "lint:fix": "oxlint -c .oxlintrc.json src worker --fix",
     "check:version": "node scripts/check-version-sync.mjs",
     "i18n:scan": "node scripts/i18n-ast-scan.mjs",
-    "i18n:validate": "node scripts/i18n-validate.mjs"
+    "i18n:validate": "node scripts/i18n-validate.mjs",
+    "test:actors-journal": "node scripts/actors-journal-experiment.mjs"
   },
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0",
@@ -58,6 +59,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@cloudflare/actors": "0.0.1-beta.6",
     "@cloudflare/vite-plugin": "^1.61.0",
     "@cloudflare/workers-types": "^5.20261005.1",
     "@electric-sql/pglite": "0.6.0",
