@@ -732,9 +732,16 @@ export async function credentialAttemptGate(c: any, username: string, purpose: C
   try {
     const ip = clientIp(c);
     const rep = await getReputation(c.env.DB, ip) as any;
+    const now = Date.now();
     const until = Date.parse(String(rep.blocked_until || ''));
-    if (until > Date.now() || Number(rep.score ?? 50) <= 10) {
-      const retryAfter = until > Date.now() ? Math.max(1, Math.ceil((until - Date.now()) / 1000)) : 900;
+    // Legacy scores could permanently lock a network: a blocked user cannot
+    // log in to improve their score. Cool down stale low scores while retaining
+    // explicit bans and all durable account/IP admission budgets.
+    const updated = String(rep.updated_at || '');
+    const updatedAt = Date.parse(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(updated) ? `${updated.replace(' ', 'T')}Z` : updated);
+    const scoreUntil = Number(rep.score ?? 50) <= 10 && Number.isFinite(updatedAt) ? updatedAt + 15 * 60_000 : 0;
+    if (until > now || scoreUntil > now || (Number(rep.score ?? 50) <= 10 && !Number.isFinite(updatedAt))) {
+      const retryAfter = Math.max(1, Math.ceil((Math.max(until || 0, scoreUntil || 0, now + (Number.isFinite(updatedAt) ? 1000 : 900_000)) - now) / 1000));
       c.header('Retry-After', String(retryAfter));
       return c.json({ success: false, code: 'RATE_LIMITED', error: 'Trop de tentatives. Réessayez plus tard.', retry_after: retryAfter }, 429);
     }
@@ -785,9 +792,10 @@ export async function recordLogin(db: D1Database, ip: string, fingerprint: strin
   await db.prepare(`INSERT INTO login_attempts (ip, fingerprint, success, reputation_delta, user_agent) VALUES (?, ?, ?, ?, ?)`).bind(ip, fingerprint || '', success ? 1 : 0, delta, userAgent || '').run();
   await getReputation(db, ip);
   if (accountBudgeted) {
-    await db.prepare(`UPDATE ip_reputation SET score = MIN(100, score + ?),
-      success_count = success_count + ?, failed_count = failed_count + ?, updated_at = datetime('now') WHERE ip = ?`)
-      .bind(success ? 5 : 0, success ? 1 : 0, success ? 0 : 1, ip).run();
+    await db.prepare(`UPDATE ip_reputation SET score = CASE WHEN ? = 1 THEN MAX(11, MIN(100, score + 5)) ELSE score END,
+      success_count = success_count + ?, failed_count = failed_count + ?,
+      updated_at = CASE WHEN ? = 0 AND score <= 10 THEN updated_at ELSE datetime('now') END WHERE ip = ?`)
+      .bind(success ? 1 : 0, success ? 1 : 0, success ? 0 : 1, success ? 1 : 0, ip).run();
   } else if (success) {
     await db.prepare(`UPDATE ip_reputation SET score = MIN(100, score + 5), success_count = success_count + 1, failed_count = failed_count, blocked_until = NULL, updated_at = datetime('now') WHERE ip = ?`).bind(ip).run();
   } else {

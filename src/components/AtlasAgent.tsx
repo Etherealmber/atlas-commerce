@@ -1520,6 +1520,29 @@ export default function AtlasAgent() {
           {loadingThread && !msgs.some((m) => m.role === 'user') && <AtlasAgentShimmerBody rows={2} />}
           {!(loadingThread && !msgs.some((m) => m.role === 'user')) && msgs.map((m, i) => ((m.streaming && !String(m.text || '').trim()) || (i === 0 && m.role === 'assistant' && m.text === WELCOME.text)) ? null : (
             <div key={i} className={`atlas-agent-msg ${m.role}`}>
+              {m.tools && m.tools.length > 0 && (
+                <div className="atlas-agent-tools">
+                  <button
+                    type="button"
+                    className="atlas-agent-tools-toggle"
+                    aria-expanded={!!expandedTools[i]}
+                    onClick={() => setExpandedTools((s) => ({ ...s, [i]: !s[i] }))}
+                  >
+                    {expandedTools[i] ? '▾' : '▸'} {m.tools.some((tool) => tool.ok === false) ? 'Activité avec erreur' : 'Activité terminée'} · {m.tools.length} étape{m.tools.length > 1 ? 's' : ''}
+                  </button>
+                  {expandedTools[i] && (
+                    <ul className="atlas-agent-tools-list">
+                      {m.tools.map((t, j) => (
+                        <li key={j} className={t.ok ? 'ok' : 'bad'}>
+                          <span>{toolLabel(t.name)}</span>
+                          <span>{t.ok ? 'Terminé' : 'Échec'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               <span className="atlas-agent-msg-label">{m.role === 'assistant' ? 'Atlas Agent' : 'Vous'}</span>
               <div className="atlas-agent-bubble">
                 {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
@@ -1647,28 +1670,6 @@ export default function AtlasAgent() {
                 </div>
               ) : null}
 
-              {m.tools && m.tools.length > 0 && (
-                <div className="atlas-agent-tools">
-                  <button
-                    type="button"
-                    className="atlas-agent-tools-toggle"
-                    aria-expanded={!!expandedTools[i]}
-                    onClick={() => setExpandedTools((s) => ({ ...s, [i]: !s[i] }))}
-                  >
-                    {expandedTools[i] ? '▾' : '▸'} Activité · {m.tools.length} outil{m.tools.length > 1 ? 's' : ''}
-                  </button>
-                  {expandedTools[i] && (
-                    <ul className="atlas-agent-tools-list">
-                      {m.tools.map((t, j) => (
-                        <li key={j} className={t.ok ? 'ok' : 'bad'}>
-                          <span>{toolLabel(t.name)}</span>
-                          <span>{t.ok ? 'Terminé' : 'Échec'}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
 
               {m.sources && m.sources.length > 0 && (
                 <div className="atlas-agent-sources">
