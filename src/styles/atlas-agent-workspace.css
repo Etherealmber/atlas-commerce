@@ -88,3 +88,5 @@ html body aside.atlas-agent-panel.atlas-agent-panel--expanded .atlas-agent-msg.a
 html body aside.atlas-agent-panel button.atlas-agent-sidebar-thread:not(#agent-ui-a),
 html body aside.atlas-agent-panel button.atlas-agent-sidebar-new:not(#agent-ui-a) { justify-content: flex-start !important; text-align: start !important; }
 html body aside.atlas-agent-panel button.atlas-agent-sidebar-thread:not(#agent-ui-a) { display: block !important; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+html body aside.atlas-agent-panel .atlas-agent-sync-status { padding: 8px 16px; font-size: 12px; color: var(--agent-ink); background: var(--agent-surface); border-bottom: 1px solid var(--agent-line); }
+html body aside.atlas-agent-panel .atlas-agent-sync-status button { margin-inline-start: 8px; }

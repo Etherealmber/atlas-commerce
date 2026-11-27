@@ -8071,3 +8071,4 @@ html[data-theme="dark"] body aside.atlas-agent-panel.atlas-agent-panel--expanded
 html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-tools-list li { background: #27272a !important; border-color: #3f3f46 !important; color: #e4e4e7 !important; }
 
 html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-current-title { color: var(--agent-ink) !important; -webkit-text-fill-color: var(--agent-ink) !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-sync-status { color: var(--agent-ink) !important; background: var(--agent-surface) !important; border-color: var(--agent-line) !important; }

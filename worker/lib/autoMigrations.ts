@@ -35,7 +35,8 @@ export async function ensureAutoSqlMigrations(db: D1Database | null | undefined)
 export function requiresAutoSqlMigrations(method: string, path: string): boolean {
   const verb = method.toUpperCase();
   if (verb === 'POST' && (path === '/api/assist/chat' || path === '/api/assist/chat/stream')) return false;
-  if (verb === 'GET' && (path === '/api/admin/agent/threads' || /^\/api\/admin\/agent\/threads\/[^/]+$/.test(path))) return false;
+  if (verb === 'GET' && path === '/api/admin/agent/threads') return false;
+  if ((verb === 'GET' || verb === 'PUT') && /^\/api\/admin\/agent\/threads\/[^/]+$/.test(path)) return false;
   if (verb !== 'GET') return true;
   return !['/api/dashboard', '/api/admin/journal-mode', '/api/admin/journal-archive', '/api/admin/journal-archive/item'].includes(path);
 }

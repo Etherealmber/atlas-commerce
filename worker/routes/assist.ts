@@ -283,21 +283,13 @@ export async function purgeAgentConversationsOlderThan(env: any, days = 30): Pro
   return { deleted };
 }
 
-async function agentChatCryptoKey(env: any): Promise<CryptoKey | null> {
-  const secret = String(
-    (env as any).AGENT_CHAT_SECRET ||
-    (env as any).BACKUP_ENCRYPTION_KEY ||
-    (env as any).ADMIN_BACKUP_TOKEN ||
-    '',
-  ).trim();
-  if (!secret) {
-    // Security fail-closed: do not encrypt or store transcripts with a hardcoded static public key
-    return null;
-  }
-  const raw = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode('atlas-agent-chat-v2:' + secret),
-  );
+function agentTranscriptSecrets(env: any): string[] {
+  return [...new Set<string>([env.AGENT_CHAT_SECRET, env.BACKUP_ENCRYPTION_KEY, env.ADMIN_BACKUP_TOKEN].map(value => String(value || '').trim()).filter(Boolean))];
+}
+async function agentChatCryptoKey(env: any, material?: string): Promise<CryptoKey | null> {
+  const secret = material || agentTranscriptSecrets(env)[0];
+  if (!secret) return null;
+  const raw = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('atlas-agent-chat-v2:' + secret));
   return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 }
 
@@ -324,12 +316,17 @@ async function decryptAgentConv(env: any, bytes: ArrayBuffer | Uint8Array): Prom
     if (u8.length < 20) return null;
     const magic = new TextDecoder().decode(u8.slice(0, 4));
     if (magic !== 'ACH2') return null; // .conv is always authenticated ciphertext
-    const key = await agentChatCryptoKey(env);
-    if (!key) return null;
     const iv = u8.slice(4, 16);
     const ct = u8.slice(16);
-    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
-    return new TextDecoder().decode(pt);
+    for (const secret of agentTranscriptSecrets(env)) {
+      try {
+        const key = await agentChatCryptoKey(env, secret);
+        if (!key) continue;
+        const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+        return new TextDecoder().decode(pt);
+      } catch { /* try another previously configured key */ }
+    }
+    return null;
   } catch {
     return null;
   }

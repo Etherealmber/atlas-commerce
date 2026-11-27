@@ -443,11 +443,11 @@ export const api = {
       body: JSON.stringify({ provider }),
     }),
   listAgentThreads: () =>
-    request<{ data: { id: string; title: string; updated_at?: string; message_count?: number }[] }>('/api/admin/agent/threads'),
+    request<{ data: { id: string; title: string; updated_at?: string; message_count?: number }[]; meta?: { unreadable_count?: number } }>('/api/admin/agent/threads', { silent: true }),
   getAgentThread: (id: string) =>
-    request<{ data: { title?: string; messages?: any[]; updated_at?: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`),
-  putAgentThread: (id: string, body: { title?: string; messages?: any[] }) =>
-    request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), silent: true } as any),
+    request<{ data: { title?: string; messages?: any[]; updated_at?: string }; meta?: { version: string | null; empty?: boolean } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { silent: true }),
+  putAgentThread: (id: string, body: { title?: string; messages?: any[]; expected_version?: string | null }) =>
+    request<{ data: { id: string; storage: string; version: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), silent: true } as any),
   deleteAgentThread: (id: string) =>
     request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   /* v225 — agent governance, privacy deletes, 2FA, devices */

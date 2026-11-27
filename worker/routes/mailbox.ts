@@ -68,108 +68,71 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
 
   const AGENT_BLOB_MAGIC = new TextEncoder().encode('ATLASAGNT1');
 
-  async function agentCryptoKey(env: any, usage: KeyUsage[]): Promise<CryptoKey | null> {
-    const material = String(
-      env.AGENT_CHAT_SECRET || env.MAIL_BODY_ENCRYPTION_KEY || env.JWT_SECRET || env.ADMIN_PASSWORD || (usage.includes('encrypt') ? '' : 'atlas-agent'),
-    ).trim();
-    if (!material) return null;
+  function agentThreadSecrets(env: any, legacy = false): string[] {
+    const secrets = [...new Set<string>([env.AGENT_CHAT_SECRET, env.MAIL_BODY_ENCRYPTION_KEY, env.JWT_SECRET, env.ADMIN_PASSWORD, env.BACKUP_ENCRYPTION_KEY, env.ADMIN_BACKUP_TOKEN].map(value => String(value || '').trim()).filter(Boolean))];
+    return secrets.length || !legacy ? secrets : ['atlas-agent'];
+  }
+  async function agentCryptoKey(material: string, usage: KeyUsage[]): Promise<CryptoKey> {
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`atlas-agent-v1|${material}`));
     return crypto.subtle.importKey('raw', hash, 'AES-GCM', false, usage);
   }
 
-  async function storeAgentThreadR2(env: any, userKey: string, threadId: string, payload: any): Promise<boolean> {
-    const body = { ...payload, stored_at: new Date().toISOString(), v: 1 };
-    try {
-      if (env.IMAGES) {
-        const key = `agent/${userKey}/${threadId}.agent`;
-        const plain = new TextEncoder().encode(JSON.stringify(body));
-        if (plain.byteLength > 1_500_000) return false; // v231: refuse oversized blobs, keep local copy
-        const cryptoKey = await agentCryptoKey(env, ['encrypt']);
-        if (!cryptoKey) return false;
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, plain));
-        const out = new Uint8Array(AGENT_BLOB_MAGIC.length + iv.length + cipher.length);
-        out.set(AGENT_BLOB_MAGIC, 0);
-        out.set(iv, AGENT_BLOB_MAGIC.length);
-        out.set(cipher, AGENT_BLOB_MAGIC.length + iv.length);
-        await env.IMAGES.put(key, out, {
-          httpMetadata: { contentType: 'application/vnd.atlas.agent', cacheControl: 'private, no-store' },
-          customMetadata: { encrypted: 'aes-gcm-agent-v1', thread: String(threadId).slice(0, 64) },
-        });
-        return true;
-      }
-      // Do not create new plaintext KV copies of conversations. Legacy copies remain readable.
-      return false;
-    } catch (e) {
-      console.error('storeAgentThreadR2', String((e as any)?.message || e));
-      return false;
-    }
+  async function storeAgentThreadR2(env: any, userKey: string, threadId: string, payload: any, expectedVersion?: string | null): Promise<string> {
+    if (!env.IMAGES) throw new Error('storage unavailable');
+    const key = `agent/${userKey}/${threadId}.agent`;
+    const plain = new TextEncoder().encode(JSON.stringify({ ...payload, stored_at: new Date().toISOString(), v: 1 }));
+    if (plain.byteLength > 1_500_000) throw new Error('thread too large');
+    const material = agentThreadSecrets(env)[0];
+    if (!material) throw new Error('encryption unavailable');
+    const cryptoKey = await agentCryptoKey(material, ['encrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, plain));
+    const out = new Uint8Array(AGENT_BLOB_MAGIC.length + iv.length + cipher.length);
+    out.set(AGENT_BLOB_MAGIC, 0); out.set(iv, AGENT_BLOB_MAGIC.length); out.set(cipher, AGENT_BLOB_MAGIC.length + iv.length);
+    const written = await env.IMAGES.put(key, out, {
+      ...(expectedVersion === undefined ? {} : { onlyIf: expectedVersion === null ? new Headers({ 'If-None-Match': '*' }) : { etagMatches: expectedVersion } }),
+      httpMetadata: { contentType: 'application/vnd.atlas.agent', cacheControl: 'private, no-store' },
+      customMetadata: { encrypted: 'aes-gcm-agent-v1', thread: threadId.slice(0, 64) },
+    });
+    if (!written) throw new Error('conflict');
+    if (!written.etag) throw new Error('missing version');
+    return String(written.etag);
   }
 
-  async function loadAgentThreadR2(env: any, userKey: string, threadId: string): Promise<any | null> {
-    try {
-      if (env.IMAGES) {
-        const key = `agent/${userKey}/${threadId}.agent`;
-        const obj = await env.IMAGES.get(key);
-        if (obj) {
-          const buf = new Uint8Array(await obj.arrayBuffer());
-          if (buf.length >= AGENT_BLOB_MAGIC.length + 12 + 1) {
-            const magicOk = AGENT_BLOB_MAGIC.every((b, i) => buf[i] === b);
-            if (magicOk) {
-              const iv = buf.subarray(AGENT_BLOB_MAGIC.length, AGENT_BLOB_MAGIC.length + 12);
-              const cipher = buf.subarray(AGENT_BLOB_MAGIC.length + 12);
-              const cryptoKey = await agentCryptoKey(env, ['decrypt']);
-              if (!cryptoKey) return null;
-              const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, cipher);
-              return JSON.parse(new TextDecoder().decode(plain));
-            }
-          }
-        }
-      }
-      if (env.CACHE) {
-        const raw = await env.CACHE.get(`agent-thread:${userKey}:${threadId}`);
-        if (raw) return JSON.parse(raw);
-      }
-      return null;
-    } catch (e) {
-      console.error('loadAgentThreadR2', String((e as any)?.message || e));
-      return null;
+  async function loadAgentThreadR2(env: any, userKey: string, threadId: string): Promise<{ data: any; version: string } | null> {
+    if (!env.IMAGES) throw new Error('storage unavailable');
+    const obj = await env.IMAGES.get(`agent/${userKey}/${threadId}.agent`);
+    if (!obj) return null;
+    const buf = new Uint8Array(await obj.arrayBuffer());
+    if (buf.length < AGENT_BLOB_MAGIC.length + 12 + 16 || !AGENT_BLOB_MAGIC.every((b, i) => buf[i] === b) || !obj.etag) throw new Error('invalid thread');
+    for (const material of agentThreadSecrets(env, true)) {
+      try {
+        const cryptoKey = await agentCryptoKey(material, ['decrypt']);
+        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.subarray(AGENT_BLOB_MAGIC.length, AGENT_BLOB_MAGIC.length + 12) }, cryptoKey, buf.subarray(AGENT_BLOB_MAGIC.length + 12));
+        return { data: JSON.parse(new TextDecoder().decode(plain)), version: String(obj.etag) };
+      } catch { /* try previously configured keys, never return corrupt data */ }
     }
+    throw new Error('thread decryption failed');
   }
 
   async function listAgentThreadKeys(env: any, userKey: string): Promise<string[]> {
-    const ids: string[] = [];
-    try {
-      if (env.IMAGES) {
-        const listed = await env.IMAGES.list({ prefix: `agent/${userKey}/`, limit: 50 });
-        const cutoff = Date.now() - 30 * 86400000;
-        for (const o of listed.objects || []) {
-          const k = String(o.key || '');
-          if (!k.endsWith('.agent')) continue;
-          const uploaded = o.uploaded ? new Date(o.uploaded).getTime() : 0;
-          if (uploaded && uploaded < cutoff) {
-            try { await env.IMAGES.delete(k); } catch { /* */ }
-            continue;
-          }
-          ids.push(k.replace(`agent/${userKey}/`, '').replace(/\.agent$/, ''));
-        }
+    if (!env.IMAGES) throw new Error('storage unavailable');
+    const objects: Array<{ id: string; uploaded: number }> = [];
+    let cursor: string | undefined;
+    // Bounded scan. Do not delete objects as a side effect of listing history.
+    for (let page = 0; page < 10; page++) {
+      const listed = await env.IMAGES.list({ prefix: `agent/${userKey}/`, limit: 100, ...(cursor ? { cursor } : {}) });
+      for (const o of listed.objects || []) {
+        const key = String(o.key || '');
+        if (key.endsWith('.agent')) objects.push({ id: key.slice(`agent/${userKey}/`.length, -6), uploaded: o.uploaded ? new Date(o.uploaded).getTime() : 0 });
       }
-    } catch { /* */ }
-    try {
-      if (env.CACHE) {
-        const raw = await env.CACHE.get(`agent-thread-idx:${userKey}`);
-        if (raw) {
-          const arr = JSON.parse(raw);
-          if (Array.isArray(arr)) {
-            for (const id of arr) {
-              if (id && !ids.includes(id)) ids.push(String(id));
-            }
-          }
-        }
-      }
-    } catch { /* */ }
-    return ids.slice(0, 50);
+      if (!listed.truncated || !listed.cursor) break;
+      cursor = listed.cursor;
+    }
+    return objects.sort((a, b) => b.uploaded - a.uploaded).slice(0, 40).map(o => o.id);
   }
+
+  const validAgentThreadId = (id: string) => /^[a-zA-Z0-9._-]{1,80}$/.test(id) && id !== '.' && id !== '..';
 
   function agentUserKeyFromRequest(c: any): { ok: true; userKey: string; username: string } | { ok: false; response: Response } {
     const authHeader = c.req.header('Authorization');
@@ -188,14 +151,16 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
   app.get('/api/admin/agent/threads', async (c) => {
     const gate = agentUserKeyFromRequest(c);
     if (!gate.ok) return gate.response;
-    const ids = await listAgentThreadKeys(c.env, gate.userKey);
+    let ids: string[];
+    try { ids = await listAgentThreadKeys(c.env, gate.userKey); } catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Historique R2 indisponible.' }, 503); }
     const threads: any[] = [];
     // Loading sequentially made opening history wait for up to 40 R2 reads.
     // Keep concurrency bounded while preserving the existing 40-item limit.
     for (let offset = 0; offset < Math.min(ids.length, 40); offset += 5) {
       const chunk = await Promise.all(ids.slice(offset, offset + 5).map(async (id) => {
-        const data = await loadAgentThreadR2(c.env, gate.userKey, id);
-        if (!data) return { id, title: id, updated_at: null, message_count: 0 };
+        const loaded = await loadAgentThreadR2(c.env, gate.userKey, id).catch(() => null);
+        const data = loaded?.data;
+        if (!data) return { id, title: id, updated_at: null, message_count: 0, unreadable: true };
         const messages = Array.isArray(data.messages) ? data.messages : [];
         const firstUser = messages.find((message: any) => message?.role === 'user' && typeof message.text === 'string' && message.text.trim());
         const title = String(data.title || '').trim();
@@ -209,56 +174,51 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
       threads.push(...chunk);
     }
     threads.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
-    return c.json({ success: true, data: threads });
+    return c.json({ success: true, data: threads, meta: { unreadable_count: threads.filter(t => t.unreadable).length } });
   });
 
   app.get('/api/admin/agent/threads/:id', async (c) => {
     const gate = agentUserKeyFromRequest(c);
     if (!gate.ok) return gate.response;
-    const id = String(c.req.param('id') || '').slice(0, 80);
-    if (!id) return c.json({ success: false, error: 'id requis' }, 400);
-    const data = await loadAgentThreadR2(c.env, gate.userKey, id);
-    if (!data) {
-      return c.json({
-        success: true,
-        data: { title: 'Sans titre', messages: [], updated_at: null },
-        meta: { empty: true },
-      });
-    }
-    return c.json({ success: true, data });
+    const id = String(c.req.param('id') || '');
+    if (!validAgentThreadId(id)) return c.json({ success: false, error: 'Identifiant invalide.' }, 400);
+    try {
+      const result = await loadAgentThreadR2(c.env, gate.userKey, id);
+      if (!result) return c.json({ success: true, data: { title: 'Sans titre', messages: [], updated_at: null }, meta: { empty: true, version: null } });
+      return c.json({ success: true, data: result.data, meta: { version: result.version } });
+    } catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Impossible de lire la conversation R2.' }, 503); }
   });
 
   app.put('/api/admin/agent/threads/:id', async (c) => {
     const gate = agentUserKeyFromRequest(c);
     if (!gate.ok) return gate.response;
-    const id = String(c.req.param('id') || '').slice(0, 80);
-    if (!id) return c.json({ success: false, error: 'id requis' }, 400);
+    const id = String(c.req.param('id') || '');
+    if (!validAgentThreadId(id)) return c.json({ success: false, error: 'Identifiant invalide.' }, 400);
     const body = await c.req.json().catch(() => ({}));
-    const payload = {
-      title: String(body.title || 'Sans titre').slice(0, 200),
-      messages: Array.isArray(body.messages) ? body.messages.slice(-80) : [],
-      updated_at: new Date().toISOString(),
-    };
-    const ok = await storeAgentThreadR2(c.env, gate.userKey, id, payload);
-    if (!ok) {
-      // Do not spam clients with 503 — conversation still lives in browser sessionStorage
-      return c.json({
-        success: true,
-        data: { id, title: payload.title, storage: 'local_only' },
-        meta: { note: 'Persistance serveur indisponible — historique local uniquement' },
-      });
+    if ('expected_version' in body && body.expected_version !== null && (typeof body.expected_version !== 'string' || body.expected_version.length > 128)) return c.json({ success: false, error: 'Version invalide.' }, 400);
+    if (!Array.isArray(body.messages)) return c.json({ success: false, error: 'Messages invalides.' }, 400);
+    if (body.messages.length > 500) return c.json({ success: false, code: 'AGENT_THREAD_TOO_LARGE', error: 'Conversation trop volumineuse.' }, 413);
+    const payload = { title: String(body.title || 'Sans titre').slice(0, 200), messages: body.messages, updated_at: new Date().toISOString() };
+    try {
+      const version = await storeAgentThreadR2(c.env, gate.userKey, id, payload, body.expected_version);
+      return c.json({ success: true, data: { id, title: payload.title, storage: 'r2', version } });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'thread too large') return c.json({ success: false, code: 'AGENT_THREAD_TOO_LARGE', error: 'Conversation trop volumineuse.' }, 413);
+      if (error instanceof Error && error.message === 'conflict') return c.json({ success: false, code: 'AGENT_THREAD_CONFLICT', error: 'Cette conversation a été modifiée ailleurs. Les changements locaux sont conservés.' }, 409);
+      return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Impossible de sauvegarder la conversation sur R2.' }, 503);
     }
-    return c.json({ success: true, data: { id, title: payload.title, storage: c.env.IMAGES ? 'r2' : 'kv' } });
   });
 
   app.delete('/api/admin/agent/threads/:id', async (c) => {
     const gate = agentUserKeyFromRequest(c);
     if (!gate.ok) return gate.response;
-    const id = String(c.req.param('id') || '').slice(0, 80);
+    const id = String(c.req.param('id') || '');
+    if (!validAgentThreadId(id)) return c.json({ success: false, error: 'Identifiant invalide.' }, 400);
     try {
-      if (c.env.IMAGES) await c.env.IMAGES.delete(`agent/${gate.userKey}/${id}.agent`);
-    } catch { /* */ }
-    return c.json({ success: true });
+      if (!c.env.IMAGES) throw new Error('storage unavailable');
+      await c.env.IMAGES.delete(`agent/${gate.userKey}/${id}.agent`);
+      return c.json({ success: true });
+    } catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Impossible de supprimer la conversation R2.' }, 503); }
   });
 
 
