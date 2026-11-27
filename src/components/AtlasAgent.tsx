@@ -640,8 +640,8 @@ export default function AtlasAgent() {
   const [pendingAction, setPendingAction] = useState<LocalAction | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  // Remote (R2) thread hydration in flight. The shimmer only appears after a
-  // short delay so brand-new / cached threads never flash a skeleton.
+  // Remote (R2) hydration blocks edits until the saved version is known.
+  // Cached conversations remain visible; empty threads show a shimmer.
   const [loadingThread, setLoadingThread] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'loading' | 'saved' | 'pending' | 'saving' | 'offline' | 'conflict' | 'too-large'>('loading');
   const [syncEpoch, setSyncEpoch] = useState(0);

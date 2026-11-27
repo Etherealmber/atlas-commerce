@@ -152,3 +152,17 @@ it('saves to R2 then restores the answer on a fresh browser cache', async () => 
     expect(host.textContent).toContain('1 étape');
   } finally { vi.useRealTimers(); }
 });
+
+
+it('shows a shimmer only while an empty conversation hydrates from R2', async () => {
+  let resolve!: (value: any) => void;
+  vi.mocked(api.getAgentThread).mockReturnValue(new Promise(r => { resolve = r; }));
+  await render();
+  expect(host.querySelector('.atlas-agent-shimmer-bubble--user')).not.toBeNull();
+  expect(host.textContent).not.toContain('Comment puis-je vous aider');
+  expect(api.putAgentThread).not.toHaveBeenCalled();
+  await act(async () => resolve({ data: { messages: [{ role: 'user', text: 'Question R2' }, { role: 'assistant', text: 'Réponse R2' }] }, meta: { version: 'v1' } }));
+  expect(host.querySelector('.atlas-agent-shimmer-bubble--user')).toBeNull();
+  expect(host.textContent).toContain('Réponse R2');
+  expect(api.putAgentThread).not.toHaveBeenCalled();
+});
