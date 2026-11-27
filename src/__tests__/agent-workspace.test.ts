@@ -254,4 +254,30 @@ it('shows real expandable activity without a redundant generic invoice shortcut,
   expect(toggle.getAttribute('aria-expanded')).toBe('true');
   expect(host.querySelector('.atlas-agent-tools-list')?.textContent).toContain('Consulter les factures impayées');
   expect(host.querySelector('.atlas-agent-result-card')?.textContent).toContain('0 résultat');
+  expect(host.querySelector('.atlas-agent-result-link')?.getAttribute('href')).toBe('/invoices');
+});
+
+it('does not resurrect a deleted conversation when an older history request finishes', async () => {
+  localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'stale', title: 'À supprimer', updated: 10 }]));
+  let finishList!: (value: any) => void;
+  vi.mocked(api.listAgentThreads).mockReturnValue(new Promise(resolve => { finishList = resolve; }));
+  vi.spyOn(api, 'deleteAgentThread').mockResolvedValue({ success: true });
+  await render();
+  await click('[aria-label="Agrandir le panneau"]');
+  await click('[aria-label="Supprimer À supprimer"]');
+  await act(async () => document.querySelector<HTMLButtonElement>('.ac-confirm-ok')!.click());
+  await act(async () => finishList({ data: [{ id: 'stale', title: 'À supprimer', message_count: 1, updated_at: '2026-01-01' }] }));
+  expect(host.querySelector('[aria-label="Supprimer À supprimer"]')).toBeNull();
+  expect(localStorage.getItem('atlas_agent_threads_v1:admin')).not.toContain('stale');
+});
+
+it('does not hide a thread when deletion lacks a success acknowledgement', async () => {
+  localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'thread-a', title: 'Test', updated: 10 }]));
+  vi.spyOn(api, 'deleteAgentThread').mockResolvedValue({} as any);
+  await render();
+  await click('[aria-label="Agrandir le panneau"]');
+  await click('[aria-label="Supprimer Test"]');
+  await act(async () => document.querySelector<HTMLButtonElement>('.ac-confirm-ok')!.click());
+  expect(host.querySelector('[aria-label="Supprimer Test"]')).not.toBeNull();
+  expect(host.textContent).toContain('Suppression impossible');
 });

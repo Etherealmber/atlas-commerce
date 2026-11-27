@@ -209,3 +209,10 @@ html body .atlas-agent-mascot-hint button.atlas-agent-hint-close { margin-inline
 html:not(.atlas-agent-docked) body button.atlas-agent-fab.atlas-agent-fab-premium { width: 60px !important; height: 60px !important; border: 2px solid #fff !important; background: #edf5ff !important; box-shadow: 0 8px 26px #284b8a35, 0 2px 6px #284b8a24 !important; }
 html body aside.atlas-agent-panel .atlas-agent-head .atlas-agent-header-mark { width: 40px; height: 40px; }
 @media (prefers-reduced-motion: reduce) { .atlas-agent-tools-toggle svg { transition: none; } }
+html body aside.atlas-agent-panel .atlas-agent-result-card > details > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.atlas-agent-result-card > details > summary::-webkit-details-marker { display: none; }
+.atlas-agent-result-card > details > summary > span:nth-child(2) { flex: 1; min-width: 0; }
+html body aside.atlas-agent-panel .atlas-agent-result-link { display: inline-flex; align-items: center; gap: 5px; margin: 0 12px 10px; color: #285cab; font-size: 12px; font-weight: 700; text-decoration: none; }
+html body aside.atlas-agent-panel .atlas-agent-result-link:hover { text-decoration: underline; }
+html body aside.atlas-agent-panel .atlas-agent-result-card details > p { margin: 0; padding: 8px 12px; color: var(--agent-muted); font-size: 12px; }
+html body aside.atlas-agent-panel .atlas-agent-approval-menu button:disabled:not(#agent-approval-a):not(#agent-approval-b) { display: block !important; width: 100% !important; min-width: 0 !important; height: auto !important; min-height: 0 !important; padding: 7px 8px !important; border: 1px solid var(--agent-line) !important; border-radius: 8px !important; background: transparent !important; color: var(--agent-muted) !important; -webkit-text-fill-color: var(--agent-muted) !important; text-align: start !important; white-space: normal !important; overflow-wrap: anywhere; line-height: 1.4; opacity: 1; }
