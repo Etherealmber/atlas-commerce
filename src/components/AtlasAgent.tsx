@@ -1266,24 +1266,15 @@ export default function AtlasAgent() {
       try {
         // Send the user text cleanly; page is context only (never inject "quoi faire"
         // into every prompt — that was matching local canned tips and making the agent dumb).
-        const isGreeting = /^(bonjour|bonsoir|salut|hello|hi|hey|coucou|salam|bonne\s*(journée|soirée)|merci)[\s!.?]*$/i.test(q);
-        const prompt = isGreeting
-          ? q
-          : [
-              `Contexte page: ${page.title} (${page.path}). ${page.hint}`,
-              'Réponds en français, de façon utile et naturelle (2–5 phrases max sauf si on demande un détail).',
-              'Si la question est un salut ou hors sujet page, réponds normalement sans forcer un tutoriel de la page.',
-              'Ne propose pas d\'ouvrir la page courante.',
-              `Message: ${q || 'Analyse des pièces jointes.'}`,
-              files.length
-                ? [
-                    `Fichiers joints: ${files.map((f) => `${f.name} (${f.type})`).join('; ')}. Ne redemande pas de fichier si l'utilisateur n'en a pas fourni.`,
-                    'Consigne: lis IMMÉDIATEMENT chaque fichier joint (images transmises en vision, extraits texte inclus ci-dessous) et appuie ta réponse dessus en premier.',
-                    reused ? 'Ces pièces jointes ont déjà été fournies plus tôt dans la conversation — reprends-les pour cette demande.' : '',
-                    ...files.filter((f) => f.text_excerpt).map((f) => `--- Extrait de ${f.name} ---\n${f.text_excerpt}`),
-                  ].filter(Boolean).join('\n')
-                : 'Aucun fichier joint — ne demande pas de pièce jointe sauf si indispensable.',
-            ].filter(Boolean).join('\n');
+        const prompt = [
+          `Contexte de navigation (informatif uniquement) : ${page.title} (${page.path}).`,
+          `Message de l’utilisateur : ${q || 'Analyse des pièces jointes.'}`,
+          files.length ? [
+            `Fichiers joints : ${files.map((f) => `${f.name} (${f.type})`).join('; ')}.`,
+            reused ? 'Ces fichiers ont été fournis précédemment dans cette conversation.' : '',
+            ...files.filter((f) => f.text_excerpt).map((f) => `--- Extrait de ${f.name} ---\n${f.text_excerpt}`),
+          ].filter(Boolean).join('\n') : '',
+        ].filter(Boolean).join('\n');
         const res = await api.assistChat(prompt, {
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca',
           thread_id: threadId,
@@ -1437,7 +1428,7 @@ export default function AtlasAgent() {
                 )}
               </svg>
             </button>
-            <button type="button" className="atlas-agent-close atlas-agent-close--danger" aria-label="Fermer" title="Fermer" onClick={() => {
+            <button type="button" className="atlas-agent-close" aria-label="Fermer" title="Fermer" onClick={() => {
           setOpen(false);
           try {
             document.documentElement.classList.remove('atlas-agent-docked');

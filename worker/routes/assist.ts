@@ -1165,7 +1165,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
             model,
             system,
             message: finalMessage,
-            maxTokens: c.env.ATLAS_DEMO === '1' ? 200 : isGreeting ? 300 : 700,
+            maxTokens: c.env.ATLAS_DEMO === '1' ? 512 : isGreeting ? 768 : 1600,
             maxRounds: c.env.ATLAS_DEMO === '1' ? 1 : undefined,
             tools: chatTools,
             executor: agentKnowledgeExecutor(c, username, role, chatTools),
@@ -1274,6 +1274,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
         const send = (event: string, data: unknown) => {
           try { controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)); } catch { /* client gone */ }
         };
+        let phase: 'quick' | 'history' | 'provider' | 'audit' | 'transcript' = 'quick';
         try {
           // v0.7.8 — raccourci local identique au jumeau bufferisé (hint déterministe)
           if (!isGreeting && (task === 'general' || !task) && (responseLanguage === null || responseLanguage === 'fr')) {
@@ -1288,6 +1289,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
             }
           }
           // v0.7.7 — même savoir persistant que le jumeau bufferisé
+          phase = 'history';
           const knowledge = await loadAgentKnowledge(c.env.DB, username).catch(() => null);
           const chatTools = agentChatTools(role, knowledge);
           const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
@@ -1301,6 +1303,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           let usedModel = model;
           let usage: { prompt: number; completion: number } | undefined;
           let toolTrace: AgentToolTrace[] = [];
+          phase = 'provider';
           if (images.length) {
             // Buffered vision fallback — the whole reply arrives as one token event.
             const out = await groqChat({ apiKey: groqKey, model: '', system, message: finalMessage, maxTokens: c.env.ATLAS_DEMO === '1' ? 200 : 1200, images });
@@ -1334,15 +1337,19 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           if (usedTokens > 0 && role !== 'owner' && role !== 'admin') {
             try { await agentQuotaAdd(c.env, c.env.DB, username, usedTokens); } catch { /* quota best-effort */ }
           }
+          phase = 'audit';
           await auditAssist(c.env, { username, role, message, tools: 'groq-stream', ok: true });
+          phase = 'transcript';
           await putAgentChatTurn(c.env, {
             username, role, message, reply, tools: 'groq-stream', model: usedModel, thread_id: threadId, prefetchedPlain: existingPlain, etag,
           });
+          phase = 'audit';
           await writeAudit(c.env.DB, {
             username, role, action: 'assist.chat.stream', entity: 'atlas_agent', detail: 'groq', ip: clientIp(c),
           });
           send('done', { reply, model: usedModel, provider: 'groq', usage: usage || null, documents: docsMeta, thread_id: threadId, tool_trace: toolTrace, proposals: proposalsFromToolTrace(toolTrace), task, history_turns: history ? history.split('\n').length : 0 });
         } catch {
+          console.error('[agent-stream-failed]', { phase });
           try { await auditAssist(c.env, { username, role, message, tools: 'error', ok: false }); } catch { /* */ }
           send('error', { code: 'assist_upstream', error: tr(uiLang, 'agent_upstream') });
         } finally {

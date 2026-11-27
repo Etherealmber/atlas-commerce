@@ -8009,3 +8009,30 @@ html[data-theme="dark"] body .ac-settings-catalog :is(.catalog-add-cell button, 
   color: #fafafa !important;
   -webkit-text-fill-color: #fafafa !important;
 }
+
+/* Agent: neutral dashboard-style controls rather than a destructive-looking close. */
+html body .atlas-agent-panel .atlas-agent-head-actions button.atlas-agent-close:not(#agent-ui-a):not(#agent-ui-b):not(#agent-ui-c) {
+  background: #f4f4f5 !important;
+  border: 1px solid #d4d4d8 !important;
+  color: #3f3f46 !important;
+  -webkit-text-fill-color: #3f3f46 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-head-actions button.atlas-agent-close:not(#agent-ui-a):not(#agent-ui-b):not(#agent-ui-c) {
+  background: #27272a !important;
+  border-color: #52525b !important;
+  color: #f4f4f5 !important;
+  -webkit-text-fill-color: #f4f4f5 !important;
+}
+html body .atlas-agent-panel .atlas-agent-head-actions button.atlas-agent-close svg:not(#agent-ui-a):not(#agent-ui-b):not(#agent-ui-c) {
+  stroke: currentColor !important;
+}
+html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-head-actions .atlas-agent-iconbtn:not(#agent-ui-a):not(#agent-ui-b):not(#agent-ui-c) {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+}
+html[data-theme="dark"] body .atlas-agent-panel .atlas-agent-head-actions .atlas-agent-iconbtn svg:not(#agent-ui-a):not(#agent-ui-b):not(#agent-ui-c) {
+  stroke: currentColor !important;
+}
+html body .atlas-agent-panel .atlas-agent-body:not(#agent-ui-a):not(#agent-ui-b) { gap: 16px !important; }
+html body .atlas-agent-panel .atlas-agent-bubble:not(#agent-ui-a):not(#agent-ui-b) { line-height: 1.6 !important; font-weight: 400 !important; }

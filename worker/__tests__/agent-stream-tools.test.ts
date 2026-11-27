@@ -119,6 +119,16 @@ describe('groqChatStreamWithTools (lib)', () => {
     expect(out.tool_trace).toEqual([]);
   });
 
+  it('rejects an interrupted or length-limited stream instead of saving an incomplete reply', async () => {
+    for (const content of [
+      `data: ${JSON.stringify(contentDelta('Partielle'))}\n\n`,
+      `data: ${JSON.stringify({ choices: [{ delta: { content: 'Partielle' }, finish_reason: 'length' }] })}\n\ndata: [DONE]\n\n`,
+    ]) {
+      const fetchImpl = (async () => new Response(content, { headers: { 'Content-Type': 'text/event-stream' } })) as typeof fetch;
+      await expect(groqChatStreamWithTools({ apiKey: 'k', system: 's', message: 'm', tools: [], executor: async () => ({ ok: true }), onToken: () => {}, fetchImpl })).rejects.toThrow();
+    }
+  });
+
   it('exécuteur en erreur → trace ok:false + erreur, le flux continue', async () => {
     let call = 0;
     const fetchImpl = (async () => {

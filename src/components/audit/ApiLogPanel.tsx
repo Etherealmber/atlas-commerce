@@ -41,6 +41,7 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
   const generation = useRef(0);
   const lastAttempt = useRef(0);
   const [error, setError] = useState(false);
+  const [r2Only, setR2Only] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusFilter>('');
   const [q, setQ] = useState('');
@@ -64,6 +65,7 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
     try {
       const r = await api.getApiLog({ limit: PAGE, cursor, range, status: status || undefined, q: query || undefined, stats: reset && !useCache });
       if (requestId !== generation.current) return;
+      setR2Only(false);
       setRows(Array.isArray(r?.data) ? r.data : []);
       setNext(r?.meta?.has_more ? r.meta.next_cursor ?? null : null);
       if (r?.meta?.stats && typeof r.meta.stats === 'object') {
@@ -71,10 +73,11 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
         setStats(r.meta.stats);
       }
       if (reset) setStack([null]);
-    } catch {
+    } catch (err: any) {
       if (requestId !== generation.current) return;
+      setR2Only(err?.code === 'JOURNAL_R2_ONLY');
       setRows([]);
-      setNext(null); setError(true);
+      setNext(null); setError(err?.code !== 'JOURNAL_R2_ONLY');
     } finally {
       if (requestId === generation.current) setLoading(false);
     }
@@ -95,6 +98,18 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
   const days = Array.isArray(stats?.by_day) ? stats.by_day.slice(-14) : [];
   const maxDay = Math.max(1, ...days.map((item: any) => Number(item.n || 0)));
   const errRate = stats?.total ? Math.round((Number(stats.errors || 0) / Number(stats.total)) * 1000) / 10 : 0;
+
+  if (r2Only) return <section id="journal-api" className="ac-panel ac-apilog-panel" aria-label="Journal des appels API">
+    <h3>Journal des appels API et audit</h3>
+    <p>Consultez les entrées archivées par date. Les statistiques, filtres et exports de l’ancienne vue ne sont pas encore disponibles pour R2.</p>
+    <JournalArchive onOpen={setDetail} r2Only />
+    {detail && createPortal(<div className="audit-detail-modal-backdrop" role="presentation" onClick={() => setDetail(null)}>
+      <div className="audit-detail-modal audit-detail-modal--expanded card" role="dialog" aria-modal="true" aria-label="Détails de la requête" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setDetail(null); }}>
+        <div className="audit-detail-heading"><h3>Détails de la requête</h3><button type="button" className="secondary" aria-label="Fermer" onClick={() => setDetail(null)}>×</button></div>
+        <AuditRequestDetails row={detail} kind="api" />
+      </div>
+    </div>, document.body)}
+  </section>;
 
   return (
     <section id="journal-api" className="ac-panel ac-apilog-panel" aria-label="Journal des appels API">
@@ -229,7 +244,7 @@ export default function ApiLogPanel({ range, dockActions = true }: { range: Rang
 }
 
 /** Separate archive browser: current D1 KPIs and filters do not include R2. */
-function JournalArchive({ onOpen }: { onOpen: (row: any) => void }) {
+function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void; r2Only?: boolean }) {
   const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
   const [kind, setKind] = useState<'api' | 'audit'>('api');
   const [auditEntry, setAuditEntry] = useState<unknown>(null);
@@ -253,9 +268,9 @@ function JournalArchive({ onOpen }: { onOpen: (row: any) => void }) {
     catch { setMessage(t('Impossible de lire cette entrée archivée.')); }
     finally { setBusy(false); }
   };
-  return <details className="ac-panel">
+  return <details className="ac-panel" open={r2Only || undefined}>
     <summary>{t('Archive chiffrée des appels API')} / Audit</summary>
-    <p>{t('Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.')}</p>
+    {!r2Only && <p>{t('Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.')}</p>}
     <div className="ac-journal-archive-controls">
       <Select value={kind} disabled={busy} aria-label="Journal" onChange={e => { setKind(e.target.value as 'api' | 'audit'); setKeys([]); setCursor(null); setAuditEntry(null); setMessage(''); }}><option value="api">API</option><option value="audit">Audit</option></Select>
       <label htmlFor="journal-archive-day">{t('Date UTC')}</label>

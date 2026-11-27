@@ -209,6 +209,10 @@ app.put('/api/admin/users/:id', async (c) => {
 app.get('/api/admin/audit', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+    return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 503);
+  }
   await ensureSecurityTables(c.env.DB);
 
   // Cursor-based (keyset) pagination — stable and cheap on D1 free tier.
@@ -363,6 +367,10 @@ app.get('/api/admin/journal-archive/item', async (c) => {
 app.get('/api/admin/api-log', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+    return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 503);
+  }
   await ensureApiLogTable(c.env.DB);
   const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 40)));
   const cursorId = Math.max(0, Math.floor(Number(c.req.query('cursor') || 0))) || 0;
@@ -442,6 +450,10 @@ app.get('/api/admin/api-log', async (c) => {
 app.post('/api/admin/audit/explain', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+    return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 503);
+  }
   const body = (await c.req.json().catch(() => ({}))) as { kind?: string; id?: unknown; language?: string };
   const kind = body.kind === 'api' ? 'api' : 'audit';
   const id = Math.floor(Number(body.id));
@@ -480,6 +492,10 @@ app.post('/api/admin/audit/explain', async (c) => {
 app.get('/api/admin/audit/export', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
+    return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 503);
+  }
   await ensureSecurityTables(c.env.DB);
   const format = ((c.req.query('format') || 'csv').toLowerCase() === 'json') ? 'json' : 'csv';
   const max = Math.min(2000, Math.max(1, Number(c.req.query('limit') || 500)));
