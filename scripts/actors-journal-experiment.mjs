@@ -65,3 +65,30 @@ try {
   assert.deepEqual(new Uint8Array(await (await actorBucket.get(concurrentPath)).arrayBuffer()), bytes);
   console.log('Local only: legacy → Actors adapter → rollback preserved queue, alarm, and bytes; adapter alarm and duplicate handling passed.');
 } finally { await mf.dispose(); }
+
+// Supabase-mode failure/rollback check: intentionally invalid ciphertext must
+// remain encrypted in the queue and must never fall back to local R2.
+const supabaseOptions = (script) => convertV4MiniflareOptions({
+  modules: true, script, compatibilityDate: '2025-04-01',
+  durableObjects: { JOURNAL_BUFFER: { className: 'JournalBuffer', useSQLite: true } },
+  r2Buckets: ['JOURNAL_ARCHIVE'],
+  bindings: { JOURNAL_ARCHIVE_MODE: 'supabase', JOURNAL_ENCRYPTION_KEY: btoa('x'.repeat(32)), SUPABASE_JOURNAL_URL: 'https://example.supabase.co', SUPABASE_JOURNAL_SECRET_KEY: 'sb_secret_test' },
+});
+const failedMf = new Miniflare(supabaseOptions(actor));
+try {
+  const getStub = async () => { const ns = await failedMf.getDurableObjectNamespace('JOURNAL_BUFFER'); return ns.get(ns.idFromName('journal-v1')); };
+  let s = await getStub();
+  assert.equal((await s.fetch('https://journal/enqueue', { method: 'POST', body: payload })).status, 202);
+  await new Promise(resolve => setTimeout(resolve, 2500));
+  let state = await health(s);
+  assert.equal(state.pending_at_least, 1);
+  assert.equal(state.alarm_scheduled, true);
+  assert.equal(state.last_failure.reason, 'decrypt');
+  assert.equal(await (await failedMf.getR2Bucket('JOURNAL_ARCHIVE')).get(path), null);
+  await failedMf.setOptions(supabaseOptions(legacy));
+  s = await getStub(); state = await health(s);
+  assert.equal(state.pending_at_least, 1);
+  assert.equal(state.alarm_scheduled, true);
+  assert.equal(state.last_failure.reason, 'decrypt');
+  console.log('Supabase-mode local failure remains queued with alarm and diagnostics after rollback; no R2 fallback.');
+} finally { await failedMf.dispose(); }

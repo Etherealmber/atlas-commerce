@@ -4,7 +4,7 @@ import { FileDown, FileText, Plus, Printer, QrCode } from 'lucide-react';
 import { TimedUndoDelete } from '../components/ui';
 import ListPager from '../components/ui/ListPager';
 import { onAgentDraft } from '../lib/agentDraft';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import DatePicker from '../components/DatePicker';
 import { api, BASE } from '../api';
@@ -34,6 +34,9 @@ export default function Receipts() {
   const { confirm } = useUi();
   const [list, setList] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoiceStatus, setInvoiceStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loadError, setLoadError] = useState('');
+  const loadGeneration = useRef(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -65,15 +68,25 @@ export default function Receipts() {
   };
 
   const load = (soft = false) => {
+    const generation = ++loadGeneration.current;
     if (soft) setRefreshing(true);
     else setLoading(true);
-    Promise.all([api.getReceipts(), api.getInvoices()])
-      .then(([r, inv]) => { setList(r.data); setInvoices(inv.data); })
-      .finally(() => {
-        setLoading(false);
-        setRefreshing(false);
-      });
+    setLoadError('');
+    setInvoiceStatus('loading');
+    void api.getReceipts().then(r => {
+      if (generation === loadGeneration.current) setList(r.data);
+    }).catch(() => {
+      if (generation === loadGeneration.current) setLoadError('Impossible de charger les reçus. Réessayez.');
+    }).finally(() => {
+      if (generation === loadGeneration.current) { setLoading(false); setRefreshing(false); }
+    });
+    void api.getInvoices().then(inv => {
+      if (generation === loadGeneration.current) { setInvoices(inv.data); setInvoiceStatus('ready'); }
+    }).catch(() => {
+      if (generation === loadGeneration.current) setInvoiceStatus('error');
+    });
   };
+
   
   useEffect(() => {
     const onLists = () => {
@@ -189,6 +202,7 @@ export default function Receipts() {
       </div>
 
       <SaveFeedback message={saveMsg} type={saveMsgType} />
+      {loadError && <p role="alert">{loadError} <button type="button" onClick={() => load(true)}>Réessayer</button></p>}
 
       <div className="ac-panel ac-products-filters">
         <div className="search-bar"><input className="search-input" placeholder="Rechercher par numéro ou nom de client..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
@@ -196,7 +210,7 @@ export default function Receipts() {
 
       <div className="ac-panel ac-products-table-panel">
         <div className="ac-table-pager-bar">
-          <span className="ac-table-pager-meta">{filtered.length} reçu{filtered.length === 1 ? '' : 's'} · 20 par page</span>
+          <span className="ac-table-pager-meta">{loadError ? 'Liste indisponible' : `${filtered.length} reçu${filtered.length === 1 ? '' : 's'} · 20 par page`}</span>
           <ListPager page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
         </div>
         <div className="table-wrap">
@@ -262,7 +276,7 @@ export default function Receipts() {
                   </td>
                 </tr>
               ))}
-              {!filtered.length && (
+              {!filtered.length && !loadError && (
                 <tr><td colSpan={7}>
                     <EmptyState
                       title="Aucun reçu"
@@ -287,12 +301,14 @@ export default function Receipts() {
             <StepBody active={wz.step === 1}>
             <div className="form-row">
               <label>Lier à une facture (optionnel)</label>
-              <Select value={invoiceId} onChange={(e) => selectInvoice(e.target.value ? numFromInput(e.target.value) : '')}>
+              <Select value={invoiceId} disabled={invoiceStatus !== 'ready'} onChange={(e) => selectInvoice(e.target.value ? numFromInput(e.target.value) : '')}>
                 <option value="">— Reçu indépendant —</option>
                 {invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').map((inv) => (
                   <option key={inv.id} value={inv.id}>{inv.number} — {inv.client_name} (Reste : {fmt(remainingBalance(inv.total, inv.amount_paid))})</option>
                 ))}
               </Select>
+              {invoiceStatus === 'loading' && <small role="status">Chargement des factures…</small>}
+              {invoiceStatus === 'error' && <small role="alert">Factures indisponibles. Actualisez la page pour réessayer ; un reçu indépendant reste possible.</small>}
             </div>
             <div className="grid grid-2">
               <div className="form-row"><label>Nom du client *</label><input value={clientName} onChange={(e) => { setClientName(e.target.value); if (modalError) setModalError(''); }} /></div>

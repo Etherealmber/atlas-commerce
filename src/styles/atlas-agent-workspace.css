@@ -96,3 +96,28 @@ html body aside.atlas-agent-panel button.atlas-agent-thread-delete:not(#agent-ui
 .atlas-agent-thread-row { border-radius: 9px; }
 .atlas-agent-thread-delete { opacity: .65; }
 .atlas-agent-thread-row:hover .atlas-agent-thread-delete, .atlas-agent-thread-delete:focus-visible { opacity: 1; }
+
+/* Keep the workspace brand in the rail, while retaining the conversation
+   picker in the header (and the full header on narrower screens). */
+@media (min-width: 721px) {
+  html body aside.atlas-agent-panel.atlas-agent-has-sidebar .atlas-agent-workspace-sidebar { flex-basis: 280px; }
+  html body aside.atlas-agent-panel.atlas-agent-has-sidebar .atlas-agent-header-mark,
+  html body aside.atlas-agent-panel.atlas-agent-has-sidebar .atlas-agent-history-trigger small { display: none; }
+  html body aside.atlas-agent-panel.atlas-agent-has-sidebar .atlas-agent-history-trigger strong { max-width: min(50vw, 420px); }
+}
+html body aside.atlas-agent-panel .atlas-agent-workspace-sidebar > :not(.atlas-agent-workspace-threads) { flex-shrink: 0; }
+html body aside.atlas-agent-panel .atlas-agent-thread-delete { opacity: 1; }
+html[data-theme="dark"] body aside.atlas-agent-panel {
+  --agent-surface: #1e2026; --agent-canvas: #15171c; --agent-ink: #f4f4f5;
+  --agent-muted: #b5b8c2; --agent-line: #42454e; --agent-accent: #d4d4d8;
+}
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-history-search input::placeholder { color: #b5b8c2; opacity: 1; }
+html[data-theme="dark"] body aside.atlas-agent-panel button.atlas-agent-sidebar-thread.is-current:not(#agent-ui-a),
+html[data-theme="dark"] body aside.atlas-agent-panel button.atlas-agent-sidebar-thread:hover:not(#agent-ui-a),
+html[data-theme="dark"] body aside.atlas-agent-panel button.atlas-agent-history-choice.is-current,
+html[data-theme="dark"] body aside.atlas-agent-panel button.atlas-agent-history-choice:hover { background: #383b45 !important; color: #fff !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel button.atlas-agent-thread-delete:not(#agent-ui-a) { color: #c0c3cc !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel button.atlas-agent-thread-delete:not(#agent-ui-a):hover { color: #ff9d9d !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-card-icon { background: #383b45; color: #f4f4f5; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-msg.user .atlas-agent-bubble { background: #373a45 !important; border-color: #50535e !important; color: #f4f4f5 !important; }
+html body aside.atlas-agent-panel :is(button, input):focus-visible { outline: 2px solid #828cfc; outline-offset: 2px; }

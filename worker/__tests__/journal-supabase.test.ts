@@ -137,3 +137,14 @@ it('reports a sanitized queue failure to an owner and clears it after successful
   response = await app.request('/api/admin/journal-buffer-status', {}, f.env);
   expect((await response.json() as any).data).toMatchObject({ pending_at_least: 0, last_failure: null });
 });
+
+it('does not fan out a whole batch when both Supabase journal functions return 404', async () => {
+  const f = setup();
+  const fetch = vi.fn(async () => new Response(null, { status: 404 }));
+  vi.stubGlobal('fetch', fetch);
+  for (let i = 0; i < 10; i++) await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: `event-${i}` }));
+  await f.buffer.alarm();
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect([...f.pending.keys()].filter(k => k.startsWith('pending/'))).toHaveLength(10);
+  expect((await (await f.buffer.fetch(new Request('https://journal/health'))).json() as any).last_failure.reason).toBe('schema');
+});

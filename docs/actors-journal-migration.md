@@ -16,3 +16,5 @@ The adapter delegates `fetch` and native `alarm` to the existing implementation.
 4. Design a reproducible backup/export and restoration procedure for pending entries and scheduled alarms. Retain the exact journal encryption key while any entries are pending. Agree on cutover metrics, rollback conditions, and how to handle concurrent writes, gradual deployment and lost acknowledgements. Obtain explicit approval before any production deployment or binding/class migration.
 
 Do not rename, delete, recreate, or merge the production binding/object. Do not run Actors tools against production. Source history in D1/R2 is unchanged; Supabase remains the journal destination. This experiment does not reduce Durable Object usage, fix existing Supabase errors, or guarantee delivery.
+
+The local experiment also checks that an undecryptable Supabase-mode item remains queued with its failure diagnostic and retry alarm after adapter rollback, without falling back to R2. This does not exercise a real Supabase RPC, a valid encrypted event, or production recovery.
