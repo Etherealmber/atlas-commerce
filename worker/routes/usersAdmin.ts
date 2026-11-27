@@ -3,7 +3,7 @@ import { DEMO_USERNAME } from '../lib/demo/policy';
 import { API_LOG_RETENTION_DAYS, classifyNetwork, ensureApiLogTable, geoForIps } from '../lib/apiLog';
 import { explainLogLine } from '../lib/auditExplain';
 import { listArchivedJournal, readArchivedJournal } from '../lib/journalArchive';
-import { journalRpc, supabaseJournalConfig } from '../lib/journalSupabase';
+import { journalRpc, supabaseJournalConfig, JournalConfigurationError, JournalServiceError } from '../lib/journalSupabase';
 import { schemaOnce, addColumnIfMissing } from '../lib/schema';
 import { ensureDocAssetColumns } from '../lib/printTemplates';
 import {
@@ -218,7 +218,20 @@ async function supabasePage(c: any, kind: 'audit' | 'api') {
     const result = await journalRpc(c.env, 'atlas_journal_page', { p_kind: kind, p_range: range, p_limit: limit, p_cursor: cursor ? Number(cursor) : 0, p_query: String(c.req.query('q') || '').slice(0, 200), p_action: String(c.req.query('action') || '').slice(0, 200), p_status: String(c.req.query('status') || '').slice(0, 16), p_username: String(c.req.query('username') || '').trim().slice(0, 200), p_ip: String(c.req.query('ip') || '').trim().slice(0, 100), p_stats: c.req.query('stats') === '1' });
     if (!Array.isArray(result?.data) || !result.meta || typeof result.meta.has_more !== 'boolean') throw new Error('Bad response');
     return c.json({ success: true, data: result.data, meta: result.meta });
-  } catch { return c.json({ success: false, code: 'JOURNAL_SUPABASE_UNAVAILABLE', error: 'Journal Supabase indisponible.' }, 503); }
+  } catch (err) {
+    // Owner-only, coarse diagnostics: never expose credentials, URLs or upstream bodies.
+    const reason = err instanceof JournalConfigurationError ? 'configuration'
+      : err instanceof JournalServiceError && (err.status === 401 || err.status === 403) ? 'credentials'
+      : err instanceof JournalServiceError && err.status === 404 ? 'schema'
+      : 'service';
+    const messages = {
+      configuration: 'Configuration Supabase du journal absente ou invalide. Vérifiez les secrets du Worker.',
+      credentials: 'Accès Supabase refusé. Vérifiez la clé secrète et les droits du projet.',
+      schema: 'Fonction du journal introuvable. Appliquez le schéma Supabase du journal.',
+      service: 'Journal Supabase indisponible. Vérifiez le projet, son schéma et sa connexion.',
+    };
+    return c.json({ success: false, code: 'JOURNAL_SUPABASE_UNAVAILABLE', reason, error: messages[reason] }, 503);
+  }
 }
 
 app.get('/api/admin/audit', async (c) => {

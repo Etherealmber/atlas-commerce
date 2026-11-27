@@ -41,7 +41,7 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
   const statsCache = useRef<Partial<Record<Range, { value: any; at: number }>>>({});
   const generation = useRef(0);
   const lastAttempt = useRef(0);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState('');
   const [r2Only, setR2Only] = useState(forceR2);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusFilter>('');
@@ -59,7 +59,7 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
   const load = useCallback(async (cursor: string | null, reset: boolean, query = q) => {
     const requestId = ++generation.current;
     lastAttempt.current = Date.now();
-    setLoading(true); setError(false);
+    setLoading(true); setError('');
     const cached = statsCache.current[range];
     const useCache = !!cached && Date.now() - cached.at < 60_000;
     if (reset) setStats(useCache ? cached.value : null);
@@ -78,7 +78,7 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
       if (requestId !== generation.current) return;
       setR2Only(err?.code === 'JOURNAL_R2_ONLY');
       setRows([]);
-      setNext(null); setError(err?.code !== 'JOURNAL_R2_ONLY');
+      setNext(null); setError(err?.code === 'JOURNAL_R2_ONLY' ? '' : err?.code === 'JOURNAL_SUPABASE_UNAVAILABLE' ? err.message : 'Impossible de charger le journal. Réessayez plus tard.');
     } finally {
       if (requestId === generation.current) setLoading(false);
     }
@@ -154,7 +154,7 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
           </div>) : <div className="atlas-empty">{t('Pas assez de données sur cette période.')}</div>}
         </section>
       </div>
-      {error && <p role="alert">{t('Impossible de charger le journal. Réessayez plus tard.')}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       <div className="ac-audit-filters ac-apilog-filters">
         <div className="ac-audit-search-wrap">
           <Search className="ac-audit-search-ico" size={15} strokeWidth={2} aria-hidden="true" />
