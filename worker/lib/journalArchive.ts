@@ -47,6 +47,16 @@ export async function archiveApiCall(env: ArchiveEnv, row: ApiLogRow, at = new D
   const bytes = new Uint8Array(16 + ciphertext.length);
   bytes.set(MAGIC); bytes.set(iv, 4); bytes.set(ciphertext, 16);
   await env.JOURNAL_ARCHIVE!.put(path, bytes, { httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'no-store' }, customMetadata: { format: 'AJR1' } });
+  if (env.JOURNAL_ARCHIVE_MODE === 'r2') {
+    // Before the caller skips its D1 fallback, check that the exact encrypted
+    // object can be retrieved. This is not a durable retry queue or a cutover.
+    const stored = await env.JOURNAL_ARCHIVE!.get(path);
+    if (!stored) throw new Error('Journal read-back missing');
+    const actual = new Uint8Array(await stored.arrayBuffer());
+    if (actual.length !== bytes.length || actual.some((value, i) => value !== bytes[i])) {
+      throw new Error('Journal read-back differs');
+    }
+  }
   return true;
 }
 
