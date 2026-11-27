@@ -132,3 +132,9 @@ html[data-theme="dark"] body .product-history-chips .product-history-stock--low,
 html[data-theme="dark"] body .product-history-chips .product-history-stock--low span { background: #7c2d12; color: #fed7aa; }
 html[data-theme="dark"] body .product-history-chips .product-history-stock--out,
 html[data-theme="dark"] body .product-history-chips .product-history-stock--out span { background: #7f1d1d; color: #fecaca; }
+
+/* Desktop product actions live at the top right; narrow screens wrap naturally. */
+.product-history-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.product-history-header > .product-history-hero { min-width: 0; flex: 1; }
+.product-history-header > .product-history-actions { justify-content: flex-end; margin: 0; }
+@media (max-width: 800px) { .product-history-header { flex-wrap: wrap; } .product-history-header > .product-history-hero { flex-basis: 100%; } .product-history-header > .product-history-actions { margin-inline-start: auto; } }

@@ -375,15 +375,18 @@ app.get('/api/admin/journal-buffer-status', async (c) => {
   if (!gate.ok) return gate.response;
   c.header('Cache-Control', 'no-store');
   if (!c.env.JOURNAL_BUFFER || (c.env.JOURNAL_ARCHIVE_MODE !== 'supabase' && (c.env.JOURNAL_ARCHIVE_MODE !== 'buffered' || !c.env.JOURNAL_ARCHIVE || c.env.JOURNAL_ARCHIVE === c.env.IMAGES))) {
-    return c.json({ success: false, code: 'JOURNAL_UNCONFIGURED', error: 'Journal R2 non configuré.' }, 503);
+    return c.json({ success: false, code: 'JOURNAL_UNCONFIGURED', error: 'File du journal non configurée.' }, 503);
   }
   try {
-    if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase') supabaseJournalConfig(c.env);
     const stub = c.env.JOURNAL_BUFFER.get(c.env.JOURNAL_BUFFER.idFromName('journal-v1'));
     const res = await stub.fetch('https://journal-buffer/health');
     if (!res.ok) throw new Error('unavailable');
-    const data = await res.json();
-    return c.json({ success: true, data });
+    const data = await res.json() as Record<string, unknown>;
+    let configValid = true;
+    if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase') {
+      try { supabaseJournalConfig(c.env); } catch { configValid = false; }
+    }
+    return c.json({ success: true, data: { ...data, config_valid: configValid } });
   } catch { return c.json({ success: false, code: 'JOURNAL_UNAVAILABLE', error: 'État du journal indisponible.' }, 503); }
 });
 

@@ -141,7 +141,7 @@ describe('ensureAutoSqlMigrations (0013–0020 auto-applied at runtime)', () => 
 });
 
 it('only lets explicitly reviewed read paths bypass the unrelated initialization barrier', () => {
-  for (const path of ['/api/dashboard', '/api/admin/journal-mode', '/api/admin/journal-archive', '/api/admin/journal-archive/item']) {
+  for (const path of ['/api/products', '/api/clients', '/api/vendors', '/api/invoices', '/api/bills', '/api/dashboard', '/api/admin/journal-mode', '/api/admin/journal-archive', '/api/admin/journal-archive/item']) {
     expect(requiresAutoSqlMigrations('GET', path)).toBe(false);
     expect(requiresAutoSqlMigrations('POST', path)).toBe(true);
   }

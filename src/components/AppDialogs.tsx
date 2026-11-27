@@ -106,7 +106,7 @@ export function AppDialogsProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback((message: string, kind: ToastKind = 'info') => {
     const id = idSeq++;
-    setToasts((prev) => [...prev, { id, message, kind }]);
+    setToasts((prev) => prev.some((item) => item.message === message && item.kind === kind) ? prev : [...prev, { id, message, kind }]);
     window.setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4200);

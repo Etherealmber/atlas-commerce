@@ -209,12 +209,12 @@ export default function Bills() {
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
     else setLoading(true);
-    Promise.all([api.getBills(filter || undefined), api.getProducts(), api.getVendors()])
-      .then(([b, p, v]) => { setBills(b.data); setProducts(p.data); setVendors(v.data); })
-      .finally(() => {
-        setLoading(false);
-        setRefreshing(false);
-      });
+    void api.getBills(filter || undefined)
+      .then(b => setBills(b.data || []))
+      .catch(() => { /* preserve the last list; API reports the error */ })
+      .finally(() => { setLoading(false); setRefreshing(false); });
+    void api.getProducts().then(p => setProducts(p.data || [])).catch(() => {});
+    void api.getVendors().then(v => setVendors(v.data || [])).catch(() => {});
   };
 
   
