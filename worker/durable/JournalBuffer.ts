@@ -2,7 +2,7 @@
  * Accepted items and their alarm are persisted atomically; retry writes use the
  * same immutable key and ciphertext. Does not guarantee upstream capture. */
 import type { Env } from '../env';
-import { journalRpc } from '../lib/journalSupabase';
+import { journalRpc, JournalServiceError } from '../lib/journalSupabase';
 
 const PREFIX = 'pending/';
 const MAX_BATCH = 25;
@@ -11,13 +11,18 @@ const CURSOR = 'meta/drain-cursor';
 const PATH = /^(?:api|audit)-journal\/v1\/\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f-]{36}\.journal$/;
 type Item = { path: string; bytes: Uint8Array; destination?: 'r2' | 'supabase' };
 
-async function supabaseEvent(env: Env, item: Item) {
+type JournalEvent = { p_key: string; p_kind: 'api' | 'audit'; p_data: object };
+async function decryptEvent(env: Env, item: Item): Promise<JournalEvent> {
   const secret = Uint8Array.from(atob(env.JOURNAL_ENCRYPTION_KEY || ''), c => c.charCodeAt(0));
   if (secret.length !== 32) throw new Error('Journal key invalid');
   const key = await crypto.subtle.importKey('raw', secret, 'AES-GCM', false, ['decrypt']);
   const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: item.bytes.slice(4, 16), additionalData: new TextEncoder().encode(item.path) }, key, item.bytes.slice(16));
   const row = JSON.parse(new TextDecoder().decode(plain));
-  const result = await journalRpc(env, 'atlas_journal_ingest', { p_key: item.path, p_kind: item.path.startsWith('api-') ? 'api' : 'audit', p_data: row });
+  return { p_key: item.path, p_kind: item.path.startsWith('api-') ? 'api' : 'audit', p_data: row };
+}
+
+async function sendSingle(env: Env, event: JournalEvent) {
+  const result = await journalRpc(env, 'atlas_journal_ingest', event);
   if (result?.accepted !== true) throw new Error('Journal acknowledgement missing');
 }
 
@@ -67,21 +72,50 @@ export class JournalBuffer {
     if (!items.size) return;
     const bucket = this.env.JOURNAL_ARCHIVE;
     let failed = false;
+    const supabase: { key: string; event: JournalEvent; size: number }[] = [];
     for (const [key, item] of items) {
       try {
         if (item.destination === 'supabase') {
-          await supabaseEvent(this.env, item);
+          const event = await decryptEvent(this.env, item);
+          supabase.push({ key, event, size: new TextEncoder().encode(JSON.stringify(event)).length });
         } else {
           // Existing R2 outbox items retain their original destination after cutover.
           if (!bucket || bucket === this.env.IMAGES) throw new Error('journal bucket unavailable');
           await bucket.put(item.path, item.bytes, { onlyIf: new Headers({ 'If-None-Match': '*' }), httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'no-store' } });
           const stored = await bucket.get(item.path);
           if (!stored || !equal(new Uint8Array(await stored.arrayBuffer()), item.bytes)) throw new Error('journal read-back mismatch');
+          await this.state.storage.delete(key);
         }
-        await this.state.storage.delete(key);
       } catch {
         failed = true;
         console.error('journal_buffer_item_failed');
+      }
+    }
+    // Bound the POST size as well as the item count. Only delete after the
+    // entire batch is acknowledged; lost responses retry the same event keys.
+    while (supabase.length) {
+      const chunk: typeof supabase = [];
+      let size = 0;
+      while (supabase.length && (!chunk.length || size + supabase[0].size <= 500_000)) {
+        const next = supabase.shift()!;
+        chunk.push(next); size += next.size;
+      }
+      try {
+        const result = await journalRpc(this.env, 'atlas_journal_ingest_batch', { p_items: chunk.map(x => x.event) });
+        if (result?.accepted !== true || result.count !== chunk.length) throw new Error('Journal acknowledgement missing');
+        for (const item of chunk) await this.state.storage.delete(item.key);
+      } catch (error) {
+        // A missing RPC during a rolling upgrade or a bad row must not block
+        // healthy rows. Outages, rate limits and lost ACKs do not fan out.
+        if (error instanceof JournalServiceError && (error.status === 400 || error.status === 404 || error.status === 422)) {
+          for (const item of chunk) {
+            try { await sendSingle(this.env, item.event); await this.state.storage.delete(item.key); }
+            catch { failed = true; console.error('journal_buffer_item_failed'); }
+          }
+        } else {
+          failed = true;
+          console.error('journal_buffer_batch_failed');
+        }
       }
     }
     // Even if one object fails, other items in this batch can make progress.

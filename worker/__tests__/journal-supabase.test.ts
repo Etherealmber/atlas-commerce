@@ -18,21 +18,21 @@ function setup() {
 }
 it('queues encrypted API and audit events and delivers to Supabase without R2 or D1', async () => {
   const f = setup(); const events = new Map<string, any>();
-  const fetch = vi.fn(async (_url: string, init: any) => { const body = JSON.parse(init.body); expect(init.headers.apikey).toBe('sb_secret_test'); expect(init.headers.Authorization).toBeUndefined(); events.set(body.p_key, body); return Response.json({ accepted: true }); });
+  const fetch = vi.fn(async (_url: string, init: any) => { const body = JSON.parse(init.body); expect(init.headers.apikey).toBe('sb_secret_test'); expect(init.headers.Authorization).toBeUndefined(); for (const event of body.p_items) events.set(event.p_key, event); return Response.json({ accepted: true, count: body.p_items.length }); });
   vi.stubGlobal('fetch', fetch);
   await enqueueBufferedApi(f.env, { method: 'GET', path: '/api/products?token=private', status: 200, ms: 3, username: 'alice', role: 'owner', ip: null, ua: null, request_id: null, surface: null, country: null, city: null, region: null, asn: null, as_org: null });
   await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { username: 'alice', action: 'product.create', entity: 'products', entity_id: 42 }));
   expect(f.pending.size).toBe(2);
   for (const item of f.pending.values()) expect(new TextDecoder().decode(item.bytes)).not.toContain('alice');
   await f.buffer.alarm();
-  expect(f.pending.size).toBe(0); expect(events.size).toBe(2); expect(f.db.prepare).not.toHaveBeenCalled();
+  expect(f.pending.size).toBe(0); expect(fetch).toHaveBeenCalledTimes(1); expect(events.size).toBe(2); expect(f.db.prepare).not.toHaveBeenCalled();
   const rows = [...events.values()];
   expect(rows.find(r => r.p_kind === 'api').p_data.path).toBe('/api/products');
   expect(rows.find(r => r.p_kind === 'audit').p_data).toMatchObject({ action: 'product.create', entity_id: '42' });
 });
 it('retains encrypted items on failed delivery and retries the same id after lost acknowledgement', async () => {
   const f = setup(); const ids: string[] = []; let count = 0;
-  vi.stubGlobal('fetch', vi.fn(async (_url: string, init: any) => { ids.push(JSON.parse(init.body).p_key); if (++count === 1) throw new Error('lost ack'); return Response.json({ accepted: true }); }));
+  vi.stubGlobal('fetch', vi.fn(async (_url: string, init: any) => { const items = JSON.parse(init.body).p_items; ids.push(items[0].p_key); if (++count === 1) throw new Error('lost ack'); return Response.json({ accepted: true, count: items.length }); }));
   await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'test' }));
   await f.buffer.alarm(); expect([...f.pending.keys()].some(k => k.startsWith('pending/'))).toBe(true);
   await f.buffer.alarm(); expect(ids[0]).toEqual(ids[1]); expect([...f.pending.keys()].filter(k => k.startsWith('pending/'))).toHaveLength(0);
@@ -51,4 +51,35 @@ it('guards credentials and provides authorized Supabase pages without D1 fallbac
   expect((await app.request('/api/admin/audit/export', {}, f.env)).status).toBe(409);
   expect((await app.request('/api/admin/audit/explain', { method: 'POST' }, f.env)).status).toBe(409);
   expect(f.db.prepare).not.toHaveBeenCalled();
+});
+
+it('isolates rejected rows but does not fan out during a service outage', async () => {
+  const f = setup(); let outage = true; const calls: string[] = [];
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init: any) => {
+    calls.push(url);
+    if (outage) return new Response(null, { status: 503 });
+    if (url.endsWith('_batch')) return new Response(null, { status: 400 });
+    const row = JSON.parse(init.body);
+    return row.p_data.action === 'bad' ? new Response(null, { status: 400 }) : Response.json({ accepted: true });
+  }));
+  await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'bad' }));
+  await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'good' }));
+  await f.buffer.alarm();
+  expect(calls).toHaveLength(1);
+  expect([...f.pending.keys()].filter(k => k.startsWith('pending/'))).toHaveLength(2);
+  outage = false; await f.buffer.alarm();
+  expect(calls).toHaveLength(4);
+  expect([...f.pending.keys()].filter(k => k.startsWith('pending/'))).toHaveLength(1);
+});
+it('falls back to the existing single-event RPC when the batch RPC is not installed', async () => {
+  const f = setup(); const calls: string[] = [];
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    calls.push(url);
+    return url.endsWith('_batch') ? new Response(null, { status: 404 }) : Response.json({ accepted: true });
+  }));
+  await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'one' }));
+  await withBufferedJournal(f.env, () => writeAudit(f.env.DB, { action: 'two' }));
+  await f.buffer.alarm();
+  expect(calls).toHaveLength(3);
+  expect([...f.pending.keys()].filter(k => k.startsWith('pending/'))).toHaveLength(0);
 });

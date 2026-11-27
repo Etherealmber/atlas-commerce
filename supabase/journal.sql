@@ -24,6 +24,28 @@ begin
   return jsonb_build_object('accepted', true);
 end $$;
 
+-- One transaction per bounded outbox batch. Duplicate event keys are never
+-- updated, so retries after a lost acknowledgement cause no repeated writes.
+create or replace function public.atlas_journal_ingest_batch(p_items jsonb)
+returns jsonb language plpgsql security definer set search_path = pg_catalog, public as $$
+declare item jsonb; n integer;
+begin
+  if jsonb_typeof(p_items) is distinct from 'array' then raise exception 'invalid journal batch'; end if;
+  n := jsonb_array_length(p_items);
+  if n < 1 or n > 25 then raise exception 'invalid journal batch size'; end if;
+  for item in select value from jsonb_array_elements(p_items) loop
+    if item->>'p_kind' not in ('api','audit') or item->>'p_kind' is null
+      or item->>'p_key' is null or length(item->>'p_key') > 200
+      or jsonb_typeof(item->'p_data') is distinct from 'object'
+      or item->'p_data'->>'created_at' is null then raise exception 'invalid journal event'; end if;
+  end loop;
+  insert into public.atlas_journal(event_key, kind, created_at, data)
+    select t.event->>'p_key', t.event->>'p_kind', (t.event->'p_data'->>'created_at')::timestamptz, t.event->'p_data'
+    from jsonb_array_elements(p_items) as t(event)
+    on conflict (event_key) do nothing;
+  return jsonb_build_object('accepted', true, 'count', n);
+end $$;
+
 create or replace function public.atlas_journal_page(p_kind text, p_range text, p_limit integer, p_cursor bigint, p_query text, p_action text, p_status text, p_username text, p_ip text, p_stats boolean)
 returns jsonb language plpgsql security definer set search_path = pg_catalog, public as $$
 declare result jsonb; metrics jsonb; from_time timestamptz; lim integer;
@@ -61,8 +83,10 @@ begin
   return result;
 end $$;
 revoke all on function public.atlas_journal_ingest(text,text,jsonb) from public, anon, authenticated;
+revoke all on function public.atlas_journal_ingest_batch(jsonb) from public, anon, authenticated;
 revoke all on function public.atlas_journal_page(text,text,integer,bigint,text,text,text,text,text,boolean) from public, anon, authenticated;
 grant execute on function public.atlas_journal_ingest(text,text,jsonb) to service_role;
+grant execute on function public.atlas_journal_ingest_batch(jsonb) to service_role;
 grant execute on function public.atlas_journal_page(text,text,integer,bigint,text,text,text,text,text,boolean) to service_role;
 
 -- Requires pg_cron availability and project permissions. If this fails, do not
