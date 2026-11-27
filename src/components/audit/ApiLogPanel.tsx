@@ -10,6 +10,7 @@ import { t, useLang } from '../../i18n/core';
 import TopPageActions from '../TopPageActions';
 import DatePicker from '../DatePicker';
 import Select from '../ui/Select';
+import './journal-archive.css';
 
 const PAGE = 25;
 type Range = '24h' | '7d' | '30d';
@@ -102,11 +103,12 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
 
   if (r2Only) return <section id="journal-api" className="ac-panel ac-apilog-panel" aria-label="Journal des appels API">
     <h3>Journal des appels API et audit</h3>
-    <p>Consultez les entrées archivées par date. Les statistiques, filtres et exports de l’ancienne vue ne sont pas encore disponibles pour R2.</p>
+    <p>Consultez les entrées API et audit enregistrées dans R2, par date UTC. La recherche couvre les pages chargées ; les statistiques et exports de l’ancienne vue ne sont pas encore disponibles.</p>
     <JournalArchive onOpen={setDetail} r2Only />
     {detail && createPortal(<div className="audit-detail-modal-backdrop" role="presentation" onClick={() => setDetail(null)}>
       <div className="audit-detail-modal audit-detail-modal--expanded card" role="dialog" aria-modal="true" aria-label="Détails de la requête" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setDetail(null); }}>
         <div className="audit-detail-heading"><h3>Détails de la requête</h3><button type="button" className="secondary" aria-label="Fermer" onClick={() => setDetail(null)}>×</button></div>
+        <p className="audit-request-summary"><bdi dir="ltr" translate="no">{detail.method} {detail.path} · {detail.status} · {detail.ms} ms</bdi></p>
         <AuditRequestDetails row={detail} kind="api" />
       </div>
     </div>, document.body)}
@@ -244,50 +246,102 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
   );
 }
 
-/** Separate archive browser: current D1 KPIs and filters do not include R2. */
+/** R2 entries are decrypted in bounded pages. Search covers loaded entries only. */
 function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void; r2Only?: boolean }) {
+  type Entry = { key: string; row: Record<string, any> | null; unreadable: boolean };
   const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
-  const [kind, setKind] = useState<'api' | 'audit'>('api');
-  const [auditEntry, setAuditEntry] = useState<unknown>(null);
-  const [keys, setKeys] = useState<string[]>([]);
+  const [kind, setKind] = useState<'api' | 'audit'>(r2Only ? 'audit' : 'api');
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [selected, setSelected] = useState('');
+  const [query, setQuery] = useState('');
+  const [auditEntry, setAuditEntry] = useState<Record<string, any> | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [invalidCount, setInvalidCount] = useState(0);
+  const [buffer, setBuffer] = useState<{ pending_at_least: number; has_more: boolean; alarm_scheduled: boolean } | null>(null);
+  const [bufferError, setBufferError] = useState(false);
   const generation = useRef(0);
+  const refreshBuffer = async () => {
+    if (!r2Only) return;
+    try {
+      const result = await api.getJournalBufferStatus();
+      if (!result.data || typeof result.data.pending_at_least !== 'number' || typeof result.data.alarm_scheduled !== 'boolean') throw new Error('invalid response');
+      setBuffer(result.data); setBufferError(false);
+    } catch { setBuffer(null); setBufferError(true); }
+  };
   const load = async (next?: string) => {
     const requestId = ++generation.current;
     setBusy(true); setMessage('');
     try {
-      const result = await api.listJournalArchive(day, next, kind);
+      const result = await api.listJournalArchiveEntries(day, next, kind);
       if (requestId !== generation.current) return;
-      setKeys(current => next ? [...current, ...result.data] : result.data);
+      setEntries(current => next ? [...current, ...result.data] : result.data);
       setCursor(result.meta.next_cursor);
-      if (!result.data.length && !next) setMessage(t('Aucune entrée archivée pour cette date.'));
-    } catch { if (requestId === generation.current) { setKeys([]); setCursor(null); setMessage(t('Archive indisponible ou non configurée.')); } }
+      setInvalidCount(current => next ? current + (result.meta.invalid_count || 0) : result.meta.invalid_count || 0);
+      if (!result.data.length && !next) setMessage(result.meta.next_cursor ? 'Aucune entrée lisible dans cette page ; chargez la suite.' : 'Aucune entrée R2 pour cette date UTC. Les anciens événements D1 ne sont pas importés automatiquement.');
+      if (r2Only) void refreshBuffer();
+    } catch { if (requestId === generation.current) { if (!next) setEntries([]); setMessage(t('Archive indisponible ou non configurée.')); } }
     finally { if (requestId === generation.current) setBusy(false); }
   };
   useEffect(() => {
     if (r2Only && day) void load();
     return () => { generation.current++; };
   }, [day, kind, r2Only]);
-  const open = async (key: string) => {
-    setBusy(true); setMessage('');
-    try { const result = await api.getJournalArchiveItem(key, kind); if (kind === 'audit') setAuditEntry(result.data); else onOpen(result.data); }
-    catch { setMessage(t('Impossible de lire cette entrée archivée.')); }
-    finally { setBusy(false); }
+  const reset = () => { generation.current++; setEntries([]); setCursor(null); setSelected(''); setQuery(''); setAuditEntry(null); setMessage(''); setInvalidCount(0); setBusy(false); };
+  const label = (entry: Entry) => {
+    if (!entry.row) return `${entry.key.split('/').pop()?.slice(0, 23) || '—'} · Lecture impossible`;
+    const row = entry.row;
+    return kind === 'api'
+      ? `${when(row.created_at)} · ${row.method || '—'} ${row.path || '—'} · ${row.status ?? '—'} · ${row.username || 'anonyme'}`
+      : `${when(row.created_at)} · ${row.action || '—'} · ${row.entity || '—'}${row.entity_id != null && row.entity_id !== '' ? ` #${row.entity_id}` : ''} · ${row.username || '—'}`;
   };
-  return <details className="ac-panel" open={r2Only || undefined}>
-    <summary>{t('Archive chiffrée des appels API')} / Audit</summary>
+  const filtered = entries.filter(entry => `${label(entry)} ${entry.row ? JSON.stringify(entry.row) : ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  const current = filtered.find(entry => entry.key === selected);
+  const content = <>
+    {r2Only ? <h4>{t('Archive chiffrée des appels API')} / Audit</h4> : <summary>{t('Archive chiffrée des appels API')} / Audit</summary>}
     {!r2Only && <p>{t('Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.')}</p>}
     <div className="ac-journal-archive-controls">
-      <Select value={kind} disabled={busy} aria-label="Journal" onChange={e => { setKind(e.target.value as 'api' | 'audit'); setKeys([]); setCursor(null); setAuditEntry(null); setMessage(''); }}><option value="api">API</option><option value="audit">Audit</option></Select>
-      <label htmlFor="journal-archive-day">{t('Date UTC')}</label>
-      <DatePicker id="journal-archive-day" value={day} onChange={value => { setDay(value); setKeys([]); setCursor(null); setAuditEntry(null); setMessage(''); }} />
-      <button className="secondary" type="button" disabled={busy || !day} onClick={() => void load()}>{t('Afficher les archives')}</button>
+      <label>Journal<Select value={kind} disabled={busy} aria-label="Journal" onChange={e => { reset(); setKind(e.target.value as 'api' | 'audit'); }}><option value="api">API</option><option value="audit">Audit</option></Select></label>
+      <label htmlFor="journal-archive-day">{t('Date UTC')}<DatePicker id="journal-archive-day" value={day} onChange={value => { reset(); setDay(value); }} /></label>
+      <button className="secondary" type="button" disabled={busy || !day} onClick={() => { setSelected(''); void load(); }}>{busy ? 'Chargement…' : t('Afficher les archives')}</button>
     </div>
-    {message && <p role="status">{message}</p>}
-    {auditEntry != null && <pre translate="no" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(auditEntry, null, 2)}</pre>}
-    <ul>{keys.map((key, index) => <li key={key}><button className="secondary" type="button" disabled={busy} onClick={() => void open(key)}><bdi dir="ltr">{key.split('/').pop()?.slice(0, 23) || index + 1}</bdi></button></li>)}</ul>
+    {buffer && buffer.pending_at_least > 0 && <p role="status">{buffer.pending_at_least}{buffer.has_more ? '+' : ''} entrée(s) en attente de transfert vers R2{buffer.alarm_scheduled ? '.' : ' ; aucune alarme de transfert n’est programmée.'}</p>}
+    {bufferError && r2Only && <p role="status">État de la file R2 indisponible ; la liste ne permet pas de confirmer que tous les événements ont été enregistrés.</p>}
+    {message && <p role="status">{message}{buffer?.pending_at_least ? ' Des événements attendent encore leur transfert.' : ''}</p>}
+    {invalidCount > 0 && <p role="alert">{invalidCount} objet(s) ignoré(s) : nom invalide ou hors période de conservation.</p>}
+    {entries.some(entry => entry.unreadable) && <p role="alert">Certaines entrées R2 ne peuvent pas être déchiffrées ou ont disparu. Vérifiez la clé et la configuration du journal.</p>}
+    {entries.length > 0 && <div className="ac-journal-browser">
+      <label>Rechercher dans les entrées chargées<input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Chemin, action, utilisateur, statut…" /></label>
+      <label>Entrée archivée<Select aria-label="Entrée archivée" value={filtered.some(entry => entry.key === selected) ? selected : ''} onChange={e => setSelected(e.target.value)}>
+        <option value="">Sélectionner une entrée</option>
+        {filtered.map(entry => <option key={entry.key} value={entry.key} disabled={entry.unreadable}>{label(entry)}</option>)}
+      </Select></label>
+      <button className="secondary" type="button" disabled={!current?.row || current.unreadable} onClick={() => { if (!current?.row) return; if (kind === 'audit') setAuditEntry(current.row); else onOpen(current.row); }}>Voir les détails</button>
+      <p>{filtered.length} / {entries.length} entrées chargées. La recherche ne couvre que ces entrées{cursor ? ' ; chargez la suite pour élargir la recherche (ordre chronologique)' : ''}.</p>
+    </div>}
+    {entries.length > 0 && <div className="ac-audit-table-wrap ac-journal-results">
+      <table className="audit-table" aria-label={kind === 'api' ? 'Entrées API R2' : 'Entrées audit R2'}>
+        <thead><tr><th>Date / heure</th><th>{kind === 'api' ? 'Requête' : 'Action'}</th><th>{kind === 'api' ? 'Statut' : 'Élément'}</th>{kind === 'audit' && <th>Détails enregistrés</th>}<th>Utilisateur</th><th>IP</th><th>Actions</th></tr></thead>
+        <tbody>{filtered.map(entry => {
+          const row = entry.row;
+          return <tr key={entry.key}>
+            <td>{row ? when(row.created_at) : '—'}</td>
+            <td><bdi dir="auto">{row ? (kind === 'api' ? `${row.method || '—'} ${row.path || '—'}` : row.action || '—') : 'Lecture impossible'}</bdi></td>
+            <td><bdi dir="auto">{row ? (kind === 'api' ? row.status ?? '—' : [row.entity, row.entity_id != null && row.entity_id !== '' ? `#${row.entity_id}` : ''].filter(Boolean).join(' ') || '—') : '—'}</bdi></td>
+            {kind === 'audit' && <td><bdi dir="auto">{row?.detail != null && row.detail !== '' ? (typeof row.detail === 'string' ? row.detail : JSON.stringify(row.detail)) : '—'}</bdi></td>}
+            <td>{row?.username || '—'}</td><td><bdi dir="ltr">{row?.ip || '—'}</bdi></td>
+            <td><button className="secondary" type="button" disabled={!row || entry.unreadable} onClick={() => { if (!row) return; if (kind === 'audit') setAuditEntry(row); else onOpen(row); }}>Détails</button></td>
+          </tr>;
+        })}{filtered.length === 0 && <tr><td colSpan={kind === 'audit' ? 7 : 6}>Aucune entrée chargée ne correspond à la recherche.</td></tr>}</tbody>
+      </table>
+    </div>}
     {cursor && <button className="secondary" type="button" disabled={busy} onClick={() => void load(cursor)}>{t('Afficher plus')}</button>}
-  </details>;
+    {auditEntry && createPortal(<div className="audit-detail-modal-backdrop" role="presentation" onClick={() => setAuditEntry(null)}><div className="audit-detail-modal audit-detail-modal--expanded card" role="dialog" aria-modal="true" aria-label="Détails de l’événement audit" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setAuditEntry(null); }}>
+      <div className="audit-detail-heading"><h3>Détails de l’événement audit</h3><button type="button" className="secondary" aria-label="Fermer" onClick={() => setAuditEntry(null)}>×</button></div>
+      <dl className="audit-detail-dl">{(['created_at', 'username', 'role', 'action', 'entity', 'entity_id', 'detail'] as const).map(field => auditEntry[field] != null && auditEntry[field] !== '' ? <div key={field}><dt>{field}</dt><dd><bdi dir="auto">{String(auditEntry[field])}</bdi></dd></div> : null)}</dl>
+      <AuditRequestDetails row={auditEntry} kind="audit" />
+    </div></div>, document.body)}
+  </>;
+  return r2Only ? <div className="ac-panel ac-journal-archive">{content}</div> : <details className="ac-panel ac-journal-archive">{content}</details>;
 }

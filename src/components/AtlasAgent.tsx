@@ -201,40 +201,14 @@ function loadThreads(): ThreadMeta[] {
 }
 
 
-const _persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const _persistInflight = new Set<string>();
-
-async function persistThreadR2(threadId: string, title: string, messages: any[]) {
-  // Debounce: at most one PUT per thread every 2.5s (avoids admin rate-limit toast storms)
-  const prev = _persistTimers.get(threadId);
-  if (prev) clearTimeout(prev);
-  const snapshot = messages.map((m) => {
-    const imgs = Array.isArray(m.images) ? (m.images as string[]).map((x) => sanitizeImageDataUrl(x)).filter(Boolean) : [];
-    return {
-      role: m.role,
-      text: m.text,
-      ms: m.ms,
-      ...(imgs.length ? { images: imgs.slice(0, 4) } : {}),
-    };
+function threadSnapshot(messages: Msg[]): Msg[] {
+  return messages.filter(m => !m.streaming).map(m => {
+    const { imageUrls, ...rest } = m;
+    const images = Array.isArray(rest.images) ? rest.images.map(sanitizeImageDataUrl).filter(Boolean).slice(0, 4) : undefined;
+    return { ...rest, ...(images?.length ? { images } : { images: undefined }) };
   });
-  const titleSnap = title;
-  _persistTimers.set(
-    threadId,
-    setTimeout(() => {
-      _persistTimers.delete(threadId);
-      if (_persistInflight.has(threadId)) { void persistThreadR2(threadId, titleSnap, snapshot); return; }
-      _persistInflight.add(threadId);
-      void api
-        .putAgentThread(threadId, { title: titleSnap, messages: snapshot })
-        .catch(() => {
-          /* offline / R2 / rate-limit — local sessionStorage already has the msgs */
-        })
-        .finally(() => {
-          _persistInflight.delete(threadId);
-        });
-    }, 2500),
-  );
 }
+function pendingKey(id: string) { return `atlas_agent_pending_v1:${scopeUser()}:${id}`; }
 
 function saveThreads(list: ThreadMeta[]) {
   try {
@@ -258,7 +232,7 @@ function loadMsgs(threadId: string): Msg[] {
     const raw = localStorage.getItem(msgsKey(threadId)) || sessionStorage.getItem(msgsKey(threadId));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length) return parsed.slice(-40);
+    if (Array.isArray(parsed) && parsed.length) return parsed;
   } catch { /* */ }
   return [];
 }
@@ -296,25 +270,9 @@ function compressImageDataUrl(dataUrl: string, maxDim = 1280, quality = 0.72): P
   });
 }
 
-function saveMsgs(threadId: string, msgs: Msg[], syncRemote = true) {
-  // v256 — keep (compressed) images in localStorage so they survive a page
-  // refresh; drop blob preview URLs (they die with the page anyway). On quota
-  // overflow, strip images from the oldest messages until the write fits.
-  let copy: any[] = msgs.filter((m) => !m.streaming).slice(-40).map((m) => { const { imageUrls, ...rest } = m as any; return rest; });
-  for (let attempt = 0; attempt < 6; attempt++) {
-    try {
-      localStorage.setItem(msgsKey(threadId), JSON.stringify(copy));
-      break;
-    } catch {
-      const idx = copy.findIndex((m: any) => (m.images || []).length);
-      if (idx === -1) break;
-      copy = copy.map((m: any, i: number) => (i === idx ? { ...m, images: [] } : m));
-    }
-  }
-  try {
-    const th = loadThreads().find((t) => t.id === threadId);
-    if (syncRemote) void persistThreadR2(threadId, th?.title || 'Sans titre', copy);
-  } catch { /* */ }
+function saveMsgs(threadId: string, msgs: Msg[]): boolean {
+  try { localStorage.setItem(msgsKey(threadId), JSON.stringify(threadSnapshot(msgs))); return true; }
+  catch { return false; }
 }
 
 function newThreadId() {
@@ -598,11 +556,6 @@ export default function AtlasAgent() {
       return false;
     }
   });
-  // Resume the per-user active thread (the scoped key is the one written on
-  // open); the legacy unscoped key is only a migration fallback.
-  const [resumedThread] = useState(() => {
-    try { return !!(localStorage.getItem(activeThreadKey()) || localStorage.getItem(ACTIVE_THREAD_KEY)); } catch { return false; }
-  });
   const [threadId, setThreadId] = useState(() => {
     try {
       return localStorage.getItem(activeThreadKey()) || localStorage.getItem(ACTIVE_THREAD_KEY) || newThreadId();
@@ -613,6 +566,8 @@ export default function AtlasAgent() {
   const [threads, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
+  const [historyError, setHistoryError] = useState(false);
+  const [historyPending, setHistoryPending] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [showExtras, setShowExtras] = useState<boolean>(() => {
     try { return localStorage.getItem('atlas_agent_show_extras') === '1'; } catch { return false; }
@@ -686,9 +641,13 @@ export default function AtlasAgent() {
   const [pendingAction, setPendingAction] = useState<LocalAction | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  // Remote (R2) thread hydration in flight. The shimmer only appears after a
-  // short delay so brand-new / cached threads never flash a skeleton.
+  // Remote (R2) hydration blocks edits until the saved version is known.
+  // Cached conversations remain visible; empty threads show a shimmer.
   const [loadingThread, setLoadingThread] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'loading' | 'saved' | 'pending' | 'saving' | 'offline' | 'conflict' | 'too-large'>('loading');
+  const [syncEpoch, setSyncEpoch] = useState(0);
+  const syncRef = useRef<{ id: string; user: string; ready: boolean; version: string | null; baseline: string; inFlight: boolean; blocked: boolean; failure: 'conflict' | 'offline' | 'too-large' } | null>(null);
+  const [reloadThread, setReloadThread] = useState(0);
  // unused (dictation removed)
   const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
   // v256 — unsent composer attachments survive a page refresh (images are
@@ -779,73 +738,115 @@ export default function AtlasAgent() {
     return () => document.documentElement.classList.remove('atlas-agent-docked');
   }, [open, threadId]);
 
-  useEffect(() => {
-    // Never overwrite a remote conversation with a temporary welcome placeholder.
-    if (msgs.some((m) => m.role === 'user')) saveMsgs(threadId, msgs, !busy);
-  }, [msgs, threadId, busy]);
-
-  // Hydrate conversation from sessionStorage + encrypted R2 (one file per thread)
+  // Load R2 before any write. A cached pending edit may only be sent when its
+  // recorded base version still matches; a different device wins otherwise.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    const revision = conversationRevision.current;
+    const user = scopeUser();
+    const state = { id: threadId, user, ready: false, version: null as string | null, baseline: '', inFlight: false, blocked: false, failure: 'offline' as 'conflict' | 'offline' | 'too-large' };
+    syncRef.current = state;
+    setLoadingThread(true); setSyncStatus('loading');
     const local = loadMsgs(threadId);
-    if (local.length) {
-      setMsgs(local);
-    }
-    // The welcome bubble is cached on mount, so only a user turn counts as a
-    // locally cached conversation.
-    const knownRemote = !local.some((m) => m.role === 'user') && (resumedThread || loadThreads().some((t) => t.id === threadId));
-    const shimmerTimer = knownRemote ? window.setTimeout(() => { if (!cancelled) setLoadingThread(true); }, 160) : null;
+    if (local.length) setMsgs(local);
     (async () => {
       try {
         const res = await api.getAgentThread(threadId);
-        if (cancelled || revision !== conversationRevision.current) return;
-        const remote = res?.data?.messages;
-        if (!Array.isArray(remote) || !remote.length) return;
-        const mapped = remote
-          .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && m.text)
-          .map((m: any) => {
-            const imgs = Array.isArray(m.images) ? (m.images as string[]).map((x: string) => sanitizeImageDataUrl(x)).filter(Boolean) : [];
-            return {
-              role: m.role as 'user' | 'assistant',
-              text: String(m.text || ''),
-              ms: typeof m.ms === 'number' ? m.ms : undefined,
-              ...(imgs.length ? { images: imgs.slice(0, 4) } : {}),
-            };
-          });
-        if (!mapped.length) return;
-        // Prefer remote if richer; else keep local
-        setMsgs((cur) => {
-          if (cur.length > mapped.length) return cur;
-          try {
-            sessionStorage.setItem(msgsKey(threadId), JSON.stringify(mapped.slice(-40).map((m: any) => { const { images, imageUrls, ...rest } = m; return rest; })));
-          } catch { /* */ }
-          return mapped.slice(-40);
-        });
-        if (res?.data?.title) {
-          setThreads((prev) => {
-            const next = [
-              { id: threadId, title: String(res.data.title).slice(0, 48), updated: Date.now() },
-              ...prev.filter((x) => x.id !== threadId),
-            ].slice(0, 20);
-            saveThreads(next);
-            return next;
+        if (cancelled || syncRef.current !== state || scopeUser() !== user) return;
+        const remote = Array.isArray(res?.data?.messages) ? threadSnapshot(res.data.messages) : [];
+        const version = res?.meta?.version ?? null;
+        const key = pendingKey(threadId);
+        let pending: { known: boolean; version: string | null } | null = null;
+        try { const raw = localStorage.getItem(key); if (raw) pending = JSON.parse(raw); } catch { /* handled as conflict below */ }
+        state.version = version; state.ready = true;
+        if (pending && local.some(m => m.role === 'user') && remote.length && JSON.stringify(threadSnapshot(local)) === JSON.stringify(remote)) {
+          // A write may have succeeded even if its acknowledgement was lost.
+          try { localStorage.removeItem(key); } catch { /* local persistence unavailable */ }
+          state.baseline = JSON.stringify(remote);
+          setMsgs(remote); setSyncStatus('saved');
+        } else if (pending && local.some(m => m.role === 'user') && ((!pending.known && version !== null) || (pending.known && pending.version !== version))) {
+          state.blocked = true; state.failure = 'conflict';
+          state.baseline = JSON.stringify(threadSnapshot(local));
+          setSyncStatus('conflict');
+        } else if (pending && local.some(m => m.role === 'user')) {
+          state.baseline = JSON.stringify(remote);
+          setMsgs(local);
+          setSyncStatus('pending');
+        } else if (remote.length && local.some(m => m.role === 'user') && !local.every((m, index) => remote[index]?.role === m.role && remote[index]?.text === m.text)) {
+          // A legacy local-only copy may contain edits that never reached R2.
+          // Keep it intact instead of treating an unversioned cache as authoritative.
+          state.blocked = true; state.failure = 'conflict';
+          state.baseline = JSON.stringify(threadSnapshot(local));
+          try { localStorage.setItem(key, JSON.stringify({ known: false, version: null })); } catch { /* warning remains visible */ }
+          setSyncStatus('conflict');
+        } else if (remote.length) {
+          state.baseline = JSON.stringify(remote);
+          setMsgs(remote);
+          saveMsgs(threadId, remote);
+          setSyncStatus('saved');
+        } else if (local.some(m => m.role === 'user')) {
+          state.baseline = JSON.stringify([]);
+          setMsgs(local);
+          setSyncStatus('pending');
+        } else {
+          state.baseline = JSON.stringify(threadSnapshot(local.length ? local : [WELCOME]));
+          setSyncStatus('saved');
+        }
+        if (res?.data?.title && remote.length) {
+          setThreads(prev => {
+            const next = [{ id: threadId, title: String(res.data.title).slice(0, 48), updated: Date.now() }, ...prev.filter(x => x.id !== threadId)].slice(0, 20);
+            saveThreads(next); return next;
           });
         }
+        setSyncEpoch(v => v + 1);
       } catch {
-        /* offline / rate limit — local history only */
+        if (!cancelled && syncRef.current === state) { state.blocked = true; setSyncStatus('offline'); }
       } finally {
-        if (shimmerTimer != null) window.clearTimeout(shimmerTimer);
         if (!cancelled) setLoadingThread(false);
       }
     })();
-    return () => {
-      cancelled = true;
-      if (shimmerTimer != null) window.clearTimeout(shimmerTimer);
-      setLoadingThread(false);
-    };
-  }, [threadId, open, resumedThread]);
+    return () => { cancelled = true; if (syncRef.current === state) syncRef.current = null; };
+  }, [threadId, open, reloadThread]);
+
+  useEffect(() => {
+    if (!open || loadingThread || !msgs.some(m => m.role === 'user')) return;
+    const state = syncRef.current;
+    if (!state || state.id !== threadId || state.user !== scopeUser() || (!state.ready && !state.blocked)) return;
+    const snapshot = threadSnapshot(msgs);
+    const serialized = JSON.stringify(snapshot);
+    if (state.ready && serialized === state.baseline) return;
+    const localSaved = saveMsgs(threadId, snapshot);
+    if (!localSaved) { state.blocked = true; setSyncStatus('offline'); return; }
+    const pendingStorageKey = pendingKey(threadId);
+    // Never rebase a conflicted local edit onto the other device's version.
+    if (state.blocked && state.failure === 'conflict') { setSyncStatus('conflict'); return; }
+    try { localStorage.setItem(pendingStorageKey, JSON.stringify({ known: state.ready, version: state.version })); }
+    catch { state.blocked = true; setSyncStatus('offline'); return; }
+    if (!state.ready || state.blocked) { setSyncStatus(state.failure); return; }
+    if (busy) { setSyncStatus('pending'); return; }
+    if (state.inFlight) return;
+    setSyncStatus('pending');
+    const timer = window.setTimeout(() => {
+      if (syncRef.current !== state || scopeUser() !== state.user) return;
+      state.inFlight = true; setSyncStatus('saving');
+      const title = loadThreads().find(t => t.id === threadId)?.title || String(snapshot.find(m => m.role === 'user')?.text || 'Sans titre').trim().slice(0, 48);
+      void api.putAgentThread(threadId, { title, messages: snapshot, expected_version: state.version }).then(res => {
+        if (scopeUser() !== state.user) return;
+        if (res?.data?.storage !== 'r2' || !res.data.version) throw new Error('No R2 acknowledgement');
+        state.version = res.data.version; state.baseline = serialized;
+        const latest = loadMsgs(threadId);
+        if (JSON.stringify(threadSnapshot(latest)) === serialized) { localStorage.removeItem(pendingStorageKey); if (syncRef.current === state) setSyncStatus('saved'); }
+        else { localStorage.setItem(pendingStorageKey, JSON.stringify({ known: true, version: state.version })); if (syncRef.current === state) setSyncStatus('pending'); }
+      }).catch((err: any) => {
+        if (syncRef.current !== state) return;
+        state.blocked = true; state.failure = err?.code === 'AGENT_THREAD_CONFLICT' ? 'conflict' : err?.code === 'AGENT_THREAD_TOO_LARGE' ? 'too-large' : 'offline'; setSyncStatus(state.failure);
+      }).finally(() => {
+        state.inFlight = false;
+        if (syncRef.current === state) setSyncEpoch(v => v + 1);
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [msgs, threadId, open, busy, loadingThread, syncEpoch]);
 
   // Sync thread list from R2 index when panel opens
   useEffect(() => {
@@ -855,6 +856,8 @@ export default function AtlasAgent() {
       try {
         const res = await api.listAgentThreads();
         if (cancelled) return;
+        setHistoryError(Boolean(res?.meta?.unreadable_count));
+        setHistoryPending(Boolean(res?.meta?.pending_count));
         const remote = res?.data;
         if (!Array.isArray(remote) || !remote.length) return;
         setThreads((prev) => {
@@ -862,12 +865,12 @@ export default function AtlasAgent() {
           for (const t of prev) byId.set(t.id, t);
           for (const r of remote) {
             const id = String(r.id || '');
-            if (!id) continue;
+            if (!id || (r.message_count === 0 && String(r.title || '') === 'Sans titre')) continue;
             const updated = r.updated_at ? new Date(r.updated_at).getTime() : Date.now();
             const existing = byId.get(id);
             byId.set(id, {
               id,
-              title: String(r.title || existing?.title || 'Sans titre').slice(0, 48),
+              title: String((r.summary_pending && existing?.title) || r.title || existing?.title || 'Sans titre').slice(0, 48),
               updated: Math.max(existing?.updated || 0, updated || 0),
             });
           }
@@ -875,7 +878,7 @@ export default function AtlasAgent() {
           saveThreads(next);
           return next;
         });
-      } catch { /* */ }
+      } catch { if (!cancelled) setHistoryError(true); }
     })();
     return () => {
       cancelled = true;
@@ -1171,7 +1174,7 @@ export default function AtlasAgent() {
         ? ((reused = true), lastFilesRef.current)
         : picked;
       if (!isRetry && picked.length) lastFilesRef.current = picked;
-      if ((!q && !files.length) || busy) return;
+      if ((!q && !files.length) || busy || loadingThread) return;
       conversationRevision.current += 1;
       /* v225 security: blocked users and exhausted quotas cannot talk to the agent */
       if (agentPolicy?.blocked) {
@@ -1333,7 +1336,7 @@ export default function AtlasAgent() {
         abortRef.current = null;
       }
     },
-    [busy, input, attachments, page, threadId, applyAction, location.pathname, agentPolicy],
+    [busy, loadingThread, input, attachments, page, threadId, applyAction, location.pathname, agentPolicy],
   );
 
   const stop = () => {
@@ -1363,7 +1366,7 @@ export default function AtlasAgent() {
 
 
   const switchThread = (id: string) => {
-    if (busy || loadingThread || id === threadId) { setHistoryOpen(false); return; }
+    if (busy || loadingThread || syncStatus === 'pending' || syncStatus === 'saving' || id === threadId) { setHistoryOpen(false); return; }
     conversationRevision.current += 1;
     const local = loadMsgs(id);
     setThreadId(id);
@@ -1374,6 +1377,17 @@ export default function AtlasAgent() {
     setInput('');
     setExpandedTools({});
     setHistoryOpen(false);
+  };
+  const saveConflictAsNew = () => {
+    if (syncStatus !== 'conflict' || busy) return;
+    const id = newThreadId();
+    const title = String(msgs.find(m => m.role === 'user')?.text || 'Conversation').trim().slice(0, 48);
+    if (!saveMsgs(id, msgs)) { setSyncStatus('offline'); return; }
+    try { localStorage.setItem(pendingKey(id), JSON.stringify({ known: true, version: null })); }
+    catch { setSyncStatus('offline'); return; }
+    conversationRevision.current += 1;
+    setThreads(prev => { const next = [{ id, title, updated: Date.now() }, ...prev].slice(0, 20); saveThreads(next); return next; });
+    setThreadId(id); setHistoryOpen(false);
   };
   const activeTitle = threads.find((thread) => thread.id === threadId)?.title || 'Nouvelle conversation';
   const showWelcome = !loadingThread && !busy && !msgs.some((message) => message.role === 'user');
@@ -1409,7 +1423,7 @@ export default function AtlasAgent() {
       </button>
       )}
 
-      <aside className={`atlas-agent-panel ${open ? 'open' : ''}${expanded ? ' atlas-agent-panel--expanded' : ''}`} aria-hidden={!open} aria-label="Atlas Agent" style={{ width: expanded ? '100vw' : panelWidth }}>
+      <aside className={`atlas-agent-panel ${open ? 'open' : ''}${expanded ? ' atlas-agent-panel--expanded' : ''}${expanded && !isPhoneShell ? ' atlas-agent-has-sidebar' : ''}`} aria-hidden={!open} aria-label="Atlas Agent" style={{ width: expanded ? '100vw' : panelWidth }}>
         <div
           className="atlas-agent-resize"
           role="separator"
@@ -1422,9 +1436,11 @@ export default function AtlasAgent() {
         />
         {expanded && !isPhoneShell && <nav className="atlas-agent-workspace-sidebar" aria-label="Conversations Atlas Agent">
           <div className="atlas-agent-workspace-brand"><span className="atlas-agent-sidebar-mark"><Sparkles size={16} /></span><strong>Atlas Agent</strong></div>
-          <button type="button" className="atlas-agent-sidebar-new" disabled={busy || loadingThread} onClick={() => switchThread(newThreadId())}><Plus size={16} /> Nouvelle conversation</button>
+          <button type="button" className="atlas-agent-sidebar-new" disabled={busy || loadingThread || syncStatus === 'pending' || syncStatus === 'saving'} onClick={() => switchThread(newThreadId())}><Plus size={16} /> Nouvelle conversation</button>
           <label className="atlas-agent-history-search"><Search size={15} aria-hidden="true" /><input aria-label="Rechercher dans les conversations" placeholder="Rechercher…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /></label>
           <div className="atlas-agent-history-caption">Conversations récentes</div>
+          {historyError && <p className="atlas-agent-history-error" role="status">Certaines conversations R2 sont indisponibles.</p>}
+          {historyPending && <p className="atlas-agent-history-error" role="status">Certains titres sont encore indisponibles ; ouvrez une conversation pour charger son contenu.</p>}
           <div className="atlas-agent-workspace-threads">
             {visibleThreads.length ? visibleThreads.map((thread) => <button type="button" key={thread.id} disabled={busy || loadingThread} className={`atlas-agent-sidebar-thread${thread.id === threadId ? ' is-current' : ''}`} aria-current={thread.id === threadId ? 'page' : undefined} onClick={() => switchThread(thread.id)}>{thread.title}</button>) : <p>Aucune conversation trouvée.</p>}
           </div>
@@ -1433,6 +1449,7 @@ export default function AtlasAgent() {
         <header className="atlas-agent-head">
           <div className="atlas-agent-header-title">
             <span className="atlas-agent-header-mark" aria-hidden="true"><Sparkles size={17} /></span>
+            {expanded && !isPhoneShell && <strong className="atlas-agent-current-title">{activeTitle}</strong>}
             <button type="button" className="atlas-agent-history-trigger" aria-label="Historique des conversations" aria-expanded={historyOpen} aria-controls="atlas-agent-history-menu" onClick={() => setHistoryOpen((value) => !value)}>
               <span><small>ATLAS AGENT</small><strong>{activeTitle}</strong></span><ChevronDown size={15} aria-hidden="true" />
             </button>
@@ -1442,7 +1459,7 @@ export default function AtlasAgent() {
               <div className="atlas-agent-history-list">
                 {visibleThreads.length ? visibleThreads.map((thread) => <button type="button" key={thread.id} disabled={busy || loadingThread} className={`atlas-agent-history-choice${thread.id === threadId ? ' is-current' : ''}`} onClick={() => switchThread(thread.id)}><span>{thread.title}</span>{thread.id === threadId && <span aria-label="Conversation actuelle">•</span>}</button>) : <p>Aucune conversation trouvée.</p>}
               </div>
-              <button type="button" className="atlas-agent-history-new" disabled={busy || loadingThread} onClick={() => switchThread(newThreadId())}><Plus size={15} /> Nouvelle conversation</button>
+              <button type="button" className="atlas-agent-history-new" disabled={busy || loadingThread || syncStatus === 'pending' || syncStatus === 'saving'} onClick={() => switchThread(newThreadId())}><Plus size={15} /> Nouvelle conversation</button>
             </div>}
           </div>
           {!isPhoneShell && (
@@ -1487,6 +1504,12 @@ export default function AtlasAgent() {
 
         
 
+
+        {syncStatus !== 'saved' && <div className="atlas-agent-sync-status" role="status">
+          {syncStatus === 'loading' ? 'Chargement de la conversation R2…' : syncStatus === 'saving' || syncStatus === 'pending' ? 'Sauvegarde de la conversation sur R2…' : syncStatus === 'conflict' ? 'Conversation modifiée ailleurs : votre copie locale est conservée, sans écraser R2.' : syncStatus === 'too-large' ? 'Conversation trop volumineuse pour R2. Démarrez une nouvelle conversation ; la copie locale est conservée si possible.' : 'R2 indisponible : sauvegarde locale seulement, si le navigateur le permet.'}
+          {syncStatus === 'offline' && <button type="button" className="secondary" onClick={() => setReloadThread(v => v + 1)}>Réessayer</button>}
+          {syncStatus === 'conflict' && <button type="button" className="secondary" disabled={busy} onClick={saveConflictAsNew}>Enregistrer une copie</button>}
+        </div>}
 
         {pendingAction && (
           <div className="atlas-agent-confirm-card" role="status">
@@ -1949,7 +1972,7 @@ export default function AtlasAgent() {
             ]}
             models={[]}
             efforts={[]}
-            busy={busy || !!agentPolicy?.blocked}
+            busy={busy || loadingThread || !!agentPolicy?.blocked}
             onSend={(text) => {
               setInput(text);
               void send(text);

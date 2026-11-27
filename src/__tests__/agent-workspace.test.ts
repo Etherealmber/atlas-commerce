@@ -44,6 +44,7 @@ it('switches existing conversations without carrying messages into a new convers
   localStorage.setItem('atlas_agent_active_thread:admin', 'thread-a');
   localStorage.setItem('atlas_agent_msgs_v1:admin:thread-a', JSON.stringify([{ role: 'user', text: 'Question A' }, { role: 'assistant', text: 'Réponse A' }]));
   localStorage.setItem('atlas_agent_msgs_v1:admin:thread-b', JSON.stringify([{ role: 'user', text: 'Question B' }, { role: 'assistant', text: 'Réponse B' }]));
+  vi.mocked(api.getAgentThread).mockImplementation(async (id: string) => ({ data: { title: id, messages: JSON.parse(localStorage.getItem(`atlas_agent_msgs_v1:admin:${id}`) || '[]') }, meta: { version: id } } as any));
   await render(); expect(host.textContent).toContain('Réponse A');
   await click('[aria-label="Historique des conversations"]');
   const option = [...host.querySelectorAll<HTMLButtonElement>('.atlas-agent-history-choice')].find((el) => el.textContent?.includes('Autre échange'))!;
@@ -86,4 +87,82 @@ it('shows the real completed tool steps above the answer and lets them expand', 
   await act(async () => activity.click());
   expect(host.textContent).toContain('Consulter les stocks bas');
   expect(host.textContent).toContain('Échec');
+});
+
+it('reads the remote conversation without overwriting it on mount', async () => {
+  localStorage.setItem('atlas_agent_active_thread:admin', 'remote-thread');
+  vi.mocked(api.getAgentThread).mockResolvedValue({ data: { title: 'R2', messages: [{ role: 'user', text: 'Question R2' }, { role: 'assistant', text: 'Réponse R2', tools: [{ name: 'search_products', ok: true }] }] }, meta: { version: 'r2-v1' } } as any);
+  await render();
+  expect(host.textContent).toContain('Réponse R2');
+  expect(host.textContent).toContain('1 étape');
+  expect(api.putAgentThread).not.toHaveBeenCalled();
+});
+
+it('saves a completed reply with the R2 version and shows a failure instead of claiming success', async () => {
+  vi.useFakeTimers();
+  try {
+    vi.mocked(api.getAgentThread).mockResolvedValue({ data: { messages: [] }, meta: { version: null } } as any);
+    vi.mocked(api.putAgentThread).mockRejectedValue(new Error('storage failed'));
+    vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse R2', tool_trace: [] } } as any);
+    await render();
+    const suggestion = host.querySelector<HTMLButtonElement>('.atlas-agent-welcome-cards button')!;
+    await act(async () => suggestion.click());
+    await act(async () => { await vi.advanceTimersByTimeAsync(550); });
+    expect(api.putAgentThread).toHaveBeenCalledOnce();
+    expect(vi.mocked(api.putAgentThread).mock.calls[0][1]).toMatchObject({ expected_version: null, messages: expect.arrayContaining([expect.objectContaining({ text: 'Réponse R2' })]) });
+    expect(host.textContent).toContain('R2 indisponible');
+    expect(Object.keys(localStorage).some(key => key.startsWith('atlas_agent_pending_v1:admin:'))).toBe(true);
+  } finally { vi.useRealTimers(); }
+});
+
+it('preserves a local edit when another device has changed the R2 version', async () => {
+  localStorage.setItem('atlas_agent_active_thread:admin', 'conflict');
+  localStorage.setItem('atlas_agent_msgs_v1:admin:conflict', JSON.stringify([{ role: 'user', text: 'Mon édition locale' }]));
+  localStorage.setItem('atlas_agent_pending_v1:admin:conflict', JSON.stringify({ known: true, version: 'old' }));
+  vi.mocked(api.getAgentThread).mockResolvedValue({ data: { title: 'Remote', messages: [{ role: 'user', text: 'Autre appareil' }] }, meta: { version: 'new' } } as any);
+  await render();
+  expect(host.textContent).toContain('Mon édition locale');
+  expect(host.textContent).toContain('modifiée ailleurs');
+  expect(host.textContent).toContain('Enregistrer une copie');
+  expect(api.putAgentThread).not.toHaveBeenCalled();
+  expect(JSON.parse(localStorage.getItem('atlas_agent_pending_v1:admin:conflict')!).version).toBe('old');
+});
+
+it('saves to R2 then restores the answer on a fresh browser cache', async () => {
+  vi.useFakeTimers();
+  try {
+    let stored: any = null;
+    vi.mocked(api.getAgentThread).mockImplementation(async () => stored ? { data: stored.messagesData, meta: { version: stored.version } } as any : { data: { messages: [] }, meta: { version: null } } as any);
+    vi.mocked(api.putAgentThread).mockImplementation(async (_id, body) => {
+      stored = { messagesData: { title: body.title, messages: body.messages }, version: 'r2-version' };
+      return { data: { id: _id, storage: 'r2', version: stored.version } };
+    });
+    vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse sauvegardée', tool_trace: [{ name: 'list_low_stock', ok: true }] } } as any);
+    await render();
+    await act(async () => host.querySelector<HTMLButtonElement>('.atlas-agent-welcome-cards button')!.click());
+    await act(async () => { await vi.advanceTimersByTimeAsync(550); });
+    expect(stored.messagesData.messages.some((m: any) => m.text === 'Réponse sauvegardée')).toBe(true);
+    expect(Object.keys(localStorage).some(key => key.startsWith('atlas_agent_pending_v1:admin:'))).toBe(false);
+    const id = localStorage.getItem('atlas_agent_active_thread:admin')!;
+    await act(async () => root.unmount());
+    localStorage.clear(); localStorage.setItem('atlas_agent_active_thread:admin', id);
+    root = createRoot(host);
+    await render();
+    expect(host.textContent).toContain('Réponse sauvegardée');
+    expect(host.textContent).toContain('1 étape');
+  } finally { vi.useRealTimers(); }
+});
+
+
+it('shows a shimmer only while an empty conversation hydrates from R2', async () => {
+  let resolve!: (value: any) => void;
+  vi.mocked(api.getAgentThread).mockReturnValue(new Promise(r => { resolve = r; }));
+  await render();
+  expect(host.querySelector('.atlas-agent-shimmer-bubble--user')).not.toBeNull();
+  expect(host.textContent).not.toContain('Comment puis-je vous aider');
+  expect(api.putAgentThread).not.toHaveBeenCalled();
+  await act(async () => resolve({ data: { messages: [{ role: 'user', text: 'Question R2' }, { role: 'assistant', text: 'Réponse R2' }] }, meta: { version: 'v1' } }));
+  expect(host.querySelector('.atlas-agent-shimmer-bubble--user')).toBeNull();
+  expect(host.textContent).toContain('Réponse R2');
+  expect(api.putAgentThread).not.toHaveBeenCalled();
 });

@@ -67,3 +67,31 @@ describe('private encrypted API shadow archive', () => {
     expect(r2.list).not.toHaveBeenCalled(); expect(r2.get).not.toHaveBeenCalled();
   });
 });
+
+it('lists decrypted R2 entries in bounded pages, surfaces unreadable items and enforces the owner gate', async () => {
+  const r2 = bucket(); const env: any = { JOURNAL_ARCHIVE: r2, JOURNAL_ARCHIVE_MODE: 'buffered', JOURNAL_ENCRYPTION_KEY: secret, DB: { prepare: () => { throw new Error('no D1'); } } };
+  await archiveApiCall(env, row); await archiveApiCall(env, { ...row, path: '/api/products', status: 503 });
+  const keys = [...r2.objects.keys()]; r2.objects.set(keys[1], new Uint8Array([0, 1, 2]));
+  const app = new Hono<any>(); let authorized = false;
+  registerUsersAdminRoutes(app, { requireOwner: (c: any) => authorized ? { ok: true, username: 'owner' } : { ok: false, response: c.json({ error: 'Forbidden' }, 403) } } as any);
+  const path = `/api/admin/journal-archive?day=${new Date().toISOString().slice(0, 10)}&kind=api&include=entries`;
+  expect((await app.request(path, {}, env)).status).toBe(403);
+  expect(r2.list).not.toHaveBeenCalled();
+  authorized = true;
+  const response = await app.request(path, {}, env);
+  expect(response.status).toBe(200);
+  const data = await response.json() as any;
+  expect(data.data).toHaveLength(2);
+  expect(data.data.find((x: any) => x.key === keys[0]).row).toMatchObject({ username: 'alice', method: 'GET', status: 200 });
+  expect(data.data.find((x: any) => x.key === keys[1])).toMatchObject({ unreadable: true, row: null });
+  expect(r2.list.mock.calls[0][0]).toMatchObject({ limit: 25 });
+});
+
+it('reports a missing encryption key even when the R2 day is empty', async () => {
+  const r2 = bucket(); const app = new Hono<any>();
+  registerUsersAdminRoutes(app, { requireOwner: () => ({ ok: true, username: 'owner' }) } as any);
+  const response = await app.request(`/api/admin/journal-archive?day=${new Date().toISOString().slice(0, 10)}&kind=audit&include=entries`, {}, { JOURNAL_ARCHIVE: r2, JOURNAL_ARCHIVE_MODE: 'buffered' });
+  expect(response.status).toBe(503);
+  expect((await response.json() as any).code).toBe('JOURNAL_ARCHIVE_UNAVAILABLE');
+  expect(r2.list).not.toHaveBeenCalled();
+});

@@ -91,7 +91,8 @@ describe('Atlas Agent shimmer', () => {
   it('drives the conversation shimmer from real R2 hydration (not a constant)', () => {
     expect(src).not.toContain('const [loadingThread] = useState(false);');
     expect(src).toContain('const [loadingThread, setLoadingThread] = useState(false);');
-    expect(src).toMatch(/setLoadingThread\(true\); \}, 160\)/);
+    expect(src).toContain("setLoadingThread(true); setSyncStatus('loading');");
+    expect(src).toContain('if (!cancelled) setLoadingThread(false);');
     expect(src).toContain("loadingThread && !msgs.some((m) => m.role === 'user') && <AtlasAgentShimmerBody rows={2} />");
   });
 

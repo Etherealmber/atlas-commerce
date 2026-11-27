@@ -443,11 +443,11 @@ export const api = {
       body: JSON.stringify({ provider }),
     }),
   listAgentThreads: () =>
-    request<{ data: { id: string; title: string; updated_at?: string; message_count?: number }[] }>('/api/admin/agent/threads'),
+    request<{ data: { id: string; title: string; updated_at?: string; message_count?: number; summary_pending?: boolean }[]; meta?: { unreadable_count?: number; pending_count?: number } }>('/api/admin/agent/threads', { silent: true }),
   getAgentThread: (id: string) =>
-    request<{ data: { title?: string; messages?: any[]; updated_at?: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`),
-  putAgentThread: (id: string, body: { title?: string; messages?: any[] }) =>
-    request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), silent: true } as any),
+    request<{ data: { title?: string; messages?: any[]; updated_at?: string }; meta?: { version: string | null; empty?: boolean } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { silent: true }),
+  putAgentThread: (id: string, body: { title?: string; messages?: any[]; expected_version?: string | null }) =>
+    request<{ data: { id: string; storage: string; version: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), silent: true } as any),
   deleteAgentThread: (id: string) =>
     request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   /* v225 — agent governance, privacy deletes, 2FA, devices */
@@ -1036,10 +1036,16 @@ export const api = {
     return request<{ data: any[]; meta?: { limit: number; has_more: boolean; next_cursor: string | null; range: string; stats?: any } }>(`/api/admin/api-log?${qs}`);
   },
   getJournalMode: () => request<{ data: { mode: 'r2' | 'legacy' } }>('/api/admin/journal-mode', { silent: true }),
+  getJournalBufferStatus: () => request<{ data: { pending_at_least: number; has_more: boolean; alarm_scheduled: boolean } }>('/api/admin/journal-buffer-status', { silent: true }),
   listJournalArchive: (day: string, cursor?: string | null, kind: 'api' | 'audit' = 'api') => {
     const qs = new URLSearchParams({ day, kind });
     if (cursor) qs.set('cursor', cursor);
     return request<{ data: string[]; meta: { next_cursor: string | null; mode: string } }>(`/api/admin/journal-archive?${qs}`, { silent: true });
+  },
+  listJournalArchiveEntries: (day: string, cursor?: string | null, kind: 'api' | 'audit' = 'api') => {
+    const qs = new URLSearchParams({ day, kind, include: 'entries' });
+    if (cursor) qs.set('cursor', cursor);
+    return request<{ data: Array<{ key: string; row: Record<string, any> | null; unreadable: boolean }>; meta: { next_cursor: string | null; mode: string; invalid_count?: number } }>(`/api/admin/journal-archive?${qs}`, { silent: true });
   },
   getJournalArchiveItem: (key: string, kind: 'api' | 'audit' = 'api') => request<{ data: any }>(`/api/admin/journal-archive/item?${new URLSearchParams({ key, kind })}`, { silent: true }),
   /** « Expliquer » — Groq (free tier, cached) explanation of one log line. */

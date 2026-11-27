@@ -368,11 +368,23 @@ app.get('/api/admin/journal-archive', async (c) => {
   if (kind !== 'api' && kind !== 'audit') return c.json({ success: false, error: 'Type invalide.' }, 400);
   if (cursor.length > 2048) return c.json({ success: false, error: 'Curseur invalide.' }, 400);
   try {
-    const result = await listArchivedJournal(c.env, day, cursor || undefined, kind);
-    return c.json({ success: true, data: result.keys, meta: { next_cursor: result.cursor, mode: c.env.JOURNAL_ARCHIVE_MODE } });
+    const includeEntries = c.req.query('include') === 'entries';
+    const result = await listArchivedJournal(c.env, day, cursor || undefined, kind, Date.now(), includeEntries ? 25 : 100);
+    if (!includeEntries) return c.json({ success: true, data: result.keys, meta: { next_cursor: result.cursor, mode: c.env.JOURNAL_ARCHIVE_MODE, invalid_count: result.invalidCount } });
+    // Bounded concurrency and bounded page size: these are private R2 GETs,
+    // never a D1 fallback. Report unreadable objects rather than dropping them.
+    const entries: Array<{ key: string; row: unknown | null; unreadable: boolean }> = [];
+    for (let i = 0; i < result.keys.length; i += 5) {
+      const page = await Promise.all(result.keys.slice(i, i + 5).map(async (key) => {
+        try { const row = await readArchivedJournal(c.env, key, kind); return { key, row, unreadable: row == null }; }
+        catch { return { key, row: null, unreadable: true }; }
+      }));
+      entries.push(...page);
+    }
+    return c.json({ success: true, data: entries, meta: { next_cursor: result.cursor, mode: c.env.JOURNAL_ARCHIVE_MODE, invalid_count: result.invalidCount } });
   } catch (e) {
     if (e instanceof Error && e.message === 'Invalid archive date') return c.json({ success: false, error: 'Date invalide.' }, 400);
-    return c.json({ success: false, error: 'Archive indisponible.' }, 503);
+    return c.json({ success: false, code: 'JOURNAL_ARCHIVE_UNAVAILABLE', error: 'Archive R2 indisponible ou clé invalide.' }, 503);
   }
 });
 app.get('/api/admin/journal-archive/item', async (c) => {
@@ -385,7 +397,7 @@ app.get('/api/admin/journal-archive/item', async (c) => {
     const row = await readArchivedJournal(c.env, String(c.req.query('key') || ''), kind);
     if (!row) return c.json({ success: false, error: 'Entrée introuvable.' }, 404);
     return c.json({ success: true, data: row });
-  } catch { return c.json({ success: false, error: 'Archive indisponible.' }, 503); }
+  } catch { return c.json({ success: false, code: 'JOURNAL_ARCHIVE_UNAVAILABLE', error: 'Archive R2 indisponible ou clé invalide.' }, 503); }
 });
 
 /** Journal des appels API — eligible API calls, including failures, 30 days. */

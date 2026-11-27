@@ -397,7 +397,7 @@ describe('POST /api/assist/chat/stream — parité outils (v0.7.8)', () => {
         : sseResponse([contentDelta('Not permitted.')]);
     }) as unknown as typeof fetch);
     const result = await streamChat(await tokenFor('safeowner', 'owner', secret, 'fpSafe'), { message: 'create a product', response_language: 'en' });
-    for (const name of ['create_client', 'create_product', 'update_client', 'create_invoice_draft', 'create_quote_draft']) expect(toolNames(groqBodies[0])).not.toContain(name);
+    for (const name of ['create_client', 'create_product', 'update_client', 'update_product', 'create_invoice_draft', 'create_quote_draft']) expect(toolNames(groqBodies[0])).not.toContain(name);
     const done = parseEvents(result.text).find((e) => e.event === 'done')!.data;
     expect(done.tool_trace[0]).toMatchObject({ name: 'create_product', ok: false });
     expect(done.proposals).toEqual([]);
