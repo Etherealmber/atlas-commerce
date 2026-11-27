@@ -103,7 +103,7 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
 
   if (r2Only) return <section id="journal-api" className="ac-panel ac-apilog-panel" aria-label="Journal des appels API">
     <h3>Journal des appels API et audit</h3>
-    <p>Consultez les entrées API et audit enregistrées dans R2, par date UTC. La recherche couvre les pages chargées ; les statistiques et exports de l’ancienne vue ne sont pas encore disponibles.</p>
+    <p>Historique détaillé et journal des appels API, enregistrés dans R2 par date UTC. Les graphiques et la recherche utilisent les entrées chargées.</p>
     <JournalArchive onOpen={setDetail} r2Only />
     {detail && createPortal(<div className="audit-detail-modal-backdrop" role="presentation" onClick={() => setDetail(null)}>
       <div className="audit-detail-modal audit-detail-modal--expanded card" role="dialog" aria-modal="true" aria-label="Détails de la requête" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setDetail(null); }}>
@@ -270,23 +270,29 @@ function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void
       setBuffer(result.data); setBufferError(false);
     } catch { setBuffer(null); setBufferError(true); }
   };
-  const load = async (next?: string) => {
+  const load = async (next?: string, refresh = false) => {
     const requestId = ++generation.current;
     setBusy(true); setMessage('');
     try {
       const result = await api.listJournalArchiveEntries(day, next, kind);
       if (requestId !== generation.current) return;
-      setEntries(current => next ? [...current, ...result.data] : result.data);
-      setCursor(result.meta.next_cursor);
-      setInvalidCount(current => next ? current + (result.meta.invalid_count || 0) : result.meta.invalid_count || 0);
-      if (!result.data.length && !next) setMessage(result.meta.next_cursor ? 'Aucune entrée lisible dans cette page ; chargez la suite.' : 'Aucune entrée R2 pour cette date UTC. Les anciens événements D1 ne sont pas importés automatiquement.');
+      setEntries(current => {
+        if (!next && !refresh) return result.data;
+        const merged = new Map(current.map(entry => [entry.key, entry]));
+        for (const entry of result.data) merged.set(entry.key, entry);
+        return [...merged.values()];
+      });
+      setCursor(current => refresh ? (current || result.meta.next_cursor) : result.meta.next_cursor);
+      setInvalidCount(current => next ? current + (result.meta.invalid_count || 0) : refresh ? Math.max(current, result.meta.invalid_count || 0) : result.meta.invalid_count || 0);
+      if (!result.data.length && !next && !refresh) setMessage(result.meta.next_cursor ? 'Aucune entrée lisible dans cette page ; chargez la suite.' : 'Aucune entrée R2 pour cette date UTC. Les anciens événements D1 ne sont pas importés automatiquement.');
       if (r2Only) void refreshBuffer();
-    } catch { if (requestId === generation.current) { if (!next) setEntries([]); setMessage(t('Archive indisponible ou non configurée.')); } }
+    } catch { if (requestId === generation.current) { if (!next && !refresh) setEntries([]); setMessage(t('Archive indisponible ou non configurée.')); } }
     finally { if (requestId === generation.current) setBusy(false); }
   };
   useEffect(() => {
     if (r2Only && day) void load();
-    return () => { generation.current++; };
+    const timer = r2Only && day ? window.setInterval(() => { if (document.visibilityState === 'visible') void load(undefined, true); }, 120_000) : undefined;
+    return () => { generation.current++; if (timer) window.clearInterval(timer); };
   }, [day, kind, r2Only]);
   const reset = () => { generation.current++; setEntries([]); setCursor(null); setSelected(''); setQuery(''); setAuditEntry(null); setMessage(''); setInvalidCount(0); setBusy(false); };
   const label = (entry: Entry) => {
@@ -298,6 +304,22 @@ function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void
   };
   const filtered = entries.filter(entry => `${label(entry)} ${entry.row ? JSON.stringify(entry.row) : ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const current = filtered.find(entry => entry.key === selected);
+  // These aggregates intentionally cover only the decrypted entries loaded in
+  // this browser for the selected UTC day, never an assumed full R2 total.
+  const readable = entries.filter(entry => entry.row && !entry.unreadable).map(entry => entry.row!);
+  const actors = new Set(readable.map(row => row.username).filter(Boolean)).size;
+  const counts = new Map<string, number>();
+  const hours = new Map<string, number>();
+  for (const row of readable) {
+    const category = String(kind === 'audit' ? row.action || '—' : `${row.method || '—'} ${row.path || '—'}`);
+    counts.set(category, (counts.get(category) || 0) + 1);
+    const time = new Date(row.created_at || '');
+    if (Number.isFinite(time.getTime())) { const hour = `${String(time.getUTCHours()).padStart(2, '0')}h`; hours.set(hour, (hours.get(hour) || 0) + 1); }
+  }
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const timeline = [...hours.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const maxHour = Math.max(1, ...timeline.map(([, count]) => count));
+  const maxAction = Math.max(1, ...top.map(([, count]) => count));
   const content = <>
     {r2Only ? <h4>{t('Archive chiffrée des appels API')} / Audit</h4> : <summary>{t('Archive chiffrée des appels API')} / Audit</summary>}
     {!r2Only && <p>{t('Les statistiques et filtres ci-dessus concernent uniquement le journal D1. L’archive est consultable par jour, séparément.')}</p>}
@@ -306,6 +328,27 @@ function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void
       <label htmlFor="journal-archive-day">{t('Date UTC')}<DatePicker id="journal-archive-day" value={day} onChange={value => { reset(); setDay(value); }} /></label>
       <button className="secondary" type="button" disabled={busy || !day} onClick={() => { setSelected(''); void load(); }}>{busy ? 'Chargement…' : t('Afficher les archives')}</button>
     </div>
+    {r2Only && <>
+      <p role="note">Actualisation automatique toutes les 2 minutes lorsque cet onglet est visible. Les événements apparaissent après leur transfert R2 ; un retard ou une panne peut dépasser 2 minutes. Les pages R2 sont chargées du plus ancien au plus récent : chargez la suite pour voir les événements récents.</p>
+      <section className="ac-audit-table-panel" aria-label={kind === 'audit' ? 'Historique détaillé R2' : 'Statistiques API R2'}>
+        <h3>{kind === 'audit' ? 'Historique détaillé' : 'Journal des appels API'}</h3>
+        <p>Statistiques et graphiques calculés uniquement à partir des entrées R2 lisibles chargées pour le {day} UTC{cursor ? ' · données partielles, chargez la suite' : ''}. Ils ne représentent pas les anciens journaux D1 ni les événements encore en attente.</p>
+        <div className="ac-metric-grid ac-audit-kpis">
+          <article className="ac-metric"><div className="as-label">{kind === 'audit' ? 'Actions chargées' : 'Appels chargés'}</div><div className="as-value">{readable.length}</div></article>
+          <article className="ac-metric"><div className="as-label">Acteurs uniques</div><div className="as-value">{actors}</div></article>
+          <article className="ac-metric"><div className="as-label">Entrées chargées</div><div className="as-value">{entries.length}</div><div className="ac-kpi-sub">{cursor ? 'Suite disponible' : 'Pages chargées'}</div></article>
+          <article className="ac-metric"><div className="as-label">{kind === 'audit' ? 'Type dominant' : 'Chemin dominant'}</div><div className="as-value ac-journal-dominant">{top[0]?.[0] || '—'}</div></article>
+        </div>
+        <div className="ac-audit-charts-grid">
+          <section className="ac-panel" aria-label="Activité dans le temps"><div className="ac-panel-head"><div><h3>Activité dans le temps</h3><p>Par heure UTC · entrées chargées</p></div></div>
+            {timeline.length ? <div className="ac-audit-bars">{timeline.map(([hour, count]) => <div key={hour} className="ac-audit-bar-col" title={`${hour} UTC : ${count}`}><span className="ac-audit-bar-val">{count}</span><div className="ac-audit-bar-track"><div className="ac-audit-bar" style={{ height: `${Math.max(6, Math.round(count / maxHour * 100))}%` }} /></div><span className="ac-audit-bar-lbl">{hour}</span></div>)}</div> : <div className="atlas-empty">Aucune activité chargée.</div>}
+          </section>
+          <section className="ac-panel" aria-label={kind === 'audit' ? 'Types d’action' : 'Chemins API les plus appelés'}><div className="ac-panel-head"><div><h3>{kind === 'audit' ? 'Types d’action' : 'Chemins API les plus appelés'}</h3><p>Entrées chargées · cliquez pour rechercher</p></div></div>
+            {top.length ? <div className="ac-audit-hbar-list">{top.map(([name, count]) => <button key={name} type="button" className="ghost ac-audit-hbar-btn" onClick={() => setQuery(name)}><span className="ac-audit-hbar-name"><bdi dir="auto">{name}</bdi></span><span className="ac-audit-hbar-track" aria-hidden="true"><span className="ac-audit-hbar-fill" style={{ width: `${Math.max(4, Math.round(count / maxAction * 100))}%`, display: 'block' }} /></span><span className="ac-audit-hbar-n">{count}</span></button>)}</div> : <div className="atlas-empty">Aucune entrée chargée.</div>}
+          </section>
+        </div>
+      </section>
+    </>}
     {buffer && buffer.pending_at_least > 0 && <p role="status">{buffer.pending_at_least}{buffer.has_more ? '+' : ''} entrée(s) en attente de transfert vers R2{buffer.alarm_scheduled ? '.' : ' ; aucune alarme de transfert n’est programmée.'}</p>}
     {bufferError && r2Only && <p role="status">État de la file R2 indisponible ; la liste ne permet pas de confirmer que tous les événements ont été enregistrés.</p>}
     {message && <p role="status">{message}{buffer?.pending_at_least ? ' Des événements attendent encore leur transfert.' : ''}</p>}
