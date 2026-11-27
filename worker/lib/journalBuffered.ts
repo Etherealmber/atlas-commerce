@@ -5,15 +5,18 @@ import type { Env } from '../env';
 import { inDemoScope } from './dataScope';
 import { normalizeApiPath, type ApiLogRow } from './apiLog';
 import { resolveRootDb } from './schema';
+import { supabaseJournalConfig } from './journalSupabase';
 
 const scope = new AsyncLocalStorage<{ env: Env; root: object | null }>();
 export function withBufferedJournal<T>(env: Env, fn: () => T): T {
-  if (env.JOURNAL_ARCHIVE_MODE !== 'buffered' || env.ATLAS_DEMO === '1' || inDemoScope()) return fn();
+  if (env.JOURNAL_ARCHIVE_MODE !== 'buffered' && env.JOURNAL_ARCHIVE_MODE !== 'supabase' || env.ATLAS_DEMO === '1' || inDemoScope()) return fn();
   return scope.run({ env, root: resolveRootDb(env.DB) }, fn);
 }
 
 export async function enqueueBufferedJournal(env: Env, kind: 'api' | 'audit', data: unknown): Promise<void> {
-  if (!env.JOURNAL_ARCHIVE || env.JOURNAL_ARCHIVE === env.IMAGES || !env.JOURNAL_BUFFER) throw new Error('Journal buffer configuration missing');
+  if (!env.JOURNAL_BUFFER) throw new Error('Journal buffer configuration missing');
+  if (env.JOURNAL_ARCHIVE_MODE === 'supabase') supabaseJournalConfig(env);
+  else if (!env.JOURNAL_ARCHIVE || env.JOURNAL_ARCHIVE === env.IMAGES) throw new Error('Journal buffer configuration missing');
   let secret: Uint8Array;
   try { secret = Uint8Array.from(atob(env.JOURNAL_ENCRYPTION_KEY || ''), c => c.charCodeAt(0)); } catch { throw new Error('Journal encryption key invalid'); }
   if (secret.length !== 32) throw new Error('Journal encryption key invalid');
@@ -29,7 +32,7 @@ export async function enqueueBufferedJournal(env: Env, kind: 'api' | 'audit', da
   const stub = env.JOURNAL_BUFFER.get(env.JOURNAL_BUFFER.idFromName('journal-v1'));
   // Reuse exactly the same id and ciphertext if the acknowledgement is lost.
   // A new id here would duplicate an event that was already accepted.
-  const body = JSON.stringify({ path, ciphertext: btoa(binary) });
+  const body = JSON.stringify({ path, ciphertext: btoa(binary), destination: env.JOURNAL_ARCHIVE_MODE === 'supabase' ? 'supabase' : 'r2' });
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const response = await stub.fetch('https://journal-buffer/enqueue', { method: 'POST', headers: { 'content-type': 'application/json' }, body });

@@ -478,6 +478,7 @@ export default function Invoices() {
         <h1 className="sr-only">Factures de vente</h1>
         <TopPageActions>
           <RefreshIconButton onClick={() => load(true)} loading={refreshing} />
+          <DeliveryNotesPanel />
 
           <button
             className="secondary"
@@ -502,7 +503,6 @@ export default function Invoices() {
           <button title="Créer une facture" onClick={() => { setDocMode('invoice'); setShowModal(true); }}><FilePlus2 size={16} aria-hidden="true" /><span className="tpa-label">Créer une facture</span></button>
         </TopPageActions>
       </div>
-      <DeliveryNotesPanel />
       {clientFilter && <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>Filtré par client #{clientFilter}</p>}
 
       

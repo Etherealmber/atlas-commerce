@@ -9,3 +9,5 @@ html[data-theme="dark"] .ac-journal-browser p { color: #a1a1aa; }
 .ac-journal-results { margin: 12px 0; overflow-x: auto; }
 .ac-journal-results table { width: 100%; min-width: 650px; }
 .ac-journal-results td { overflow-wrap: anywhere; }
+
+.ac-journal-dominant { font-size: 1.05rem; overflow-wrap: anywhere; }

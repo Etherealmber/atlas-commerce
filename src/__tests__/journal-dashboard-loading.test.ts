@@ -94,3 +94,45 @@ it('shows API and audit rows directly from R2, with search and pending transfer 
   expect(host.querySelector('[aria-label="Entrées API R2"]')?.textContent).toContain('POST /api/products');
   expect(legacyAudit).not.toHaveBeenCalled(); expect(legacyApi).not.toHaveBeenCalled();
 });
+
+it('builds R2 charts from loaded entries only and refreshes without losing later pages', async () => {
+  vi.useFakeTimers();
+  try {
+    const first = { key: 'a', row: { created_at: '2026-10-20T10:00:00Z', action: 'product.create', entity: 'products', entity_id: '42', username: 'alice' }, unreadable: false };
+    const second = { key: 'b', row: { created_at: '2026-10-20T11:00:00Z', action: 'product.update', entity: 'products', entity_id: '43', username: 'bob' }, unreadable: false };
+    vi.spyOn(api, 'getJournalBufferStatus').mockResolvedValue({ data: { pending_at_least: 0, has_more: false, alarm_scheduled: false } });
+    const archive = vi.spyOn(api, 'listJournalArchiveEntries').mockImplementation(async (_day, cursor) => ({ data: cursor ? [second] : [first], meta: { mode: 'buffered', next_cursor: cursor ? null : 'page-2' } }));
+    const legacyAudit = vi.spyOn(api, 'getAuditLog'); const legacyApi = vi.spyOn(api, 'getApiLog');
+    const ApiLogPanel = (await import('../components/audit/ApiLogPanel')).default;
+    await act(async () => root.render(createElement(ApiLogPanel, { range: '24h', forceR2: true })));
+    expect(host.textContent).toContain('données partielles');
+    expect(host.querySelector('[aria-label="Types d’action"]')?.textContent).toContain('product.create');
+    expect(host.querySelector('[aria-label="Activité dans le temps"]')?.textContent).toContain('10h');
+    const more = [...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === 'Afficher plus')!;
+    await act(async () => more.click());
+    expect(host.querySelector('[aria-label="Entrées audit R2"]')?.textContent).toContain('products #43');
+    expect(host.querySelector('[aria-label="Types d’action"]')?.textContent).toContain('product.update');
+    await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
+    expect(archive).toHaveBeenCalledTimes(3);
+    expect(host.querySelector('[aria-label="Entrées audit R2"]')?.textContent).toContain('products #43');
+    expect(host.querySelectorAll('[aria-label="Entrées audit R2"] tbody tr')).toHaveLength(2);
+    expect(host.textContent).toContain('peut dépasser 2 minutes');
+    expect(legacyAudit).not.toHaveBeenCalled(); expect(legacyApi).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
+});
+
+it('uses the old audit and API dashboards with Supabase mode, without fetching the R2 archive', async () => {
+  vi.spyOn(api, 'getMe').mockResolvedValue({ data: { is_owner: true, role: 'owner' } } as any);
+  vi.spyOn(api, 'getJournalMode').mockResolvedValue({ data: { mode: 'supabase' } });
+  vi.spyOn(api, 'getJournalBufferStatus').mockResolvedValue({ data: { pending_at_least: 1, has_more: false, alarm_scheduled: true } });
+  const audit = vi.spyOn(api, 'getAuditLog').mockResolvedValue({ data: [{ id: 1, action: 'product.create', entity: 'products', entity_id: '42', username: 'alice' }], meta: { limit: 40, has_more: false, next_cursor: null, stats: { total: 1, unique_actors: 1, by_day: [{ day: '2026-10-20', n: 1 }], top_actions: [{ action: 'product.create', n: 1 }] } } } as any);
+  const calls = vi.spyOn(api, 'getApiLog').mockResolvedValue({ data: [{ id: 2, method: 'GET', path: '/api/products', status: 200 }], meta: { limit: 25, has_more: false, next_cursor: null, stats: { total: 1, unique_ips: 1, errors: 0, avg_ms: 3, top_paths: [{ method: 'GET', path: '/api/products', n: 1 }], by_day: [] } } } as any);
+  const archive = vi.spyOn(api, 'listJournalArchiveEntries');
+  await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/settings?tab=audit'] }, createElement(Settings))));
+  expect(audit).toHaveBeenCalled(); expect(calls).toHaveBeenCalled(); expect(archive).not.toHaveBeenCalled();
+  expect(host.textContent).toContain('Journal Supabase'); expect(host.textContent).toContain('1 événement(s) en attente');
+  expect(host.textContent).toContain('products #42'); expect(host.textContent).toContain('product.create');
+  expect(host.querySelector('[aria-label="Types d’action"]')).not.toBeNull();
+  expect(host.textContent).toContain('/api/products');
+  expect((host.querySelector('[aria-label="Export CSV"]') as HTMLButtonElement).disabled).toBe(true);
+});

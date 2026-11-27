@@ -195,6 +195,12 @@ export async function cascadeDeleteInvoice(
     await db.prepare(`DELETE FROM receipts WHERE id = ?`).bind(r.id).run();
   }
   await db.prepare(`DELETE FROM invoice_payments WHERE invoice_id = ?`).bind(invoiceId).run();
+  // Delivery tables are created lazily on older installations.
+  const hasNotes = await db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'delivery_notes'`).first();
+  if (hasNotes) {
+    await db.prepare(`DELETE FROM delivery_note_items WHERE delivery_note_id IN (SELECT id FROM delivery_notes WHERE invoice_id = ?)`).bind(invoiceId).run();
+    await db.prepare(`DELETE FROM delivery_notes WHERE invoice_id = ?`).bind(invoiceId).run();
+  }
   await db.prepare(`DELETE FROM invoice_items WHERE invoice_id = ?`).bind(invoiceId).run();
   await db.prepare(`DELETE FROM invoices WHERE id = ?`).bind(invoiceId).run();
   return links;

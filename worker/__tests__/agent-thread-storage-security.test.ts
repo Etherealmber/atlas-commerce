@@ -115,3 +115,14 @@ it('returns discovered R2 threads when summary reads are slow, without claiming 
     expect(body.meta).toMatchObject({ pending_count: 1, unreadable_count: 0 });
   } finally { vi.useRealTimers(); }
 });
+
+it('deletes only the authenticated user’s snapshot and transcript for one thread', async () => {
+  const remove = vi.fn(async () => {});
+  const router = app();
+  const res = await router.fetch(new Request('https://example.test/api/admin/agent/threads/t1', { method: 'DELETE', headers: { Authorization: 'Bearer session' } }), { IMAGES: { delete: remove } } as any);
+  expect(res.status).toBe(200);
+  expect(remove).toHaveBeenCalledWith(['agent/alice/t1.agent', 'agent-chats/v2/alice/t1.conv']);
+  remove.mockRejectedValueOnce(new Error('R2 unavailable'));
+  const failed = await router.fetch(new Request('https://example.test/api/admin/agent/threads/t1', { method: 'DELETE', headers: { Authorization: 'Bearer session' } }), { IMAGES: { delete: remove } } as any);
+  expect(failed.status).toBe(503);
+});

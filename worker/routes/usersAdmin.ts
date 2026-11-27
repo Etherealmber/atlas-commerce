@@ -3,6 +3,7 @@ import { DEMO_USERNAME } from '../lib/demo/policy';
 import { API_LOG_RETENTION_DAYS, classifyNetwork, ensureApiLogTable, geoForIps } from '../lib/apiLog';
 import { explainLogLine } from '../lib/auditExplain';
 import { listArchivedJournal, readArchivedJournal } from '../lib/journalArchive';
+import { journalRpc, supabaseJournalConfig } from '../lib/journalSupabase';
 import { schemaOnce, addColumnIfMissing } from '../lib/schema';
 import { ensureDocAssetColumns } from '../lib/printTemplates';
 import {
@@ -206,9 +207,24 @@ app.put('/api/admin/users/:id', async (c) => {
 });
 
 
+async function supabasePage(c: any, kind: 'audit' | 'api') {
+  const rawLimit = Number(c.req.query('limit') || 40);
+  const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(100, Math.floor(rawLimit))) : 40;
+  const cursor = String(c.req.query('cursor') || '');
+  if (cursor && !/^[1-9][0-9]{0,14}$/.test(cursor)) return c.json({ success: false, error: 'Curseur invalide.' }, 400);
+  const range = String(c.req.query('range') || (kind === 'audit' ? '7d' : '24h'));
+  if (!['24h', '7d', '30d', 'all'].includes(range)) return c.json({ success: false, error: 'Période invalide.' }, 400);
+  try {
+    const result = await journalRpc(c.env, 'atlas_journal_page', { p_kind: kind, p_range: range, p_limit: limit, p_cursor: cursor ? Number(cursor) : 0, p_query: String(c.req.query('q') || '').slice(0, 200), p_action: String(c.req.query('action') || '').slice(0, 200), p_status: String(c.req.query('status') || '').slice(0, 16), p_username: String(c.req.query('username') || '').trim().slice(0, 200), p_ip: String(c.req.query('ip') || '').trim().slice(0, 100), p_stats: c.req.query('stats') === '1' });
+    if (!Array.isArray(result?.data) || !result.meta || typeof result.meta.has_more !== 'boolean') throw new Error('Bad response');
+    return c.json({ success: true, data: result.data, meta: result.meta });
+  } catch { return c.json({ success: false, code: 'JOURNAL_SUPABASE_UNAVAILABLE', error: 'Journal Supabase indisponible.' }, 503); }
+}
+
 app.get('/api/admin/audit', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase' && c.env.ATLAS_DEMO !== '1') return supabasePage(c, 'audit');
   // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
   if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
     return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 409);
@@ -337,7 +353,7 @@ app.get('/api/admin/journal-mode', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
   c.header('Cache-Control', 'no-store');
-  return c.json({ success: true, data: { mode: c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1' ? 'r2' : 'legacy' } });
+  return c.json({ success: true, data: { mode: c.env.ATLAS_DEMO === '1' ? 'legacy' : c.env.JOURNAL_ARCHIVE_MODE === 'supabase' ? 'supabase' : c.env.JOURNAL_ARCHIVE_MODE === 'buffered' ? 'r2' : 'legacy' } });
 });
 
 /** Owner-only, bounded backlog visibility. No event content or key is returned. */
@@ -345,10 +361,11 @@ app.get('/api/admin/journal-buffer-status', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
   c.header('Cache-Control', 'no-store');
-  if (c.env.JOURNAL_ARCHIVE_MODE !== 'buffered' || !c.env.JOURNAL_BUFFER || !c.env.JOURNAL_ARCHIVE || c.env.JOURNAL_ARCHIVE === c.env.IMAGES) {
+  if (!c.env.JOURNAL_BUFFER || (c.env.JOURNAL_ARCHIVE_MODE !== 'supabase' && (c.env.JOURNAL_ARCHIVE_MODE !== 'buffered' || !c.env.JOURNAL_ARCHIVE || c.env.JOURNAL_ARCHIVE === c.env.IMAGES))) {
     return c.json({ success: false, code: 'JOURNAL_UNCONFIGURED', error: 'Journal R2 non configuré.' }, 503);
   }
   try {
+    if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase') supabaseJournalConfig(c.env);
     const stub = c.env.JOURNAL_BUFFER.get(c.env.JOURNAL_BUFFER.idFromName('journal-v1'));
     const res = await stub.fetch('https://journal-buffer/health');
     if (!res.ok) throw new Error('unavailable');
@@ -361,6 +378,7 @@ app.get('/api/admin/journal-buffer-status', async (c) => {
 app.get('/api/admin/journal-archive', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase' && c.env.ATLAS_DEMO !== '1') return c.json({ success: false, code: 'JOURNAL_SUPABASE_ONLY', error: 'Journal Supabase actif.' }, 409);
   c.header('Cache-Control', 'no-store');
   const day = String(c.req.query('day') || '');
   const cursor = String(c.req.query('cursor') || '');
@@ -390,6 +408,7 @@ app.get('/api/admin/journal-archive', async (c) => {
 app.get('/api/admin/journal-archive/item', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase' && c.env.ATLAS_DEMO !== '1') return c.json({ success: false, code: 'JOURNAL_SUPABASE_ONLY', error: 'Journal Supabase actif.' }, 409);
   c.header('Cache-Control', 'no-store');
   try {
     const kind = c.req.query('kind') || 'api';
@@ -404,6 +423,7 @@ app.get('/api/admin/journal-archive/item', async (c) => {
 app.get('/api/admin/api-log', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase' && c.env.ATLAS_DEMO !== '1') return supabasePage(c, 'api');
   // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
   if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
     return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 409);
@@ -487,6 +507,7 @@ app.get('/api/admin/api-log', async (c) => {
 app.post('/api/admin/audit/explain', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase' && c.env.ATLAS_DEMO !== '1') return c.json({ success: false, code: 'JOURNAL_FEATURE_UNAVAILABLE', error: 'Cette fonction n’est pas encore disponible pour Supabase.' }, 409);
   // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
   if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
     return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 409);
@@ -529,6 +550,7 @@ app.post('/api/admin/audit/explain', async (c) => {
 app.get('/api/admin/audit/export', async (c) => {
   const gate = requireOwner(c);
   if (!gate.ok) return gate.response;
+  if (c.env.JOURNAL_ARCHIVE_MODE === 'supabase' && c.env.ATLAS_DEMO !== '1') return c.json({ success: false, code: 'JOURNAL_FEATURE_UNAVAILABLE', error: 'Cette fonction n’est pas encore disponible pour Supabase.' }, 409);
   // The legacy endpoint is D1-backed; never silently read it in buffered R2 mode.
   if (c.env.JOURNAL_ARCHIVE_MODE === 'buffered' && c.env.ATLAS_DEMO !== '1') {
     return c.json({ success: false, code: 'JOURNAL_R2_ONLY', error: 'Consultez les archives R2. Cette vue historique D1 est désactivée.' }, 409);

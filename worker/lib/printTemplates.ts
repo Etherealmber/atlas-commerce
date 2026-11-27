@@ -1133,8 +1133,8 @@ export function generateDeliveryNoteHTML(
   footer { margin-top: 26px; padding-top: 12px; border-top: 1px solid #e7e5e4; color: #a8a29e; font-size: 11px; text-align: center; }
   .bar { max-width: 800px; margin: 16px auto 0; display: flex; justify-content: flex-end; gap: 8px; }
   .bar button { font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 9px 16px; background: #111; color: #fff; cursor: pointer; }
-  @media print { body { background: #fff; } .sheet { box-shadow: none; margin: 0; padding: 0; max-width: none; border-radius: 0; } .bar { display: none; } }
-  @media (max-width: 640px) { .sheet { margin: 0; border-radius: 0; padding: 20px 16px; } header, .grid, .sign { grid-template-columns: 1fr; display: grid; } .doc { text-align: left; } }
+  @media print { body { background: #fff; } .sheet { box-shadow: none; margin: 0; padding: 0; max-width: none; border-radius: 0; } .bar { display: none; } thead { display: table-header-group; } tr, .sign, .box { break-inside: avoid; } }
+  @media screen and (max-width: 640px) { .sheet { margin: 0; border-radius: 0; padding: 20px 16px; } header, .grid, .sign { grid-template-columns: 1fr; display: grid; } .doc { text-align: left; } }
 </style></head><body>
 <div class="bar"><button type="button" onclick="window.print()">Imprimer / Enregistrer en PDF</button></div>
 <main class="sheet">
