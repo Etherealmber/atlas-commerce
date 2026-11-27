@@ -250,7 +250,7 @@ export default function ApiLogPanel({ range, dockActions = true, forceR2 = false
 function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void; r2Only?: boolean }) {
   type Entry = { key: string; row: Record<string, any> | null; unreadable: boolean };
   const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
-  const [kind, setKind] = useState<'api' | 'audit'>('api');
+  const [kind, setKind] = useState<'api' | 'audit'>(r2Only ? 'audit' : 'api');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [selected, setSelected] = useState('');
   const [query, setQuery] = useState('');
@@ -279,7 +279,7 @@ function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void
       setEntries(current => next ? [...current, ...result.data] : result.data);
       setCursor(result.meta.next_cursor);
       setInvalidCount(current => next ? current + (result.meta.invalid_count || 0) : result.meta.invalid_count || 0);
-      if (!result.data.length && !next) setMessage(result.meta.next_cursor ? 'Aucune entrée lisible dans cette page ; chargez la suite.' : t('Aucune entrée archivée pour cette date.'));
+      if (!result.data.length && !next) setMessage(result.meta.next_cursor ? 'Aucune entrée lisible dans cette page ; chargez la suite.' : 'Aucune entrée R2 pour cette date UTC. Les anciens événements D1 ne sont pas importés automatiquement.');
       if (r2Only) void refreshBuffer();
     } catch { if (requestId === generation.current) { if (!next) setEntries([]); setMessage(t('Archive indisponible ou non configurée.')); } }
     finally { if (requestId === generation.current) setBusy(false); }
@@ -288,13 +288,13 @@ function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void
     if (r2Only && day) void load();
     return () => { generation.current++; };
   }, [day, kind, r2Only]);
-  const reset = () => { generation.current++; setEntries([]); setCursor(null); setSelected(''); setAuditEntry(null); setMessage(''); setInvalidCount(0); setBusy(false); };
+  const reset = () => { generation.current++; setEntries([]); setCursor(null); setSelected(''); setQuery(''); setAuditEntry(null); setMessage(''); setInvalidCount(0); setBusy(false); };
   const label = (entry: Entry) => {
     if (!entry.row) return `${entry.key.split('/').pop()?.slice(0, 23) || '—'} · Lecture impossible`;
     const row = entry.row;
     return kind === 'api'
       ? `${when(row.created_at)} · ${row.method || '—'} ${row.path || '—'} · ${row.status ?? '—'} · ${row.username || 'anonyme'}`
-      : `${when(row.created_at)} · ${row.action || '—'} · ${row.entity || '—'} · ${row.username || '—'}`;
+      : `${when(row.created_at)} · ${row.action || '—'} · ${row.entity || '—'}${row.entity_id != null && row.entity_id !== '' ? ` #${row.entity_id}` : ''} · ${row.username || '—'}`;
   };
   const filtered = entries.filter(entry => `${label(entry)} ${entry.row ? JSON.stringify(entry.row) : ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const current = filtered.find(entry => entry.key === selected);
@@ -322,17 +322,18 @@ function JournalArchive({ onOpen, r2Only = false }: { onOpen: (row: any) => void
     </div>}
     {entries.length > 0 && <div className="ac-audit-table-wrap ac-journal-results">
       <table className="audit-table" aria-label={kind === 'api' ? 'Entrées API R2' : 'Entrées audit R2'}>
-        <thead><tr><th>Date / heure</th><th>{kind === 'api' ? 'Requête' : 'Action'}</th><th>{kind === 'api' ? 'Statut' : 'Ressource'}</th><th>Utilisateur</th><th>IP</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Date / heure</th><th>{kind === 'api' ? 'Requête' : 'Action'}</th><th>{kind === 'api' ? 'Statut' : 'Élément'}</th>{kind === 'audit' && <th>Détails enregistrés</th>}<th>Utilisateur</th><th>IP</th><th>Actions</th></tr></thead>
         <tbody>{filtered.map(entry => {
           const row = entry.row;
           return <tr key={entry.key}>
             <td>{row ? when(row.created_at) : '—'}</td>
             <td><bdi dir="auto">{row ? (kind === 'api' ? `${row.method || '—'} ${row.path || '—'}` : row.action || '—') : 'Lecture impossible'}</bdi></td>
-            <td>{row ? (kind === 'api' ? row.status ?? '—' : row.entity || '—') : '—'}</td>
+            <td><bdi dir="auto">{row ? (kind === 'api' ? row.status ?? '—' : [row.entity, row.entity_id != null && row.entity_id !== '' ? `#${row.entity_id}` : ''].filter(Boolean).join(' ') || '—') : '—'}</bdi></td>
+            {kind === 'audit' && <td><bdi dir="auto">{row?.detail != null && row.detail !== '' ? (typeof row.detail === 'string' ? row.detail : JSON.stringify(row.detail)) : '—'}</bdi></td>}
             <td>{row?.username || '—'}</td><td><bdi dir="ltr">{row?.ip || '—'}</bdi></td>
             <td><button className="secondary" type="button" disabled={!row || entry.unreadable} onClick={() => { if (!row) return; if (kind === 'audit') setAuditEntry(row); else onOpen(row); }}>Détails</button></td>
           </tr>;
-        })}{filtered.length === 0 && <tr><td colSpan={6}>Aucune entrée chargée ne correspond à la recherche.</td></tr>}</tbody>
+        })}{filtered.length === 0 && <tr><td colSpan={kind === 'audit' ? 7 : 6}>Aucune entrée chargée ne correspond à la recherche.</td></tr>}</tbody>
       </table>
     </div>}
     {cursor && <button className="secondary" type="button" disabled={busy} onClick={() => void load(cursor)}>{t('Afficher plus')}</button>}

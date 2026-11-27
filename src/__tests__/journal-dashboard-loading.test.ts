@@ -22,10 +22,12 @@ it('opens the R2 archive without fetching either legacy D1 journal or waiting fo
   vi.spyOn(api, 'getMe').mockResolvedValue({ data: { is_owner: true, role: 'owner' } } as any);
   vi.spyOn(api, 'getJournalMode').mockResolvedValue({ data: { mode: 'r2' } });
   const audit = vi.spyOn(api, 'getAuditLog'); const legacyApi = vi.spyOn(api, 'getApiLog');
-  const archive = vi.spyOn(api, 'listJournalArchiveEntries').mockResolvedValue({ data: [], meta: { mode: 'buffered', next_cursor: null } });
+  const archive = vi.spyOn(api, 'listJournalArchiveEntries').mockResolvedValue({ data: [{ key: 'audit-1', row: { action: 'product.create', entity: 'products', entity_id: '42', detail: 'Marbre ajouté', username: 'alice' }, unreadable: false }], meta: { mode: 'buffered', next_cursor: null } });
   await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/settings?tab=audit'] }, createElement(Settings))));
   expect(host.textContent).toContain('Journal des appels API et audit');
-  expect(archive).toHaveBeenCalledOnce(); expect(settings).not.toHaveBeenCalled();
+  expect(archive).toHaveBeenCalledOnce(); expect(archive).toHaveBeenCalledWith(expect.any(String), undefined, 'audit'); expect(settings).not.toHaveBeenCalled();
+  expect(host.querySelector('[aria-label="Entrées audit R2"]')?.textContent).toContain('products #42');
+  expect(host.textContent).toContain('Marbre ajouté');
   expect(audit).not.toHaveBeenCalled(); expect(legacyApi).not.toHaveBeenCalled();
 });
 
@@ -52,6 +54,8 @@ it('displays searchable R2 entry summaries and opens their real details', async 
   const ApiLogPanel = (await import('../components/audit/ApiLogPanel')).default;
   await act(async () => root.render(createElement(ApiLogPanel, { range: '24h', forceR2: true })));
   expect(archive).toHaveBeenCalledOnce();
+  const kind = host.querySelector('[aria-label="Journal"]') as any;
+  await act(async () => { kind.value = 'api'; kind.dispatchEvent(new Event('change', { bubbles: true })); });
   expect(host.textContent).toContain('ne peuvent pas être déchiffrées');
   const select = host.querySelector('[aria-label="Entrée archivée"]') as any;
   expect(select.textContent).toContain('/api/products');
@@ -65,24 +69,27 @@ it('displays searchable R2 entry summaries and opens their real details', async 
 it('shows API and audit rows directly from R2, with search and pending transfer status', async () => {
   vi.spyOn(api, 'getJournalBufferStatus').mockResolvedValue({ data: { pending_at_least: 2, has_more: false, alarm_scheduled: true } });
   const archive = vi.spyOn(api, 'listJournalArchiveEntries').mockImplementation(async (_day, _cursor, kind) => ({ data: kind === 'audit' ? [
-    { key: 'audit-1', row: { created_at: '2026-10-20T12:00:00Z', action: 'product.create', entity: 'products', username: 'alice', ip: '203.0.113.1' }, unreadable: false },
+    { key: 'audit-1', row: { created_at: '2026-10-20T12:00:00Z', action: 'product.create', entity: 'products', entity_id: '42', detail: 'Marbre ajouté', username: 'alice', ip: '203.0.113.1' }, unreadable: false },
   ] : [
     { key: 'api-1', row: { created_at: '2026-10-20T12:00:00Z', method: 'POST', path: '/api/products', status: 201, username: 'alice', ms: 7 }, unreadable: false },
   ], meta: { mode: 'buffered', next_cursor: null } }));
   const legacyAudit = vi.spyOn(api, 'getAuditLog'); const legacyApi = vi.spyOn(api, 'getApiLog');
   const ApiLogPanel = (await import('../components/audit/ApiLogPanel')).default;
   await act(async () => root.render(createElement(ApiLogPanel, { range: '24h', forceR2: true })));
-  expect(host.querySelector('[aria-label="Entrées API R2"]')?.textContent).toContain('POST /api/products');
+  expect(archive).toHaveBeenLastCalledWith(expect.any(String), undefined, 'audit');
+  const table = host.querySelector('[aria-label="Entrées audit R2"]');
+  expect(table?.textContent).toContain('product.create');
+  expect(table?.textContent).toContain('products #42');
+  expect(table?.textContent).toContain('Marbre ajouté');
   expect(host.textContent).toContain('2 entrée(s) en attente');
   const kind = host.querySelector('[aria-label="Journal"]') as any;
-  await act(async () => { kind.value = 'audit'; kind.dispatchEvent(new Event('change', { bubbles: true })); });
-  expect(archive).toHaveBeenLastCalledWith(expect.any(String), undefined, 'audit');
-  expect(host.querySelector('[aria-label="Entrées audit R2"]')?.textContent).toContain('product.create');
   const search = host.querySelector('input[type="search"]') as any;
   await act(async () => { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!; setter.call(search, '203.0.113.1'); search.dispatchEvent(new Event('input', { bubbles: true })); });
   expect(host.textContent).toContain('product.create');
   const details = [...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === 'Détails')!;
   await act(async () => details.click());
   expect(document.body.querySelector('[aria-label="Détails de l’événement audit"]')?.textContent).toContain('product.create');
+  await act(async () => { kind.value = 'api'; kind.dispatchEvent(new Event('change', { bubbles: true })); });
+  expect(host.querySelector('[aria-label="Entrées API R2"]')?.textContent).toContain('POST /api/products');
   expect(legacyAudit).not.toHaveBeenCalled(); expect(legacyApi).not.toHaveBeenCalled();
 });
