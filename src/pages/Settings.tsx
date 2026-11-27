@@ -288,7 +288,7 @@ export default function Settings() {
     };
   }, [auditDetailRow]);
   const [auditLoading, setAuditLoading] = useState(false);
-  const [auditError, setAuditError] = useState('');
+  const [auditError, setAuditError] = useState(false);
   const [, setAuditCursor] = useState<string | null>(null);
   const [auditCursorStack, setAuditCursorStack] = useState<(string | null)[]>([null]);
   const [auditMeta, setAuditMeta] = useState<{ limit: number; has_more: boolean; next_cursor: string | null; cursor: string | null } | null>(null);
@@ -533,7 +533,7 @@ export default function Settings() {
     const generation = ++auditGeneration.current;
     auditLastAttempt.current = Date.now();
     setAuditLoading(true);
-    setAuditError('');
+    setAuditError(false);
     try {
       const a = await api.getAuditLog({
         limit: AUDIT_PAGE,
@@ -550,13 +550,13 @@ export default function Settings() {
       else if (reset || cursor == null) setAuditStats(null);
       if (reset) setAuditCursorStack([null]);
       else if (cursor) setAuditCursor(cursor);
-    } catch (error: any) {
+    } catch {
       if (generation !== auditGeneration.current) return;
       auditQueryLoaded.current = '';
       setAuditLog([]);
       setAuditMeta(null);
       setAuditStats(null);
-      setAuditError(error?.code === 'JOURNAL_SUPABASE_UNAVAILABLE' ? error.message : 'Impossible de charger le journal. Réessayez plus tard.');
+      setAuditError(true);
     } finally {
       if (generation === auditGeneration.current) setAuditLoading(false);
     }
@@ -3090,7 +3090,7 @@ if (needsCompanySettings && loading && !settings) return (
                 </div>
               </div>
 
-              {auditError && <p role="alert">{translateText(auditError)}</p>}
+              {auditError && <p role="alert">{translateText('Impossible de charger le journal. Réessayez plus tard.')}</p>}
               <div className="ac-audit-filters">
                 <div className="ac-audit-search-wrap">
                   <Search className="ac-audit-search-ico" size={15} strokeWidth={2} aria-hidden="true" />

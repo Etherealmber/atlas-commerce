@@ -31,13 +31,12 @@ it('shows the welcome workspace and opens the conversation picker', async () => 
   await click('[aria-label="Historique des conversations"]');
   expect(host.querySelector('[aria-label="Rechercher une conversation"]')).not.toBeNull();
   expect(host.textContent).toContain('Aucune conversation trouvée');
-  expect(host.querySelector('.atlas-agent-panel--expanded')).toBeNull();
-  await click('[aria-label="Agrandir le panneau"]');
+  expect(host.querySelector('.atlas-agent-panel--expanded')).not.toBeNull();
   expect(host.querySelector('[aria-label="Conversations Atlas Agent"]')).not.toBeNull();
-  expect(localStorage.getItem('atlas_agent_expanded')).toBe('1');
   await click('[aria-label="Réduire le panneau"]');
   expect(host.querySelector('.atlas-agent-panel--expanded')).toBeNull();
-  expect(localStorage.getItem('atlas_agent_expanded')).toBe('0');
+  await click('[aria-label="Agrandir le panneau"]');
+  expect(host.querySelector('.atlas-agent-panel--expanded')).not.toBeNull();
 });
 
 it('switches existing conversations without carrying messages into a new conversation', async () => {
@@ -174,7 +173,6 @@ it('renders one header title and immediately deletes the selected R2 thread afte
   vi.mocked(api.getAgentThread).mockImplementation(async id => id === 'thread-a' ? { data: { title: 'Factures impayées', messages: [{ role: 'user', text: 'Factures impayées' }] }, meta: { version: 'v1' } } as any : { data: { messages: [] }, meta: { version: null } } as any);
   const remove = vi.spyOn(api, 'deleteAgentThread').mockResolvedValue({ success: true } as any);
   await render();
-  await click('[aria-label="Agrandir le panneau"]');
   expect(host.querySelectorAll('.atlas-agent-header-title strong')).toHaveLength(1);
   const del = host.querySelector<HTMLButtonElement>('.atlas-agent-workspace-sidebar [aria-label="Supprimer Factures impayées"]')!;
   expect(del).not.toBeNull();
@@ -190,7 +188,6 @@ it('keeps the conversation when deletion fails or is cancelled', async () => {
   localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'thread-a', title: 'Factures', updated: 10 }]));
   const remove = vi.spyOn(api, 'deleteAgentThread').mockRejectedValue(new Error('offline'));
   await render();
-  await click('[aria-label="Agrandir le panneau"]');
   const del = host.querySelector<HTMLButtonElement>('.atlas-agent-workspace-sidebar [aria-label="Supprimer Factures"]')!;
   await act(async () => del.click()); expect(remove).not.toHaveBeenCalled();
   await act(async () => document.querySelector<HTMLButtonElement>('.ac-confirm-cancel')!.click());
@@ -200,10 +197,4 @@ it('keeps the conversation when deletion fails or is cancelled', async () => {
   expect(remove).toHaveBeenCalledOnce();
   expect(host.textContent).toContain('Suppression impossible');
   expect(host.querySelector('.atlas-agent-workspace-sidebar [aria-label="Supprimer Factures"]')).not.toBeNull();
-});
-
-it('restores the previously selected expanded state on remount', async () => {
-  localStorage.setItem('atlas_agent_expanded', '1');
-  await render();
-  expect(host.querySelector('.atlas-agent-panel--expanded')).not.toBeNull();
 });

@@ -88,11 +88,3 @@ html body aside.atlas-agent-panel .atlas-agent-sync-status button { margin-inlin
 .atlas-agent-thread-row > .atlas-agent-sidebar-thread, .atlas-agent-thread-row > .atlas-agent-history-choice { flex: 1; min-width: 0; }
 html body aside.atlas-agent-panel button.atlas-agent-thread-delete:not(#agent-ui-a) { flex: none; padding: 8px; border: 0; background: transparent; color: var(--agent-muted); cursor: pointer; }
 html body aside.atlas-agent-panel button.atlas-agent-thread-delete:not(#agent-ui-a):hover { color: #c43b3b; }
-
-/* Compact, scrollable history keeps long titles and controls usable. */
-.atlas-agent-workspace-sidebar { min-height: 0; }
-.atlas-agent-workspace-threads { flex: 1; min-height: 0; overscroll-behavior: contain; scrollbar-width: thin; }
-.atlas-agent-history-error { font-size: 12px; line-height: 1.4; color: var(--agent-muted); margin: 0; padding: 4px 8px; }
-.atlas-agent-thread-row { border-radius: 9px; }
-.atlas-agent-thread-delete { opacity: .65; }
-.atlas-agent-thread-row:hover .atlas-agent-thread-delete, .atlas-agent-thread-delete:focus-visible { opacity: 1; }

@@ -7,7 +7,7 @@ import './quote-actions.css';
 import TypeaheadField, { productTypeaheadOptions, partyTypeaheadOptions } from '../components/TypeaheadField';
 import DatePicker from '../components/DatePicker';
 import { useEffect, useState } from 'react';
-import { api, peekCachedQuotes } from '../api';
+import { api } from '../api';
 import { openPrintDoc } from '../lib/reports';
 import SaveFeedback from '../components/SaveFeedback';
 import { statusFr, statusBadgeClass } from '../lib/labels';
@@ -33,11 +33,10 @@ import Select from '../components/ui/Select';
 export default function Quotes() {
   const [modalError, setModalError] = useState('');
   const { confirm } = useUi();
-  const [initialQuotes] = useState(() => peekCachedQuotes()?.data);
-  const [list, setList] = useState<any[]>(() => (initialQuotes || []).filter((x: any) => x.status === 'quote' || x.status === 'devis'));
+  const [list, setList] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(!initialQuotes);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const wz = useWizard(3);
@@ -87,20 +86,28 @@ export default function Quotes() {
 
   const load = (soft = false) => {
     if (soft) setRefreshing(true);
-    else if (!initialQuotes) setLoading(true);
-    // The list must not wait for catalog and client lookups used only by forms.
-    api.getInvoices('quote', soft ? { fresh: true } : undefined)
-      .then(inv => setList((inv.data || []).filter((x: any) => x.status === 'quote' || x.status === 'devis')))
-      .catch(async () => {
-        try {
-          const inv = await api.getInvoices(undefined, { fresh: true });
-          setList((inv.data || []).filter((x: any) => x.status === 'quote' || x.status === 'devis'));
-        } catch { /* request layer reports the failure; keep the last list */ }
+    else setLoading(true);
+    Promise.all([api.getInvoices('quote'), api.getClients(), api.getProducts()])
+      .then(([inv, cl, pr]) => {
+        const all = inv.data || [];
+        // also include status devis if filtered only quote misses some
+        setList(all.filter((x: any) => x.status === 'quote' || x.status === 'devis'));
+        setClients(cl.data || []);
+        setProducts(pr.data || []);
       })
-      .finally(() => { setLoading(false); setRefreshing(false); });
-    void api.getClients().then(cl => setClients(cl.data || [])).catch(() => {});
-    void api.getProducts().then(pr => setProducts(pr.data || [])).catch(() => {});
+      .catch(async () => {
+        // fallback: get all invoices and filter
+        try {
+          const inv = await api.getInvoices();
+          setList((inv.data || []).filter((x: any) => x.status === 'quote' || x.status === 'devis'));
+        } catch { /* ignore */ }
+      })
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
   };
+
   
   useEffect(() => {
     const onLists = () => {

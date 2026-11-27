@@ -39,13 +39,7 @@ export function peekCachedSettings(): { data: any } | undefined {
   return peekFreshGet(`GET:/api/settings:session:${token}`);
 }
 
-export function peekCachedQuotes(): { data: any[] } | undefined {
-  const token = getToken();
-  return token ? peekFreshGet(`GET:/api/invoices?status=quote:session:${token}`) : undefined;
-}
-
 function cacheTtlForPath(path: string): number {
-  if (path === '/api/invoices?status=quote') return 10_000;
   const base = path.split('?')[0];
   return GET_CACHE_TTL[base] ?? 0;
 }
@@ -92,7 +86,7 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
         const code = res.status === 503 ? ((await res.clone().json().catch(() => ({}))) as { code?: string }).code : undefined;
         // Quota exhaustion and a server-requested cool-down are not transient
         // 250ms failures. Retrying immediately triples load and delays the UI.
-        if (code === 'DB_QUOTA_EXCEEDED' || code === 'JOURNAL_R2_ONLY' || code === 'JOURNAL_SUPABASE_UNAVAILABLE' || retryAfter) break;
+        if (code === 'DB_QUOTA_EXCEEDED' || code === 'JOURNAL_R2_ONLY' || retryAfter) break;
         await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
         continue;
       }
@@ -746,13 +740,12 @@ export const api = {
   deleteVendor: (id: number, confirm_password: string) =>
     request(`/api/vendors/${id}`, { method: 'DELETE', body: JSON.stringify({ confirm_password }) }),
 
-  getInvoices: (status?: string, opts?: { kind?: string; fresh?: boolean }) => {
+  getInvoices: (status?: string, opts?: { kind?: string }) => {
     const q = new URLSearchParams();
     if (status) q.set('status', status);
     if (opts?.kind) q.set('kind', opts.kind);
     const qs = q.toString();
-    if (opts?.fresh) invalidateGetCache('GET:/api/invoices');
-    return request<{ data: any[] }>(qs ? `/api/invoices?${qs}` : '/api/invoices', opts?.fresh ? { cache: 'no-store' } : undefined);
+    return request<{ data: any[] }>(qs ? `/api/invoices?${qs}` : '/api/invoices');
   },
   getInvoice: (id: number) => request<{ data: any }>(`/api/invoices/${id}`),
   createInvoice: (body: any) => {
@@ -1040,7 +1033,7 @@ export const api = {
     if (params?.q) qs.set('q', params.q);
     if (params?.ip) qs.set('ip', params.ip);
     if (params?.stats) qs.set('stats', '1');
-    return request<{ data: any[]; meta?: { limit: number; has_more: boolean; next_cursor: string | null; range: string; stats?: any } }>(`/api/admin/api-log?${qs}`, { silent: true });
+    return request<{ data: any[]; meta?: { limit: number; has_more: boolean; next_cursor: string | null; range: string; stats?: any } }>(`/api/admin/api-log?${qs}`);
   },
   getJournalMode: () => request<{ data: { mode: 'r2' | 'legacy' | 'supabase' } }>('/api/admin/journal-mode', { silent: true }),
   getJournalBufferStatus: () => request<{ data: { pending_at_least: number; has_more: boolean; alarm_scheduled: boolean } }>('/api/admin/journal-buffer-status', { silent: true }),
@@ -1095,7 +1088,7 @@ export const api = {
           capped?: boolean;
         } | null;
       };
-    }>(`/api/admin/audit${q ? `?${q}` : ''}`, { silent: true });
+    }>(`/api/admin/audit${q ? `?${q}` : ''}`);
   },
   exportAuditLog: (format: 'csv' | 'json' = 'csv', limit = 500) => {
     const qs = new URLSearchParams({ format, limit: String(limit) });
