@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import Select from '../ui/Select';
 import { api, getBase } from '../../api';
 import { getToken, getUsername } from '../../auth';
 import { downloadAgentConversation, type ExportMessage } from '../../lib/agentConversationExport';
@@ -47,7 +48,7 @@ export default function AgentDataExport() {
     <p>Choisissez une conversation récente enregistrée sur le serveur pour télécharger son texte. Les pièces jointes, le contexte interne, les modifications locales non synchronisées et les autres données du compte ne sont pas inclus.</p>
     <p>La liste est limitée à 20 conversations récentes : ce n’est pas une exportation complète du compte.</p>
     <button type="button" disabled={busy} onClick={() => void load()}>{busy ? 'Chargement…' : 'Charger les conversations récentes'}</button>
-    {threads && (threads.length ? <div><label htmlFor="agent-export-thread">Conversation</label> <select id="agent-export-thread" value={selected} disabled={busy} onChange={e => setSelected(e.target.value)}>{threads.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}</select> <button type="button" disabled={busy || !selected} onClick={() => void download()}>Télécharger le texte</button></div> : <p>Aucune conversation récente enregistrée.</p>)}
+    {threads && (threads.length ? <div><label htmlFor="agent-export-thread">Conversation</label> <Select id="agent-export-thread" value={selected} disabled={busy} onChange={e => setSelected(e.target.value)}>{threads.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}</Select> <button type="button" disabled={busy || !selected} onClick={() => void download()}>Télécharger le texte</button></div> : <p>Aucune conversation récente enregistrée.</p>)}
     {notice && <p role="status">{notice}</p>}
   </div>;
 }
