@@ -479,7 +479,7 @@ export const api = {
   listAgentThreads: () =>
     request<{ data: { id: string; title: string; updated_at?: string; message_count?: number; summary_pending?: boolean }[]; meta?: { unreadable_count?: number; pending_count?: number } }>('/api/admin/agent/threads', { silent: true }),
   getAgentThread: (id: string) =>
-    request<{ data: { title?: string; messages?: any[]; updated_at?: string }; meta?: { version: string | null; empty?: boolean } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { silent: true }),
+    request<{ data: { title?: string; messages?: any[]; updated_at?: string }; meta?: { version: string | null; empty?: boolean; storage?: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { silent: true }),
   putAgentThread: (id: string, body: { title?: string; messages?: any[]; expected_version?: string | null }) =>
     request<{ data: { id: string; storage: string; version: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), silent: true } as any),
   deleteAgentThread: (id: string) =>

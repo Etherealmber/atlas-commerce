@@ -199,10 +199,10 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
     if (useAgentStoragePreview(c.env)) {
       try {
         const result = await getAgentDraft(c.env, gate.username, id);
-        if (!result) return c.json({ success: true, data: { title: 'Sans titre', messages: [], updated_at: null }, meta: { empty: true, version: null } });
+        if (!result) return c.json({ success: true, data: { title: 'Sans titre', messages: [], updated_at: null }, meta: { empty: true, version: null, storage: 'supabase-preview' } });
         const data = JSON.parse(result.payload);
         if (!data || typeof data.title !== 'string' || !Array.isArray(data.messages)) throw new Error('invalid history');
-        return c.json({ success: true, data, meta: { version: result.version } });
+        return c.json({ success: true, data, meta: { version: result.version, storage: 'supabase-preview' } });
       } catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Lecture de test indisponible.' }, 503); }
     }
     try {

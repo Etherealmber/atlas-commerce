@@ -649,7 +649,7 @@ export default function AtlasAgent() {
   const [loadingThread, setLoadingThread] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'loading' | 'saved' | 'pending' | 'saving' | 'offline' | 'conflict' | 'too-large'>('loading');
   const [syncEpoch, setSyncEpoch] = useState(0);
-  const syncRef = useRef<{ id: string; user: string; ready: boolean; version: string | null; baseline: string; inFlight: boolean; blocked: boolean; failure: 'conflict' | 'offline' | 'too-large' } | null>(null);
+  const syncRef = useRef<{ id: string; user: string; ready: boolean; version: string | null; baseline: string; inFlight: boolean; blocked: boolean; storage: string; failure: 'conflict' | 'offline' | 'too-large' } | null>(null);
   const [reloadThread, setReloadThread] = useState(0);
  // unused (dictation removed)
   const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
@@ -747,7 +747,7 @@ export default function AtlasAgent() {
     if (!open) return;
     let cancelled = false;
     const user = scopeUser();
-    const state = { id: threadId, user, ready: false, version: null as string | null, baseline: '', inFlight: false, blocked: false, failure: 'offline' as 'conflict' | 'offline' | 'too-large' };
+    const state = { id: threadId, user, ready: false, version: null as string | null, baseline: '', inFlight: false, blocked: false, storage: '', failure: 'offline' as 'conflict' | 'offline' | 'too-large' };
     syncRef.current = state;
     setLoadingThread(true); setSyncStatus('loading');
     const local = loadMsgs(threadId);
@@ -761,7 +761,7 @@ export default function AtlasAgent() {
         const key = pendingKey(threadId);
         let pending: { known: boolean; version: string | null } | null = null;
         try { const raw = localStorage.getItem(key); if (raw) pending = JSON.parse(raw); } catch { /* handled as conflict below */ }
-        state.version = version; state.ready = true;
+        state.version = version; state.storage = String(res?.meta?.storage || 'r2'); state.ready = true;
         if (pending && local.some(m => m.role === 'user') && remote.length && JSON.stringify(threadSnapshot(local)) === JSON.stringify(remote)) {
           // A write may have succeeded even if its acknowledgement was lost.
           try { localStorage.removeItem(key); } catch { /* local persistence unavailable */ }
@@ -1276,6 +1276,22 @@ export default function AtlasAgent() {
             ...files.filter((f) => f.text_excerpt).map((f) => `--- Extrait de ${f.name} ---\n${f.text_excerpt}`),
           ].filter(Boolean).join('\n') : '',
         ].filter(Boolean).join('\n');
+        const state = syncRef.current;
+        if (state?.storage === 'supabase-preview' && state.version === null) {
+          if (!state.ready || state.blocked || state.inFlight || state.id !== threadId || state.user !== scopeUser()) throw new Error('Conversation indisponible : réessayez après synchronisation.');
+          state.inFlight = true;
+          try {
+            const created = await api.putAgentThread(threadId, { title: 'Sans titre', messages: [], expected_version: null });
+            if (created?.data?.storage !== 'supabase-preview' || !created.data.version) throw new Error('Confirmation de sauvegarde manquante.');
+            if (syncRef.current !== state || state.user !== scopeUser() || ac.signal.aborted) throw new Error('Conversation modifiée.');
+            state.version = created.data.version;
+            // The current message will be saved using this new version after the reply.
+            try { localStorage.setItem(pendingKey(threadId), JSON.stringify({ known: true, version: state.version })); } catch { throw new Error('Sauvegarde locale indisponible.'); }
+          } catch (error: any) {
+            state.blocked = true; state.failure = error?.code === 'AGENT_THREAD_CONFLICT' ? 'conflict' : 'offline'; setSyncStatus(state.failure);
+            throw error;
+          } finally { state.inFlight = false; }
+        }
         const res = await api.assistChat(prompt, {
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca',
           thread_id: threadId,

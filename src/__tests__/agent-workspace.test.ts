@@ -281,3 +281,28 @@ it('does not hide a thread when deletion lacks a success acknowledgement', async
   expect(host.querySelector('[aria-label="Supprimer Test"]')).not.toBeNull();
   expect(host.textContent).toContain('Suppression impossible');
 });
+
+it('creates a versioned preview snapshot before the first model request', async () => {
+  vi.mocked(api.getAgentThread).mockResolvedValue({ data: { title: 'Sans titre', messages: [] }, meta: { version: null, empty: true, storage: 'supabase-preview' } } as any);
+  let acknowledge!: (value: any) => void;
+  vi.mocked(api.putAgentThread).mockImplementationOnce(() => new Promise(resolve => { acknowledge = resolve; }));
+  const chat = vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Bonjour', tool_trace: [] } } as any);
+  await render();
+  const suggestion = [...host.querySelectorAll<HTMLButtonElement>('.atlas-agent-welcome-cards button')][0];
+  await act(async () => suggestion.click());
+  expect(api.putAgentThread).toHaveBeenCalledWith(expect.any(String), { title: 'Sans titre', messages: [], expected_version: null });
+  expect(chat).not.toHaveBeenCalled();
+  await act(async () => acknowledge({ data: { storage: 'supabase-preview', version: '1' } }));
+  expect(chat).toHaveBeenCalledOnce();
+});
+
+it('does not call the model when first snapshot creation conflicts', async () => {
+  vi.mocked(api.getAgentThread).mockResolvedValue({ data: { messages: [] }, meta: { version: null, empty: true, storage: 'supabase-preview' } } as any);
+  vi.mocked(api.putAgentThread).mockRejectedValueOnce(Object.assign(new Error('conflict'), { code: 'AGENT_THREAD_CONFLICT' }));
+  const chat = vi.spyOn(api, 'assistChat');
+  await render();
+  const suggestion = [...host.querySelectorAll<HTMLButtonElement>('.atlas-agent-welcome-cards button')][0];
+  await act(async () => suggestion.click());
+  expect(chat).not.toHaveBeenCalled();
+  expect(host.textContent).toContain('Conversation modifiée ailleurs');
+});
