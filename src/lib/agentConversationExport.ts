@@ -1,13 +1,13 @@
-/** A plain-text copy of displayed messages, not an account archive or image export. */
+/** A plain-text copy of one saved server snapshot, not an account archive or image export. */
 export type ExportMessage = { role: 'user' | 'assistant'; text: string; streaming?: boolean };
 
 export function formatAgentConversation(messages: ExportMessage[]): string {
   const visible = messages.filter(m => !m.streaming && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string');
   if (!visible.some(m => m.role === 'user')) throw new Error('Aucune conversation à télécharger.');
   return [
-    'Atlas Agent — copie texte de la conversation affichée',
+    'Atlas Agent — copie texte de la conversation enregistrée sur le serveur',
     'Les pièces jointes, images, contexte interne et autres données du compte ne sont pas inclus.',
-    'Cette copie peut contenir des messages non synchronisés.',
+    'Les modifications locales non synchronisées ne sont pas incluses.',
     '',
     ...visible.map(m => `${m.role === 'user' ? 'Utilisateur' : 'Atlas Agent'} :\n${m.text}`),
     '',

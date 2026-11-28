@@ -1,3 +1,4 @@
+import AgentDataExport from '../components/settings/AgentDataExport';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, ChevronRight, Compass, ExternalLink, FileText, Globe, Heart, Info, Palette, RefreshCw, Share2, Smartphone, Sparkles, Users } from 'lucide-react';
@@ -64,6 +65,7 @@ export default function PhoneSettings({ theme, onTheme, animations, onAnimations
   return <div className="ph-settings ph-native-settings">
     <div className="ph-settings-intro"><span className="ph-settings-intro-icon"><Palette size={22} aria-hidden="true" /></span><div><strong>À votre façon</strong><p>Personnalisez Atlas sur cet appareil.</p></div></div>
     <PhoneAppearanceSettings theme={theme} onTheme={onTheme} animations={animations} onAnimations={onAnimations} compact={compact} onCompact={onCompact} scale={scale} onScale={onScale} startTab={startTab} onStartTab={onStartTab} />
+    <section className="ph-settings-card"><AgentDataExport /></section>
     <section className="ph-settings-card"><h2><Camera size={19} aria-hidden="true" /> Caméra et scanner</h2>
       <SettingSwitch title="Ouvrir la caméra automatiquement" description="Au lancement du scanner produit ou QR appareil. Le navigateur peut demander l’autorisation." checked={scan.autoCamera} onChange={v => updateScan('autoCamera', v)} />
       <SettingSwitch title="Vibration au scan" description="Après la lecture d’un code compatible, si l’appareil le permet." checked={scan.vibrate} onChange={v => updateScan('vibrate', v)} />

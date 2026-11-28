@@ -5,7 +5,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import AtlasAgent from '../components/AtlasAgent';
 import { api } from '../api';
-import * as exportTools from '../lib/agentConversationExport';
 
 let host: HTMLDivElement;
 let root: Root;
@@ -378,15 +377,4 @@ it('persists new preview replies in a separate local namespace', async () => {
     expect(localStorage.getItem('atlas_agent_msgs_v1:admin:old-thread')).toContain('Do not import');
     expect(localStorage.getItem('atlas_agent_msgs_v1:admin:supabase-preview:old-thread')).toContain('Fresh reply');
   } finally { vi.useRealTimers(); }
-});
-
-
-it('downloads only the displayed conversation text when requested', async () => {
-  localStorage.setItem('atlas_agent_active_thread:admin', 'exported');
-  vi.mocked(api.getAgentThread).mockResolvedValue({ data: { title: 'Test', messages: [{ role: 'user', text: 'Question privée' }, { role: 'assistant', text: 'Réponse' }] }, meta: { version: '1' } } as any);
-  const download = vi.spyOn(exportTools, 'downloadAgentConversation').mockImplementation(() => {});
-  await render();
-  await click('[aria-label="Télécharger la conversation affichée"]');
-  expect(download).toHaveBeenCalledOnce();
-  expect(download.mock.calls[0][0]).toEqual(expect.arrayContaining([expect.objectContaining({ text: 'Question privée' }), expect.objectContaining({ text: 'Réponse' })]));
 });

@@ -1,6 +1,5 @@
 import { finishAgentReply } from '../lib/agentMessages';
-import { downloadAgentConversation } from '../lib/agentConversationExport';
-import { ChevronDown, Plus, PackageSearch, ListChecks, FileText, ArrowUpRight, Search, Maximize2, Minimize2, Trash2, Download } from 'lucide-react';
+import { ChevronDown, Plus, PackageSearch, ListChecks, FileText, ArrowUpRight, Search, Maximize2, Minimize2, Trash2 } from 'lucide-react';
 /**
  * Atlas Agent — dock + P0/P1/P2: citations, tools, drafts, stream UX, history, voice, role chips.
  */
@@ -1516,7 +1515,6 @@ export default function AtlasAgent() {
           </div>
           {!isPhoneShell && (
           <div className="atlas-agent-head-actions">
-<button type="button" className="atlas-agent-iconbtn" disabled={busy || loadingThread || !msgs.some(m => m.role === 'user')} aria-label="Télécharger la conversation affichée" title="Télécharger le texte affiché (sans pièces jointes)" onClick={() => { try { downloadAgentConversation(msgs); } catch { setDeleteError('Téléchargement impossible sur cet appareil.'); } }}><Download size={16} /></button>
 <button type="button" className="atlas-agent-iconbtn" aria-label={expanded ? 'Réduire le panneau' : 'Agrandir le panneau'} aria-pressed={expanded} title={expanded ? 'Réduire' : 'Agrandir'} onClick={() => setExpanded((value) => !value)}>{expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
 <button type="button" className="atlas-agent-iconbtn atlas-agent-new" disabled={busy} aria-label="Nouvelle conversation" title="Nouvelle conversation" onClick={() => switchThread(newThreadId())}><Plus size={18} /></button>
 <button

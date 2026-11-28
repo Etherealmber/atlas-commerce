@@ -1,3 +1,4 @@
+import AgentDataExport from '../components/settings/AgentDataExport';
 import CatalogNames, { emptyCatalogNames } from '../components/settings/CatalogNames';
 import { langMeta, t as translateText, translate, useLang } from '../i18n/core';
 import { DEFAULT_CATEGORIES, DEFAULT_UNITS } from '../../worker/lib/product-defaults';
@@ -1146,6 +1147,7 @@ if (needsCompanySettings && loading && !settings) return (
       
       {activeTab === 'profile' && (
         <div>
+          <div className="ac-panel"><AgentDataExport /></div>
           {!isFeatureEnabled('editProfileModal') && (
         <div className="ac-panel">
             <div className="ac-settings-panel-head">
