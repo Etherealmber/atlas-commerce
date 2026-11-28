@@ -4547,3 +4547,6 @@ html.phone-shell .ph-agent-composer textarea.ph-agent-input {
   max-height: max(56px, min(120px, calc(var(--ph-agent-visible-height, 100dvh) * .3))) !important;
   overflow-y: auto;
 }
+.ph-agent-history-row { display: flex; align-items: stretch; gap: 8px; }
+.ph-agent-history-row > button:first-child { flex: 1; min-width: 0; text-align: start; overflow-wrap: anywhere; }
+.ph-agent-history-row > button:last-child { flex: none; }

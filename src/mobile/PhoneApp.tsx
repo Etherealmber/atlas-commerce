@@ -1390,6 +1390,8 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
     try { const value = historyKey && JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(value) ? value.filter(t => typeof t?.threadId === 'string' && Array.isArray(t.messages)).map(t => ({ threadId: t.threadId, messages: t.messages.filter((m: Msg) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.text === 'string').slice(-40) })) : []; } catch { return []; }
   });
   const [dialog, setDialog] = useState<'history' | 'quota' | 'activity' | 'language' | 'unlock' | 'photo' | null>(null);
+  const [deleteHistoryId, setDeleteHistoryId] = useState<string | null>(null);
+  const [deletingHistory, setDeletingHistory] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [policy, setPolicy] = useState<Awaited<ReturnType<typeof api.getAgentPolicy>>['data'] | null>(null);
   const [policyStatus, setPolicyStatus] = useState('');
@@ -1487,6 +1489,21 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
   const newConversation = () => {
     if (!archiveCurrent()) return;
     followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setInput(''); setShowLatest(false); setQuickNotice('');
+  };
+  const deleteSavedConversation = async (id: string) => {
+    if (deletingHistory || busy || id === threadId) return;
+    setDeletingHistory(true); setQuickNotice('');
+    try {
+      const result = await api.deleteAgentThread(id);
+      if (result?.success !== true) throw new Error('not acknowledged');
+      const next = history.filter(t => t.threadId !== id);
+      if (historyKey) {
+        try { localStorage.setItem(historyKey, JSON.stringify(next)); }
+        catch { setQuickNotice('Conversation supprimée du serveur, mais la copie locale ne peut pas être effacée.'); setDeleteHistoryId(null); return; }
+      }
+      setHistory(next); setDeleteHistoryId(null); setQuickNotice('Conversation supprimée.');
+    } catch { setQuickNotice('Suppression impossible. La conversation reste enregistrée ; réessayez.'); }
+    finally { setDeletingHistory(false); }
   };
   const refreshContext = async () => {
     setRefreshing(true); setQuickNotice('Actualisation du contexte…');
@@ -1602,7 +1619,8 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
       {dialog === 'history' && <PhoneDialog titleId="ph-agent-history-title" onClose={() => setDialog(null)}>
         <h2 id="ph-agent-history-title">Historique des discussions</h2><p>Discussions enregistrées sur cet appareil pour ce compte.</p>{quickNotice && <p role="status">{quickNotice}</p>}
         {history.filter(t => t.threadId !== threadId).length === 0 && <p>Aucune autre discussion enregistrée.</p>}
-        <div className="ph-agent-history-list">{history.filter(t => t.threadId !== threadId).map(t => <button type="button" key={t.threadId} onClick={() => { if (!archiveCurrent()) return; setThreadId(t.threadId); setMsgs(t.messages); setInput(''); setShowLatest(false); followMessages.current = true; setDialog(null); }}>{t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'Discussion'}</button>)}</div>
+        <div className="ph-agent-history-list">{history.filter(t => t.threadId !== threadId).map(t => <div className="ph-agent-history-row" key={t.threadId}><button type="button" disabled={deletingHistory} onClick={() => { if (!archiveCurrent()) return; setThreadId(t.threadId); setMsgs(t.messages); setInput(''); setShowLatest(false); followMessages.current = true; setDialog(null); }}>{t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'Discussion'}</button><button type="button" disabled={deletingHistory || busy} aria-label={`Supprimer ${t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'la discussion'}`} onClick={() => { setQuickNotice(''); setDeleteHistoryId(t.threadId); }}><Trash2 size={16} /></button></div>)}</div>
+        {deleteHistoryId && <div role="group" aria-label="Confirmer la suppression"><p>Supprimer cette discussion et son contexte du serveur ? Cette action est définitive.</p><button type="button" disabled={deletingHistory} onClick={() => void deleteSavedConversation(deleteHistoryId)}>{deletingHistory ? 'Suppression…' : 'Confirmer la suppression'}</button><button type="button" disabled={deletingHistory} onClick={() => setDeleteHistoryId(null)}>Annuler</button></div>}
         <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
       </PhoneDialog>}
       {dialog === 'quota' && <PhoneDialog titleId="ph-agent-quota-title" onClose={() => setDialog(null)}>

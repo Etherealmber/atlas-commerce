@@ -267,3 +267,24 @@ it('shows the full labeled agent dock before scrolling and collapses on delibera
   expect(dock.classList.contains('is-collapsed')).toBe(false);
 });
 
+
+it('deletes an archived conversation only after the server confirms, and retains it on failure', async () => {
+  localStorage.setItem('stock_auth_user', 'alice');
+  vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse' } } as any);
+  const remove = vi.spyOn(api, 'deleteAgentThread').mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ success: true });
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => host.querySelector<HTMLButtonElement>('.ph-agent-prompts button')!.click());
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Nouvelle discussion"]')!.click());
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Historique des discussions"]')!.click());
+  const dialog = document.body.querySelector('[role="dialog"]')!;
+  await act(async () => dialog.querySelector<HTMLButtonElement>('[aria-label^="Supprimer "]')!.click());
+  const confirm = () => [...dialog.querySelectorAll('button')].find(b => b.textContent === 'Confirmer la suppression')!;
+  expect(remove).not.toHaveBeenCalled();
+  await act(async () => confirm().click());
+  expect(dialog.textContent).toContain('Suppression impossible');
+  expect(dialog.textContent).toContain('Quels articles');
+  await act(async () => confirm().click());
+  expect(remove).toHaveBeenCalledTimes(2);
+  expect(dialog.textContent).not.toContain('Quels articles');
+  expect(dialog.textContent).toContain('Conversation supprimée');
+});
