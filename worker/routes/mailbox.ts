@@ -153,7 +153,7 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
     const gate = agentUserKeyFromRequest(c);
     if (!gate.ok) return gate.response;
     if (useAgentStoragePreview(c.env)) {
-      try { return c.json({ success: true, data: await listAgentDraft(c.env, gate.username), meta: { unreadable_count: 0, pending_count: 0 } }); }
+      try { return c.json({ success: true, data: await listAgentDraft(c.env, gate.username), meta: { unreadable_count: 0, pending_count: 0, storage: 'supabase-preview' } }); }
       catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Historique de test indisponible.' }, 503); }
     }
     let objects: Array<{ id: string; uploaded: number }>;

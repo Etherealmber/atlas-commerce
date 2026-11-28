@@ -306,3 +306,43 @@ it('does not call the model when first snapshot creation conflicts', async () =>
   expect(chat).not.toHaveBeenCalled();
   expect(host.textContent).toContain('Conversation modifiée ailleurs');
 });
+
+it('does not merge or republish legacy R2 caches into an empty Supabase preview', async () => {
+  vi.useFakeTimers();
+  try {
+    localStorage.setItem('atlas_agent_active_thread:admin', 'old-thread');
+    localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'old-thread', title: 'Legacy secret', updated: 10 }]));
+    localStorage.setItem('atlas_agent_msgs_v1:admin:old-thread', JSON.stringify([{ role: 'user', text: 'Old local conversation' }]));
+    localStorage.setItem('atlas_agent_pending_v1:admin:old-thread', JSON.stringify({ known: true, version: null }));
+    vi.mocked(api.getAgentThread).mockResolvedValue({ data: { title: 'Sans titre', messages: [] }, meta: { version: null, storage: 'supabase-preview', empty: true } } as any);
+    vi.mocked(api.listAgentThreads).mockResolvedValue({ data: [], meta: { storage: 'supabase-preview' } } as any);
+    await render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+    expect(host.textContent).not.toContain('Old local conversation');
+    expect(api.putAgentThread).not.toHaveBeenCalled();
+    await click('[aria-label="Historique des conversations"]');
+    expect(host.textContent).not.toContain('Legacy secret');
+    expect(localStorage.getItem('atlas_agent_msgs_v1:admin:old-thread')).toContain('Old local conversation');
+  } finally { vi.useRealTimers(); }
+});
+
+it('persists new preview replies in a separate local namespace', async () => {
+  vi.useFakeTimers();
+  try {
+    localStorage.setItem('atlas_agent_active_thread:admin', 'old-thread');
+    localStorage.setItem('atlas_agent_msgs_v1:admin:old-thread', JSON.stringify([{ role: 'user', text: 'Do not import' }]));
+    vi.mocked(api.getAgentThread).mockResolvedValue({ data: { messages: [] }, meta: { version: null, storage: 'supabase-preview', empty: true } } as any);
+    vi.mocked(api.listAgentThreads).mockResolvedValue({ data: [], meta: { storage: 'supabase-preview' } } as any);
+    vi.mocked(api.putAgentThread).mockImplementation(async (_id, body) => ({ data: { id: _id, storage: 'supabase-preview', version: body.expected_version === null ? '1' : '2' } }));
+    vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Fresh reply', tool_trace: [] } } as any);
+    await render();
+    await act(async () => host.querySelector<HTMLButtonElement>('.atlas-agent-welcome-cards button')!.click());
+    await act(async () => { await vi.advanceTimersByTimeAsync(550); });
+    const writes = vi.mocked(api.putAgentThread).mock.calls;
+    expect(writes.length).toBeGreaterThanOrEqual(2);
+    expect(JSON.stringify(writes)).not.toContain('Do not import');
+    expect(writes[writes.length - 1][1].expected_version).toBe('1');
+    expect(localStorage.getItem('atlas_agent_msgs_v1:admin:old-thread')).toContain('Do not import');
+    expect(localStorage.getItem('atlas_agent_msgs_v1:admin:supabase-preview:old-thread')).toContain('Fresh reply');
+  } finally { vi.useRealTimers(); }
+});
