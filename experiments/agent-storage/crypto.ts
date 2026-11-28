@@ -1,4 +1,4 @@
-/** Offline prototype only: not imported by production Worker routes. */
+/** Encrypted Agent payload envelope, used by the gated Supabase adapter and image routes. */
 const MAX_PLAINTEXT_BYTES = 1_500_000;
 const MAX_ENVELOPE_CHARS = 2_100_000;
 const enc = new TextEncoder();
