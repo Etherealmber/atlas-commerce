@@ -466,6 +466,7 @@ export const api = {
     request('/api/import/commit', { method: 'POST', body: JSON.stringify(body) }),
   mobileWorkStatus: (cursor?: { source: 'in_app' | 'github'; value: string }) =>
     request<{ success: boolean; in_app: WorkStatusSource; trackers: { github: WorkStatusSource } }>(`/api/mobile/work-status${cursor ? `?${cursor.source === 'in_app' ? 'in_app_cursor' : 'github_cursor'}=${encodeURIComponent(cursor.value)}` : ''}`),
+  probeAgentStorage: () => request<{ data: { key_self_test: 'pass' | 'fail'; read_rpc: 'pass' | 'fail' | 'not_checked'; storage_mode_changed: false; write_test_performed: false } }>('/api/admin/agent-storage-probe', { method: 'POST', silent: true } as any),
   assistStatus: () => request<{ data: { configured: boolean; provider?: string; model?: string; hint?: string; agent_history?: { storage: 'r2' | 'supabase' | 'supabase-preview'; version_type: 'string'; require_expected_version: boolean; retention_days: number | null; image_api: 'experimental' | 'unavailable'; physical_cleanup: 'asynchronous' | 'legacy' } } }>('/api/assist/status'),
   getAssistProvider: () =>
     request<{ data: { provider: string; groqConfigured?: boolean; groqModel?: string } }>(

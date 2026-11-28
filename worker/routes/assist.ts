@@ -1,3 +1,4 @@
+import { probeAgentStorage } from '../lib/agentStorageProbe';
 import { agentSupabaseStorageLabel, getAgentDraft, getAgentTranscriptDraft, putAgentTranscriptDraft, useAgentSupabaseStorage } from '../lib/agentSupabaseDraft';
 import type { Hono } from 'hono';
 import type { Env } from '../env';
@@ -1377,6 +1378,17 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           : 'Définissez: npx wrangler secret put GROQ_API_KEY',
       },
     }, 200, { 'Cache-Control': 'private, no-store' });
+  });
+
+  /** Explicit owner/admin diagnostic: never switches storage or writes a row. */
+  app.post('/api/admin/agent-storage-probe', async (c) => {
+    const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+    if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide' }, 401, { 'Cache-Control': 'private, no-store' });
+    const gate = requireOwner(c);
+    if (!gate.ok) return gate.response;
+    if (c.env.ATLAS_DEMO === '1') return c.json({ success: false, error: 'Diagnostic indisponible en démo.' }, 403, { 'Cache-Control': 'private, no-store' });
+    const result = await probeAgentStorage(c.env);
+    return c.json({ success: true, data: { ...result, storage_mode_changed: false, write_test_performed: false } }, 200, { 'Cache-Control': 'private, no-store' });
   });
 
   /** Admin: Atlas Agent provider (Groq only). */

@@ -1,3 +1,4 @@
+import AgentStorageProbe from '../components/settings/AgentStorageProbe';
 import AgentDataExport from '../components/settings/AgentDataExport';
 import CatalogNames, { emptyCatalogNames } from '../components/settings/CatalogNames';
 import { langMeta, t as translateText, translate, useLang } from '../i18n/core';
@@ -1148,6 +1149,7 @@ if (needsCompanySettings && loading && !settings) return (
       {activeTab === 'profile' && (
         <div>
           <div className="ac-panel"><AgentDataExport /></div>
+          {(canAccessAdminSettings() || isOwner) && <div className="ac-panel"><AgentStorageProbe /></div>}
           {!isFeatureEnabled('editProfileModal') && (
         <div className="ac-panel">
             <div className="ac-settings-panel-head">
