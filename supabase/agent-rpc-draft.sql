@@ -3,10 +3,12 @@
 -- migrate R2 or enable a production cutover. Run only with explicit approval.
 -- Every account_id is supplied by the trusted Worker, NEVER by a browser.
 
+begin;
+
 alter table public.atlas_agent_conversations add column if not exists deleted_at timestamptz;
 
 create or replace function public.atlas_agent_get(p_account text, p_thread text)
-returns jsonb language sql security definer set search_path = pg_catalog, public as $$
+returns jsonb language sql security definer set search_path = pg_catalog as $$
   select jsonb_build_object('payload', encrypted_payload, 'version', revision::text,
     'last_activity_at', last_activity_at)
   from public.atlas_agent_conversations
@@ -17,7 +19,7 @@ $$;
 -- A null base version means create-only. Existing, expired, or deleted IDs
 -- cannot be silently recreated. All updates are compare-and-swap.
 create or replace function public.atlas_agent_put(p_account text, p_thread text, p_payload text, p_expected_version text)
-returns jsonb language plpgsql security definer set search_path = pg_catalog, public as $$
+returns jsonb language plpgsql security definer set search_path = pg_catalog as $$
 declare new_revision bigint;
 begin
   if p_account is null or length(p_account) not between 1 and 200 or p_thread is null or length(p_thread) not between 1 and 80
@@ -40,7 +42,7 @@ end $$;
 -- Retain a tombstone so stale requests cannot recreate deleted conversations.
 -- Does not yet delete R2 images and MUST NOT be exposed as complete deletion.
 create or replace function public.atlas_agent_tombstone(p_account text, p_thread text)
-returns jsonb language plpgsql security definer set search_path = pg_catalog, public as $$
+returns jsonb language plpgsql security definer set search_path = pg_catalog as $$
 begin
   if p_account is null or length(p_account) not between 1 and 200 or p_thread is null or length(p_thread) not between 1 and 80 then raise exception 'invalid input'; end if;
   insert into public.atlas_agent_conversations(account_id, thread_id, encrypted_payload, deleted_at)
@@ -55,3 +57,5 @@ revoke all on function public.atlas_agent_tombstone(text,text) from public, anon
 grant execute on function public.atlas_agent_get(text,text) to service_role;
 grant execute on function public.atlas_agent_put(text,text,text,text) to service_role;
 grant execute on function public.atlas_agent_tombstone(text,text) to service_role;
+
+commit;
