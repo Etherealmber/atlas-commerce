@@ -165,3 +165,15 @@ it('allows crash intake past unrelated auto-migrations but keeps other writes gu
   expect(requiresAutoSqlMigrations('GET', '/api/crash-reports')).toBe(true);
   expect(requiresAutoSqlMigrations('POST', '/api/reports')).toBe(true);
 });
+
+it('attaches request-owned initialization to waitUntil without sharing it across requests', async () => {
+  const { runAutoSqlMigrationsForRequest } = await import('../lib/autoMigrations');
+  const { db, sqlite } = makeTestD1();
+  try {
+    const pending: Promise<unknown>[] = [];
+    await runAutoSqlMigrationsForRequest(db, { waitUntil: (work) => { pending.push(work); } });
+    expect(pending).toHaveLength(1);
+    await expect(pending[0]).resolves.toBeUndefined();
+    expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE name = 'offline_idempotency'").get()).toBeTruthy();
+  } finally { sqlite.close(); }
+});

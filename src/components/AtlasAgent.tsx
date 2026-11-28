@@ -1631,7 +1631,7 @@ export default function AtlasAgent() {
                 ) : null}
                 {m.streaming ? <span className="atlas-agent-caret">▍</span> : null}
               </div>
-              {m.role === 'assistant' && !m.streaming && parseClarification(String(m.text || '')).question && <AgentClarification key={`${threadId}-${i}`} question={parseClarification(String(m.text || '')).question!} disabled={busy || loadingThread || !!deletingThread} onSubmit={answer => void send(answer)} />}
+              {m.role === 'assistant' && !m.streaming && parseClarification(String(m.text || '')).question && <AgentClarification key={`${threadId}-${i}`} question={parseClarification(String(m.text || '')).question!} disabled={busy || loadingThread || !!deletingThread || i !== msgs.length - 1} onSubmit={answer => void send(answer)} />}
               {m.role === 'assistant' && !m.streaming && m.tools?.length ? <AgentToolResults tools={m.tools} /> : null}
               {m.role === 'user' && !m.streaming && m.text.trim() ? (
                 <div className="atlas-agent-msg-actions atlas-agent-msg-actions--user">

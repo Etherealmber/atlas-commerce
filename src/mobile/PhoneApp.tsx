@@ -17,8 +17,8 @@ import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
 import { t as translate } from '../i18n/core';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { AgentMarkdown } from '../components/agent/AgentMarkdown';
+import { AgentClarification, parseClarification } from '../components/agent/AgentClarification';
 import PhoneAgentActivity from './PhoneAgentActivity';
 import { getUsername, getDisplayInitials, hasAvatarUrl, getRole, isStockRole, canSell } from '../auth';
 import type { UiScale } from '../lib/density';
@@ -1345,11 +1345,6 @@ function AgentMark() {
   return <span className="ph-agent-avatar" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.1">{Array.from({ length: 16 }, (_, index) => index).filter(index => index !== 4).map(index => <line key={index} x1="10" y1="4" x2="10" y2=".8" transform={`rotate(${index * 22.5} 10 10)`} />)}<line x1="10" y1="10" x2="19.6" y2="10" /></svg></span>;
 }
 
-function agentMarkdownUrl(url: string): string {
-  const trimmed = url.trim();
-  return /^(https?:\/\/|#|\/(?!\/))/i.test(trimmed) ? trimmed : '';
-}
-
 function PhonePageFrame({ agent, disabled, children }: { agent: boolean; disabled: boolean; children: ReactNode }) {
   // A transformed route wrapper can become the containing block for a fixed chat
   // and clip it to the zero-height phone main. Do not animate that wrapper here.
@@ -1582,7 +1577,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
         {msgs.map((m, i) => (
           <div key={i} className={`ph-agent-message ${m.role}`}>
             {m.role === 'assistant' && <AgentMark />}
-            <div className="ph-agent-message-content"><span className="ph-agent-message-label">{m.role === 'user' ? 'Vous' : 'Assistant Atlas'}</span><div className={'ph-agent-bubble ' + m.role} dir="auto">{m.role === 'assistant' ? <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={agentMarkdownUrl} components={{ a: ({ href, children }) => href ? <a href={href} target={/^https?:/i.test(href) ? '_blank' : undefined} rel="noopener noreferrer">{children}</a> : <span>{children}</span>, img: ({ alt }) => <span>{alt || 'Image non affichée'}</span> }}>{m.text}</ReactMarkdown> : m.text}{m.role === 'assistant' && <button type="button" className="theme-toggle ph-agent-copy" aria-label="Copier la réponse" onClick={() => { if (!navigator.clipboard?.writeText) { setCopyNotice('Copie indisponible dans ce navigateur.'); return; } void navigator.clipboard.writeText(m.text).then(() => setCopyNotice('Réponse copiée.'), () => setCopyNotice('Impossible de copier la réponse.')); }}><Copy size={15} aria-hidden="true" /> Copier</button>}</div></div>
+            <div className="ph-agent-message-content"><span className="ph-agent-message-label">{m.role === 'user' ? 'Vous' : 'Assistant Atlas'}</span><div className={'ph-agent-bubble ' + m.role} dir="auto">{m.role === 'assistant' ? <AgentMarkdown text={parseClarification(m.text).text} /> : m.text}{m.role === 'assistant' && <button type="button" className="theme-toggle ph-agent-copy" aria-label="Copier la réponse" onClick={() => { if (!navigator.clipboard?.writeText) { setCopyNotice('Copie indisponible dans ce navigateur.'); return; } void navigator.clipboard.writeText(m.text).then(() => setCopyNotice('Réponse copiée.'), () => setCopyNotice('Impossible de copier la réponse.')); }}><Copy size={15} aria-hidden="true" /> Copier</button>}</div>{m.role === 'assistant' && parseClarification(m.text).question && <AgentClarification key={`${threadId}-${i}`} question={parseClarification(m.text).question!} disabled={busy || i !== msgs.length - 1} onSubmit={answer => void send(answer)} />}</div>
           </div>
         ))}
         {copyNotice && <p className="ph-agent-copy-notice" role="status">{copyNotice}</p>}

@@ -8098,3 +8098,14 @@ html body aside.atlas-agent-panel .agent-clarification label { display: flex; al
 html body aside.atlas-agent-panel .agent-clarification input[type="radio"] { width: auto; flex: none; }
 html body aside.atlas-agent-panel .agent-clarification input[aria-label="Autre réponse"] { width: 100%; margin: 4px 0 10px; }
 html body aside.atlas-agent-panel .agent-clarification button { margin-top: 8px; white-space: normal; }
+/* Shared Agent response controls on the mobile conversation screen. */
+.ph-agent-shell .agent-markdown { overflow-wrap: anywhere; }
+.ph-agent-shell .agent-markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.ph-agent-shell .agent-markdown :is(th, td) { border: 1px solid currentColor; padding: 6px; text-align: start; }
+.ph-agent-shell .agent-markdown pre { max-width: 100%; overflow-x: auto; }
+.ph-agent-shell .agent-clarification { margin-top: 10px; border: 1px solid currentColor; border-radius: 14px; padding: 12px; }
+.ph-agent-shell .agent-clarification fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.ph-agent-shell .agent-clarification legend { font-weight: 700; }
+.ph-agent-shell .agent-clarification label { display: flex; align-items: center; gap: 8px; padding: 7px 0; }
+.ph-agent-shell .agent-clarification input[type="radio"] { width: auto; }
+.ph-agent-shell .agent-clarification input[aria-label="Autre réponse"] { width: 100%; }

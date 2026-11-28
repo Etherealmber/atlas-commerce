@@ -29,6 +29,15 @@ export async function ensureAutoSqlMigrations(db: D1Database | null | undefined)
   });
 }
 
+/** Keep initialization alive after a client disconnect when an execution context
+ * is available. The promise is awaited only by its own request, never shared
+ * with another request or isolate. Cloudflare bounds waitUntil lifetime. */
+export async function runAutoSqlMigrationsForRequest(db: D1Database | null | undefined, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<void> {
+  const work = ensureAutoSqlMigrations(db);
+  try { context?.waitUntil(work); } catch { /* local/test contexts can lack waitUntil */ }
+  await work;
+}
+
 /** Only reviewed endpoints that never access the tables rebuilt by these
  * migrations can bypass the global barrier. Agent chat exposes read tools and
  * proposals only; approval and all business mutation routes remain guarded. */

@@ -93,9 +93,19 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
       // Retry transient upstream / edge errors on GET only
       if (isIdempotentGet && (res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxAttempts - 1) {
         const retryAfter = res.headers.get('Retry-After');
-        const code = res.status === 503 ? ((await res.clone().json().catch(() => ({}))) as { code?: string }).code : undefined;
-        // Quota exhaustion and a server-requested cool-down are not transient
-        // 250ms failures. Retrying immediately triples load and delays the UI.
+        const body = res.status === 503 ? await res.clone().json().catch(() => ({})) as { code?: string; details?: { reason?: string } } : {};
+        const code = body.code;
+        // Only a confirmed schema-busy response gets one bounded retry. Never
+        // retry a write; this branch is exclusively GET/HEAD. Respect cooldown.
+        if (code === 'SERVICE_UNAVAILABLE' && body.details?.reason === 'SCHEMA_INITIALIZING' && retryAfter) {
+          const seconds = Number(retryAfter);
+          if (attempt === 0 && Number.isFinite(seconds) && seconds > 0 && seconds <= 3) {
+            await new Promise((r) => setTimeout(r, seconds * 1000));
+            continue;
+          }
+          break;
+        }
+        // Quota exhaustion and other requested cool-downs are not transient.
         if (code === 'DB_QUOTA_EXCEEDED' || code === 'JOURNAL_R2_ONLY' || code === 'JOURNAL_SUPABASE_UNAVAILABLE' || retryAfter) break;
         await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
         continue;
