@@ -16,7 +16,8 @@ import PhoneDock, { canOpenPhoneBalance, canOpenPhoneClients, canOpenPhoneEmploy
 import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
-import { preparePhonePreviewTurn, finishPhonePreviewTurn } from './agentPreviewSync';
+import { preparePhonePreviewTurn, finishPhonePreviewTurn, reconcilePhoneReply } from './agentPreviewSync';
+import { readPendingPhoneReply, savePendingPhoneReply, clearPendingPhoneReply, type PendingRead } from './agentPhonePending';
 import { t as translate } from '../i18n/core';
 import { AgentMarkdown } from '../components/agent/AgentMarkdown';
 import { AgentClarification, parseClarification } from '../components/agent/AgentClarification';
@@ -1389,7 +1390,10 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
       return `atlas-agent-mobile-msgs-v2:${encodeURIComponent(getBase() || window.location.origin)}:${encodeURIComponent(username)}${storageMode === 'r2' ? '' : `:${storageMode}`}`;
     } catch { return null; }
   }, [storageMode]);
+  const pendingKey = storageMode !== 'r2' && storageKey ? `${storageKey}:pending-reply` : null;
+  const [pendingReply, setPendingReply] = useState<PendingRead>(() => pendingKey ? readPendingPhoneReply(localStorage, pendingKey, storageMode) : { kind: 'none' });
   const [threadId, setThreadId] = useState(() => {
+    if (pendingReply.kind === 'pending') return pendingReply.record.threadId;
     try {
       const raw = storageKey && localStorage.getItem(storageKey);
       const saved = raw ? JSON.parse(raw) : null;
@@ -1398,6 +1402,7 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
     return newPhoneAgentThreadId();
   });
   const [msgs, setMsgs] = useState<Msg[]>(() => {
+    if (pendingReply.kind === 'pending') return [...pendingReply.record.prepared.messages, { role: 'assistant', text: pendingReply.record.reply }];
     try {
       const raw = storageKey && localStorage.getItem(storageKey);
       if (raw) {
@@ -1512,14 +1517,14 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
 
   useEffect(() => {
     try {
-      if (storageKey) localStorage.setItem(storageKey, JSON.stringify({ threadId, messages: msgs.slice(-40) }));
+      if (storageKey && pendingReply.kind === 'none') localStorage.setItem(storageKey, JSON.stringify({ threadId, messages: msgs.slice(-40) }));
     } catch { /* conversation remains available for this session */ }
     const el = listRef.current;
     if (el && msgs.length && followMessages.current) {
       const frame = requestAnimationFrame(() => { el.dataset.phoneProgrammaticScroll = 'true'; el.scrollTop = el.scrollHeight; window.setTimeout(() => { delete el.dataset.phoneProgrammaticScroll; }, 150); });
       return () => cancelAnimationFrame(frame);
     }
-  }, [msgs, busy, storageKey, threadId]);
+  }, [msgs, busy, storageKey, threadId, pendingReply.kind]);
 
   useEffect(() => {
     const viewport = window.visualViewport; const shell = shellRef.current;
@@ -1547,7 +1552,7 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
     setHistory(next); return true;
   };
   const newConversation = () => {
-    if (!archiveCurrent()) return;
+    if (pendingReply.kind !== 'none' || !archiveCurrent()) return;
     followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setInput(''); setShowLatest(false); setQuickNotice('');
   };
   const deleteSavedConversation = async (id: string) => {
@@ -1585,8 +1590,10 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
 
   const send = async (prompt?: string) => {
     const text = (prompt ?? input).trim();
-    if (!text || sending.current || (demoAiReset && Date.now() < demoAiReset)) return;
+    if (!text || sending.current || pendingReply.kind !== 'none' || (demoAiReset && Date.now() < demoAiReset)) return;
     sending.current = true;
+    const sendUser = getUsername(), sendToken = getToken(), sendBase = getBase();
+    const sameSession = () => sendUser === getUsername() && sendToken === getToken() && sendBase === getBase();
     setBusy(true); setQuickNotice('');
     let prepared: Awaited<ReturnType<typeof preparePhonePreviewTurn>> = null;
     let posted = false;
@@ -1594,7 +1601,7 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
       if (storageMode !== 'r2') {
         prepared = await preparePhonePreviewTurn(api, threadId, msgs, text);
         // A mode change or ambiguous response must never fall through to chat.
-        if (!prepared || prepared.storage !== storageMode) throw new Error('Le mode de stockage a changé. Rouvrez l’Agent.');
+        if (!prepared || prepared.storage !== storageMode || !sameSession()) throw new Error('La session ou le mode de stockage a changé. Rouvrez l’Agent.');
       }
       followMessages.current = true; setShowLatest(false);
       if (inputRef.current) inputRef.current.style.height = '';
@@ -1607,8 +1614,26 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
       if (typeof reply !== 'string' || !reply.trim()) throw new Error('Aucune réponse reçue. Réessayez.');
       setMsgs((m) => [...m, { role: 'assistant', text: reply }]);
       if (prepared) {
-        try { await finishPhonePreviewTurn(api, threadId, prepared, reply); }
-        catch { setQuickNotice('Réponse reçue mais sauvegarde serveur non confirmée. Conservez cette conversation et vérifiez la connexion.'); }
+        const record = { threadId, prepared, reply };
+        let serialized = '';
+        try {
+          if (!pendingKey) throw new Error('Local storage unavailable');
+          serialized = savePendingPhoneReply(localStorage, pendingKey, record);
+          setPendingReply({ kind: 'pending', record, serialized });
+        } catch {
+          // Keep the reply in memory and fail closed rather than overwrite a
+          // pre-existing recovery record or pretend it is durable.
+          setPendingReply({ kind: 'invalid' });
+          setQuickNotice('Sauvegarde locale indisponible ou déjà occupée. Copiez la réponse et conservez cette fenêtre.');
+          return;
+        }
+        try {
+          if (!sameSession()) throw new Error('session changed');
+          await finishPhonePreviewTurn(api, threadId, prepared, reply);
+          if (!sameSession()) throw new Error('session changed');
+          if (!clearPendingPhoneReply(localStorage, pendingKey!, serialized)) throw new Error('record changed');
+          setPendingReply({ kind: 'none' });
+        } catch { setQuickNotice('Réponse reçue mais sauvegarde serveur non confirmée. Réessayez la sauvegarde sans renvoyer la question.'); }
       }
     } catch (e: any) {
       if (e?.code === 'DEMO_AI_QUOTA') {
@@ -1626,6 +1651,22 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
     }
   };
 
+  const recoverReply = async () => {
+    if (pendingReply.kind !== 'pending' || busy || !pendingKey || pendingReply.record.threadId !== threadId) return;
+    const pending = pendingReply; const user = getUsername(), token = getToken(), base = getBase();
+    setBusy(true); setQuickNotice('');
+    try {
+      const same = () => user === getUsername() && token === getToken() && base === getBase();
+      const safeClient = { getAgentThread: (id: string) => { if (!same()) throw new Error('La session a changé.'); return api.getAgentThread(id); }, putAgentThread: (id: string, body: Parameters<typeof api.putAgentThread>[1]) => { if (!same()) throw new Error('La session a changé.'); return api.putAgentThread(id, body); } };
+      await reconcilePhoneReply(safeClient, threadId, pending.record.prepared, pending.record.reply);
+      if (user !== getUsername() || token !== getToken() || base !== getBase()) throw new Error('La session a changé.');
+      if (!clearPendingPhoneReply(localStorage, pendingKey, pending.serialized)) throw new Error('La copie locale a changé.');
+      setMsgs([...pending.record.prepared.messages, { role: 'assistant', text: pending.record.reply }]);
+      setPendingReply({ kind: 'none' }); setQuickNotice('Réponse sauvegardée.');
+    } catch (error) { setQuickNotice(error instanceof Error ? error.message : 'Sauvegarde toujours indisponible.'); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div className="ph-agent-shell" data-agent-mobile="1" ref={shellRef}>
       <nav ref={dockRef} className={`ph-agent-dock${dockCollapsed ? ' is-collapsed' : ''}`} aria-label="Actions Atlas Agent">
@@ -1637,7 +1678,7 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
         </div>
         <div className="ph-agent-dock-actions">
           <button type="button" disabled={busy} title="Historique" aria-label="Historique des discussions" onClick={() => setDialog('history')}><History size={21} /></button>
-          <button type="button" disabled={busy} title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={newConversation}><MessageSquarePlus size={21} /></button>
+          <button type="button" disabled={busy || pendingReply.kind !== 'none'} title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={newConversation}><MessageSquarePlus size={21} /></button>
           <button type="button" disabled={refreshing} title="Actualiser le contexte" aria-label="Actualiser le contexte" onClick={() => void refreshContext()}><RefreshCw size={21} /></button>
           <button type="button" title="Quota IA" aria-label="Quota IA" onClick={() => void openQuota()}><Hourglass size={21} /></button>
         </div>
@@ -1645,6 +1686,8 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
       </nav>
       <div className="ph-agent-msgs" ref={listRef} role="log" aria-live="polite" aria-label="Conversation" onScroll={e => onConversationScroll(e.currentTarget)}>
         {quickNotice && <p className="ph-agent-quick-notice" role="status">{quickNotice}</p>}
+        {pendingReply.kind === 'pending' && <div role="status"><p>Une réponse attend la confirmation de sauvegarde. Elle est conservée sur cet appareil, sans renvoyer la question.</p><button type="button" disabled={busy} onClick={() => void recoverReply()}>Réessayer la sauvegarde</button></div>}
+        {pendingReply.kind === 'invalid' && <p role="alert">Récupération locale indisponible ou invalide. Ne supprimez pas les données de cet appareil.</p>}
         {msgs.length === 0 && <div className="ph-agent-quick" role="group" aria-label="Actions rapides">
             {onNavigate && <button type="button" onClick={() => onNavigate('/m/settings/whats-new')}>Mises à jour</button>}
             {onTheme && ([['light', 'Thème clair'], ['dark', 'Thème sombre'], ['system', 'Thème système']] as const).map(([theme, label]) => <button type="button" key={theme} data-theme-toggle onClick={() => { onTheme(theme); setQuickNotice(`${label} activé.`); }}>{label}</button>)}
@@ -1698,7 +1741,7 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
         </section>}
         <p>Copies enregistrées sur cet appareil pour ce compte.</p>
         {history.filter(t => t.threadId !== threadId).length === 0 && <p>Aucune autre discussion enregistrée.</p>}
-        <div className="ph-agent-history-list">{history.filter(t => t.threadId !== threadId).map(t => <div className="ph-agent-history-row" key={t.threadId}><button type="button" disabled={deletingHistory} onClick={() => { if (!archiveCurrent()) return; setThreadId(t.threadId); setMsgs(t.messages); setInput(''); setShowLatest(false); followMessages.current = true; setDialog(null); }}>{t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'Discussion'}</button><button type="button" disabled={deletingHistory || busy} aria-label={`Supprimer ${t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'la discussion'}`} onClick={() => { setQuickNotice(''); setDeleteHistoryId(t.threadId); }}><Trash2 size={16} /></button></div>)}</div>
+        <div className="ph-agent-history-list">{history.filter(t => t.threadId !== threadId).map(t => <div className="ph-agent-history-row" key={t.threadId}><button type="button" disabled={deletingHistory || pendingReply.kind !== 'none'} onClick={() => { if (pendingReply.kind !== 'none' || !archiveCurrent()) return; setThreadId(t.threadId); setMsgs(t.messages); setInput(''); setShowLatest(false); followMessages.current = true; setDialog(null); }}>{t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'Discussion'}</button><button type="button" disabled={deletingHistory || busy} aria-label={`Supprimer ${t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'la discussion'}`} onClick={() => { setQuickNotice(''); setDeleteHistoryId(t.threadId); }}><Trash2 size={16} /></button></div>)}</div>
         {deleteHistoryId && <div role="group" aria-label="Confirmer la suppression"><p>Supprimer cette discussion et son contexte du serveur ? Cette action est définitive.</p><button type="button" disabled={deletingHistory} onClick={() => void deleteSavedConversation(deleteHistoryId)}>{deletingHistory ? 'Suppression…' : 'Confirmer la suppression'}</button><button type="button" disabled={deletingHistory} onClick={() => setDeleteHistoryId(null)}>Annuler</button></div>}
         <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
       </PhoneDialog>}
@@ -1726,14 +1769,14 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
           enterKeyHint="send"
           placeholder="Écrivez votre question…"
           value={input}
-          disabled={busy || !!demoAiReset}
+          disabled={busy || !!demoAiReset || pendingReply.kind !== 'none'}
           onChange={(e) => { const field = e.currentTarget; field.style.height = 'auto'; field.style.height = `${Math.min(120, field.scrollHeight)}px`; setInput(field.value); }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
         />
         <button
           type="submit"
           className="theme-toggle ph-agent-send"
-          disabled={busy || !!demoAiReset || !input.trim()}
+          disabled={busy || !!demoAiReset || pendingReply.kind !== 'none' || !input.trim()}
           aria-label="Envoyer"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>

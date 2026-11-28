@@ -312,6 +312,7 @@ it('negotiates Supabase and saves a versioned first turn before the model call',
 });
 
 it('keeps the input and does not call the model after a Supabase conflict', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
   vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
   vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
   vi.spyOn(api, 'putAgentThread').mockRejectedValue(new Error('Conflit de version'));
@@ -335,6 +336,7 @@ it('does not show or overwrite old phone history if storage negotiation fails', 
 });
 
 it('warns when the model answered but the versioned reply save fails', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
   vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
   vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
   vi.spyOn(api, 'putAgentThread').mockResolvedValueOnce({ data: { storage: 'supabase', version: '1' } } as any).mockRejectedValueOnce(new Error('offline'));
@@ -374,4 +376,41 @@ it('does not claim an empty server history when the list fails or mode changes',
   const section = document.querySelector<HTMLElement>('[aria-label="Conversations serveur"]')!;
   expect(section.textContent).toContain('Historique serveur indisponible');
   expect(section.textContent).not.toContain('Aucune conversation récente sur le serveur');
+});
+
+it('restores an unconfirmed reply after remount and reconciles without calling the model again', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  const get = vi.spyOn(api, 'getAgentThread').mockResolvedValueOnce({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
+  const put = vi.spyOn(api, 'putAgentThread').mockResolvedValueOnce({ data: { storage: 'supabase', version: '1' } } as any).mockRejectedValueOnce(new Error('ack lost'));
+  const chat = vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse sauvegardée mais réponse perdue' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Bonjour'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(host.textContent).toContain('sauvegarde serveur non confirmée');
+  const key = Object.keys(localStorage).find(k => k.endsWith(':supabase:pending-reply'))!;
+  expect(localStorage.getItem(key)).toContain('Réponse sauvegardée');
+  await act(async () => root.render(null));
+  get.mockResolvedValueOnce({ data: { messages: [{ role: 'user', text: 'Bonjour' }, { role: 'assistant', text: 'Réponse sauvegardée mais réponse perdue' }] }, meta: { storage: 'supabase', version: '2' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  expect(host.textContent).toContain('Réponse sauvegardée mais réponse perdue');
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')!.disabled).toBe(true);
+  await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Réessayer la sauvegarde')!.click());
+  expect(chat).toHaveBeenCalledOnce(); expect(put).toHaveBeenCalledTimes(2);
+  expect(localStorage.getItem(key)).toBeNull(); expect(host.textContent).toContain('Réponse sauvegardée.');
+});
+
+it('keeps the recovery record if a server conversation changed elsewhere', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
+  const key = `atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:agent-user:supabase:pending-reply`;
+  const value = JSON.stringify({ threadId: 'mobile-123', prepared: { storage: 'supabase', version: '1', title: 'Question', messages: [{ role: 'user', text: 'Question' }] }, reply: 'Réponse' });
+  localStorage.setItem(key, value);
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [{ role: 'user', text: 'Autre appareil' }] }, meta: { storage: 'supabase', version: '2' } } as any);
+  const put = vi.spyOn(api, 'putAgentThread');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Réessayer la sauvegarde')!.click());
+  expect(host.textContent).toContain('Conversation modifiée ailleurs'); expect(put).not.toHaveBeenCalled();
+  expect(localStorage.getItem(key)).toBe(value); expect(host.querySelector<HTMLTextAreaElement>('textarea')!.disabled).toBe(true);
 });
