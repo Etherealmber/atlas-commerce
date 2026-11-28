@@ -38,3 +38,5 @@ The draft now records an upload intent while locking the active conversation bef
 ### Model transcript prototype (not enabled)
 
 The draft now has separately encrypted model transcripts and independent compare-and-swap revisions. Parent tombstones and expiry remove the transcript in the same database transaction, and writes require an active parent. The adapter has no legacy R2 fallback. Local PGlite tests exercise isolation, stale writes, deletion and expiry. Chat endpoints remain blocked in the isolated preview: the current clients can send a first chat before creating a snapshot, and streaming/buffered turn persistence, conflict handling and idempotency still need integration. This prototype is not a live migration and its SQL must not be applied to production yet.
+
+The isolated adapter now includes a create-only first-turn parent helper that handles a concurrent creator without overwriting an existing snapshot or resurrecting tombstones. It is not wired to either chat endpoint; streaming persistence and idempotency remain unresolved.

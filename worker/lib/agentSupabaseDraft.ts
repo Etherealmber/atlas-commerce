@@ -115,3 +115,20 @@ export async function putAgentTranscriptDraft(env: DraftEnv, username: string, t
   if (result?.ok !== true || typeof result.version !== 'string' || !/^[1-9][0-9]{0,18}$/.test(result.version)) throw new AgentStorageUnavailable();
   return result.version;
 }
+
+/**
+ * Prepare the parent required by a first model turn. Create-only CAS prevents
+ * overwriting an existing snapshot or reviving a deleted/expired thread. A
+ * concurrent successful creator is accepted only after a fresh readable get.
+ * This helper is not connected to live or preview chat routes yet.
+ */
+export async function ensureAgentParentDraft(env: DraftEnv, username: string, thread: string, fetcher: typeof fetch = fetch): Promise<void> {
+  if (await getAgentDraft(env, username, thread, fetcher)) return;
+  const snapshot = { title: 'Sans titre', messages: [], updated_at: new Date().toISOString() };
+  try {
+    await putAgentDraft(env, username, thread, JSON.stringify(snapshot), null, { title: snapshot.title, message_count: 0 }, fetcher);
+  } catch (error) {
+    if (!(error instanceof AgentStorageConflict)) throw error;
+    if (!(await getAgentDraft(env, username, thread, fetcher))) throw error;
+  }
+}

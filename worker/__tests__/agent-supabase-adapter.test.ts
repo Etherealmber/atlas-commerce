@@ -44,3 +44,27 @@ it('returns encrypted titles with one bounded request and rejects tampering', as
   const tampered = vi.fn(async () => Response.json([{ id: 'other', updated_at: '2026-10-20T00:00:00Z', encrypted_summary: stored.p_summary }])) as any;
   await expect(listAgentDraft(env, 'alice', tampered)).rejects.toThrow('Agent history unavailable');
 });
+
+it('initializes a first-turn parent without overwriting concurrent or deleted history', async () => {
+  const { ensureAgentParentDraft } = await import('../lib/agentSupabaseDraft');
+  let row: any = null; let deleted = false; let race = false;
+  const fetcher = vi.fn(async (url: any, init: any) => {
+    const body = JSON.parse(init.body);
+    if (String(url).endsWith('atlas_agent_get')) return Response.json(deleted ? null : row);
+    if (String(url).endsWith('atlas_agent_put')) {
+      if (race) { race = false; row = { payload: body.p_payload, version: '1' }; return Response.json({ ok: false, conflict: true }); }
+      if (deleted || row) return Response.json({ ok: false, conflict: true });
+      row = { payload: body.p_payload, version: '1' }; return Response.json({ ok: true, version: '1' });
+    }
+    throw new Error('unexpected');
+  }) as any;
+  await ensureAgentParentDraft(env, 'alice', 't1', fetcher);
+  expect(JSON.parse((await getAgentDraft(env, 'alice', 't1', fetcher))!.payload).messages).toEqual([]);
+  const original = row;
+  await ensureAgentParentDraft(env, 'alice', 't1', fetcher);
+  expect(row).toBe(original);
+  row = null; race = true;
+  await ensureAgentParentDraft(env, 'alice', 't1', fetcher);
+  deleted = true; row = null;
+  await expect(ensureAgentParentDraft(env, 'alice', 't1', fetcher)).rejects.toBeInstanceOf(AgentStorageConflict);
+});
