@@ -51,3 +51,12 @@ export async function reconcilePhoneReply(client: Client, id: string, prepared: 
   await finishPhonePreviewTurn(client, id, prepared, reply);
   return 'saved';
 }
+
+/** Recheck identity immediately before each request, including after awaited reads. */
+export function guardPhoneAgentClient(client: Client, sameSession: () => boolean): Client {
+  const check = () => { if (!sameSession()) throw new Error('La session a changé. Rouvrez l’Agent.'); };
+  return {
+    getAgentThread: id => { check(); return client.getAgentThread(id); },
+    putAgentThread: (id, body) => { check(); return client.putAgentThread(id, body); },
+  };
+}

@@ -82,3 +82,14 @@ it('does not reconcile over a changed, expired, or richer server snapshot', asyn
   }
   expect(client.putAgentThread).not.toHaveBeenCalled();
 });
+
+it('rechecks the session between the server read and conditional write', async () => {
+  const { guardPhoneAgentClient } = await import('../mobile/agentPreviewSync');
+  let active = true;
+  const client = {
+    getAgentThread: vi.fn(async () => { active = false; return { data: { messages: [] }, meta: { storage: 'supabase', version: null } }; }),
+    putAgentThread: vi.fn(),
+  };
+  await expect(preparePhonePreviewTurn(guardPhoneAgentClient(client, () => active), 't', [], 'hello')).rejects.toThrow('session');
+  expect(client.putAgentThread).not.toHaveBeenCalled();
+});

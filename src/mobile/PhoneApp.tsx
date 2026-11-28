@@ -16,7 +16,7 @@ import PhoneDock, { canOpenPhoneBalance, canOpenPhoneClients, canOpenPhoneEmploy
 import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
-import { preparePhonePreviewTurn, finishPhonePreviewTurn, reconcilePhoneReply } from './agentPreviewSync';
+import { preparePhonePreviewTurn, finishPhonePreviewTurn, reconcilePhoneReply, guardPhoneAgentClient } from './agentPreviewSync';
 import { readPendingPhoneReply, savePendingPhoneReply, clearPendingPhoneReply, type PendingRead } from './agentPhonePending';
 import { t as translate } from '../i18n/core';
 import { AgentMarkdown } from '../components/agent/AgentMarkdown';
@@ -1594,12 +1594,25 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
     sending.current = true;
     const sendUser = getUsername(), sendToken = getToken(), sendBase = getBase();
     const sameSession = () => sendUser === getUsername() && sendToken === getToken() && sendBase === getBase();
+    const safeClient = guardPhoneAgentClient(api, sameSession);
     setBusy(true); setQuickNotice('');
     let prepared: Awaited<ReturnType<typeof preparePhonePreviewTurn>> = null;
     let posted = false;
     try {
       if (storageMode !== 'r2') {
-        prepared = await preparePhonePreviewTurn(api, threadId, msgs, text);
+        if (!pendingKey) throw new Error('Stockage local indisponible. Impossible de sécuriser la réponse.');
+        // Another tab may have created a recovery record since this view mounted.
+        // This is a best-effort check, not an atomic cross-tab lock.
+        const existing = readPendingPhoneReply(localStorage, pendingKey, storageMode);
+        if (existing.kind !== 'none') {
+          setPendingReply(existing);
+          if (existing.kind === 'pending') {
+            setThreadId(existing.record.threadId);
+            setMsgs([...existing.record.prepared.messages, { role: 'assistant', text: existing.record.reply }]);
+          }
+          throw new Error('Une sauvegarde locale doit être vérifiée avant tout nouvel envoi.');
+        }
+        prepared = await preparePhonePreviewTurn(safeClient, threadId, msgs, text);
         // A mode change or ambiguous response must never fall through to chat.
         if (!prepared || prepared.storage !== storageMode || !sameSession()) throw new Error('La session ou le mode de stockage a changé. Rouvrez l’Agent.');
       }
@@ -1629,7 +1642,7 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
         }
         try {
           if (!sameSession()) throw new Error('session changed');
-          await finishPhonePreviewTurn(api, threadId, prepared, reply);
+          await finishPhonePreviewTurn(safeClient, threadId, prepared, reply);
           if (!sameSession()) throw new Error('session changed');
           if (!clearPendingPhoneReply(localStorage, pendingKey!, serialized)) throw new Error('record changed');
           setPendingReply({ kind: 'none' });
@@ -1657,7 +1670,7 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
     setBusy(true); setQuickNotice('');
     try {
       const same = () => user === getUsername() && token === getToken() && base === getBase();
-      const safeClient = { getAgentThread: (id: string) => { if (!same()) throw new Error('La session a changé.'); return api.getAgentThread(id); }, putAgentThread: (id: string, body: Parameters<typeof api.putAgentThread>[1]) => { if (!same()) throw new Error('La session a changé.'); return api.putAgentThread(id, body); } };
+      const safeClient = guardPhoneAgentClient(api, same);
       await reconcilePhoneReply(safeClient, threadId, pending.record.prepared, pending.record.reply);
       if (user !== getUsername() || token !== getToken() || base !== getBase()) throw new Error('La session a changé.');
       if (!clearPendingPhoneReply(localStorage, pendingKey, pending.serialized)) throw new Error('La copie locale a changé.');

@@ -414,3 +414,19 @@ it('keeps the recovery record if a server conversation changed elsewhere', async
   expect(host.textContent).toContain('Conversation modifiée ailleurs'); expect(put).not.toHaveBeenCalled();
   expect(localStorage.getItem(key)).toBe(value); expect(host.querySelector<HTMLTextAreaElement>('textarea')!.disabled).toBe(true);
 });
+
+it('detects a recovery record created by another tab before starting a new turn', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  const get = vi.spyOn(api, 'getAgentThread');
+  const chat = vi.spyOn(api, 'assistChat');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Brouillon'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  const key = `atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:agent-user:supabase:pending-reply`;
+  localStorage.setItem(key, JSON.stringify({ threadId: 'mobile-other', prepared: { storage: 'supabase', version: '1', title: 'Autre', messages: [{ role: 'user', text: 'Autre' }] }, reply: 'Réponse à récupérer' }));
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(get).not.toHaveBeenCalled(); expect(chat).not.toHaveBeenCalled();
+  expect(host.textContent).toContain('Réponse à récupérer'); expect(input.value).toBe('Brouillon');
+  expect(input.disabled).toBe(true); expect(localStorage.getItem(key)).not.toBeNull();
+});
