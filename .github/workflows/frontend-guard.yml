@@ -55,6 +55,8 @@ jobs:
       - name: Version sync guard (src/version.ts vs package.json)
         run: npm run check:version
       - run: npm run lint
+      - name: Test issue triage without a checkout
+        run: node --test scripts/issue-triage-workflow.test.mjs
       - name: Validate translation catalogs
         run: |
           npm run i18n:validate

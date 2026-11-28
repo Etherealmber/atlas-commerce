@@ -7,7 +7,7 @@ import { usePhoneTopBar } from '../mobile/usePhoneTopBar';
 import { api } from '../api';
 
 let host: HTMLDivElement; let root: Root;
-beforeEach(() => { (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); });
+beforeEach(() => { vi.spyOn(api, 'assistStatus').mockResolvedValue({ data: { configured: true } } as any); (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); localStorage.clear(); vi.restoreAllMocks(); });
 
 it('sends and resets a local Agent conversation without inventing extra controls', async () => {
@@ -267,3 +267,166 @@ it('shows the full labeled agent dock before scrolling and collapses on delibera
   expect(dock.classList.contains('is-collapsed')).toBe(false);
 });
 
+
+it('deletes an archived conversation only after the server confirms, and retains it on failure', async () => {
+  localStorage.setItem('stock_auth_user', 'alice');
+  vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse' } } as any);
+  const remove = vi.spyOn(api, 'deleteAgentThread').mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ success: true });
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => host.querySelector<HTMLButtonElement>('.ph-agent-prompts button')!.click());
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Nouvelle discussion"]')!.click());
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Historique des discussions"]')!.click());
+  const dialog = document.body.querySelector('[role="dialog"]')!;
+  await act(async () => dialog.querySelector<HTMLButtonElement>('[aria-label^="Supprimer "]')!.click());
+  const confirm = () => [...dialog.querySelectorAll('button')].find(b => b.textContent === 'Confirmer la suppression')!;
+  expect(remove).not.toHaveBeenCalled();
+  await act(async () => confirm().click());
+  expect(dialog.textContent).toContain('Suppression impossible');
+  expect(dialog.textContent).toContain('Quels articles');
+  await act(async () => confirm().click());
+  expect(remove).toHaveBeenCalledTimes(2);
+  expect(dialog.textContent).not.toContain('Quels articles');
+  expect(dialog.textContent).toContain('Conversation supprimée');
+});
+
+it('negotiates Supabase and saves a versioned first turn before the model call', async () => {
+  localStorage.setItem('stock_auth_user', 'alice');
+  localStorage.setItem(`atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:alice`, JSON.stringify({ threadId: 'mobile-old', messages: [{ role: 'user', text: 'Legacy private' }] }));
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
+  let completeFirst!: (value: any) => void;
+  const put = vi.spyOn(api, 'putAgentThread').mockImplementationOnce(() => new Promise(resolve => { completeFirst = resolve; })).mockResolvedValueOnce({ data: { storage: 'supabase', version: '2' } } as any);
+  const chat = vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Salut' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  expect(host.textContent).not.toContain('Legacy private');
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Bonjour'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(put.mock.calls[0][1]).toMatchObject({ expected_version: null, messages: [{ role: 'user', text: 'Bonjour' }] });
+  expect(chat).not.toHaveBeenCalled();
+  await act(async () => completeFirst({ data: { storage: 'supabase', version: '1' } }));
+  expect(chat).toHaveBeenCalledOnce();
+  expect(put.mock.calls[1][1]).toMatchObject({ expected_version: '1', messages: [{ role: 'user', text: 'Bonjour' }, { role: 'assistant', text: 'Salut' }] });
+  expect(host.textContent).toContain('Salut');
+  expect(localStorage.getItem(`atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:alice`)).toContain('Legacy private');
+});
+
+it('keeps the input and does not call the model after a Supabase conflict', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
+  vi.spyOn(api, 'putAgentThread').mockRejectedValue(new Error('Conflit de version'));
+  const chat = vi.spyOn(api, 'assistChat');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Bonjour'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(chat).not.toHaveBeenCalled(); expect(input.value).toBe('Bonjour'); expect(host.textContent).toContain('Conflit de version');
+});
+
+it('does not show or overwrite old phone history if storage negotiation fails', async () => {
+  localStorage.setItem('stock_auth_user', 'alice');
+  const key = `atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:alice`;
+  localStorage.setItem(key, JSON.stringify({ threadId: 'mobile-old', messages: [{ role: 'user', text: 'Legacy secret' }] }));
+  vi.mocked(api.assistStatus).mockRejectedValue(new Error('offline'));
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  expect(host.textContent).not.toContain('Legacy secret');
+  expect(host.textContent).toContain('Stockage de l’Agent indisponible');
+  expect(localStorage.getItem(key)).toContain('Legacy secret');
+});
+
+it('warns when the model answered but the versioned reply save fails', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
+  vi.spyOn(api, 'putAgentThread').mockResolvedValueOnce({ data: { storage: 'supabase', version: '1' } } as any).mockRejectedValueOnce(new Error('offline'));
+  vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse reçue' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Bonjour'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(host.textContent).toContain('Réponse reçue');
+  expect(host.textContent).toContain('sauvegarde serveur non confirmée');
+});
+
+it('shows Supabase server history as read-only without replacing the local draft', async () => {
+  localStorage.setItem('stock_auth_user', 'alice');
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  const list = vi.spyOn(api, 'listAgentThreads').mockResolvedValue({ data: [{ id: 'desktop-thread', title: 'Serveur privé' }], meta: { storage: 'supabase' } } as any);
+  const get = vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [{ role: 'user', text: 'Question du serveur' }, { role: 'assistant', text: 'Réponse du serveur' }] }, meta: { storage: 'supabase', version: '2' } } as any);
+  const put = vi.spyOn(api, 'putAgentThread');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Brouillon local'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Historique des discussions"]')!.click());
+  expect(list).toHaveBeenCalledOnce();
+  const section = document.querySelector<HTMLElement>('[aria-label="Conversations serveur"]')!;
+  expect(section.textContent).toContain('Lecture seule');
+  await act(async () => section.querySelector('button')!.click());
+  expect(get).toHaveBeenCalledWith('desktop-thread');
+  expect(section.textContent).toContain('Réponse du serveur');
+  expect(input.value).toBe('Brouillon local'); expect(put).not.toHaveBeenCalled();
+});
+
+it('does not claim an empty server history when the list fails or mode changes', async () => {
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'listAgentThreads').mockResolvedValue({ data: [], meta: { storage: 'r2' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Historique des discussions"]')!.click());
+  const section = document.querySelector<HTMLElement>('[aria-label="Conversations serveur"]')!;
+  expect(section.textContent).toContain('Historique serveur indisponible');
+  expect(section.textContent).not.toContain('Aucune conversation récente sur le serveur');
+});
+
+it('restores an unconfirmed reply after remount and reconciles without calling the model again', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  const get = vi.spyOn(api, 'getAgentThread').mockResolvedValueOnce({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
+  const put = vi.spyOn(api, 'putAgentThread').mockResolvedValueOnce({ data: { storage: 'supabase', version: '1' } } as any).mockRejectedValueOnce(new Error('ack lost'));
+  const chat = vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse sauvegardée mais réponse perdue' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Bonjour'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(host.textContent).toContain('sauvegarde serveur non confirmée');
+  const key = Object.keys(localStorage).find(k => k.endsWith(':supabase:pending-reply'))!;
+  expect(localStorage.getItem(key)).toContain('Réponse sauvegardée');
+  await act(async () => root.render(null));
+  get.mockResolvedValueOnce({ data: { messages: [{ role: 'user', text: 'Bonjour' }, { role: 'assistant', text: 'Réponse sauvegardée mais réponse perdue' }] }, meta: { storage: 'supabase', version: '2' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  expect(host.textContent).toContain('Réponse sauvegardée mais réponse perdue');
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')!.disabled).toBe(true);
+  await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Réessayer la sauvegarde')!.click());
+  expect(chat).toHaveBeenCalledOnce(); expect(put).toHaveBeenCalledTimes(2);
+  expect(localStorage.getItem(key)).toBeNull(); expect(host.textContent).toContain('Réponse sauvegardée.');
+});
+
+it('keeps the recovery record if a server conversation changed elsewhere', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
+  const key = `atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:agent-user:supabase:pending-reply`;
+  const value = JSON.stringify({ threadId: 'mobile-123', prepared: { storage: 'supabase', version: '1', title: 'Question', messages: [{ role: 'user', text: 'Question' }] }, reply: 'Réponse' });
+  localStorage.setItem(key, value);
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [{ role: 'user', text: 'Autre appareil' }] }, meta: { storage: 'supabase', version: '2' } } as any);
+  const put = vi.spyOn(api, 'putAgentThread');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Réessayer la sauvegarde')!.click());
+  expect(host.textContent).toContain('Conversation modifiée ailleurs'); expect(put).not.toHaveBeenCalled();
+  expect(localStorage.getItem(key)).toBe(value); expect(host.querySelector<HTMLTextAreaElement>('textarea')!.disabled).toBe(true);
+});
+
+it('detects a recovery record created by another tab before starting a new turn', async () => {
+  localStorage.setItem('stock_auth_user', 'agent-user');
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  const get = vi.spyOn(api, 'getAgentThread');
+  const chat = vi.spyOn(api, 'assistChat');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Brouillon'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  const key = `atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:agent-user:supabase:pending-reply`;
+  localStorage.setItem(key, JSON.stringify({ threadId: 'mobile-other', prepared: { storage: 'supabase', version: '1', title: 'Autre', messages: [{ role: 'user', text: 'Autre' }] }, reply: 'Réponse à récupérer' }));
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(get).not.toHaveBeenCalled(); expect(chat).not.toHaveBeenCalled();
+  expect(host.textContent).toContain('Réponse à récupérer'); expect(input.value).toBe('Brouillon');
+  expect(input.disabled).toBe(true); expect(localStorage.getItem(key)).not.toBeNull();
+});

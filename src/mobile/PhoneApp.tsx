@@ -16,11 +16,13 @@ import PhoneDock, { canOpenPhoneBalance, canOpenPhoneClients, canOpenPhoneEmploy
 import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
+import { preparePhonePreviewTurn, finishPhonePreviewTurn, reconcilePhoneReply, guardPhoneAgentClient } from './agentPreviewSync';
+import { readPendingPhoneReply, savePendingPhoneReply, clearPendingPhoneReply, type PendingRead } from './agentPhonePending';
 import { t as translate } from '../i18n/core';
 import { AgentMarkdown } from '../components/agent/AgentMarkdown';
 import { AgentClarification, parseClarification } from '../components/agent/AgentClarification';
 import PhoneAgentActivity from './PhoneAgentActivity';
-import { getUsername, getDisplayInitials, hasAvatarUrl, getRole, isStockRole, canSell } from '../auth';
+import { getUsername, getDisplayInitials, hasAvatarUrl, getRole, getToken, isStockRole, canSell } from '../auth';
 import type { UiScale } from '../lib/density';
 import './phone.css';
 import PageTransition from '../components/PageTransition';
@@ -1351,17 +1353,47 @@ function PhonePageFrame({ agent, disabled, children }: { agent: boolean; disable
   return agent ? <>{children}</> : <PageTransition disabled={disabled}>{children}</PageTransition>;
 }
 
-export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated }: { onNavigate?: (path: string) => void; onBack?: () => void; onTheme?: (theme: 'light' | 'dark' | 'system') => void; onProductCreated?: (direct: boolean) => void } = {}) {
+type PhoneAgentProps = { onNavigate?: (path: string) => void; onBack?: () => void; onTheme?: (theme: 'light' | 'dark' | 'system') => void; onProductCreated?: (direct: boolean) => void };
+type PhoneAgentStorage = 'r2' | 'supabase' | 'supabase-preview';
+
+/** Never load local conversations until the server identifies its storage mode. */
+export function PhoneAgentMobile(props: PhoneAgentProps = {}) {
+  const [mode, setMode] = useState<PhoneAgentStorage | null>(null);
+  const [failure, setFailure] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    setFailure(false);
+    api.assistStatus().then(result => {
+      if (cancelled) return;
+      if (!result?.data || typeof result.data.configured !== 'boolean') { setFailure(true); return; }
+      const capability = result.data.agent_history;
+      // Older Workers omit the field and use the legacy protocol.
+      if (!capability) { setMode('r2'); return; }
+      if (capability.storage === 'r2' && capability.require_expected_version === false) setMode('r2');
+      else if ((capability.storage === 'supabase' || capability.storage === 'supabase-preview') && capability.require_expected_version === true && capability.version_type === 'string') setMode(capability.storage);
+      else setFailure(true);
+    }).catch(() => { if (!cancelled) setFailure(true); });
+    return () => { cancelled = true; };
+  }, [attempt]);
+  if (!mode) return <div className="ph-agent-shell" role="status">{failure ? <><p>Stockage de l’Agent indisponible. Les conversations locales restent sur cet appareil.</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Réessayer</button></> : <p>Chargement de l’Agent…</p>}</div>;
+  return <PhoneAgentMobileReady {...props} storageMode={mode} />;
+}
+
+function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, storageMode }: PhoneAgentProps & { storageMode: PhoneAgentStorage }) {
   type Msg = { role: 'user' | 'assistant'; text: string };
   // Never display the old unscoped local conversation for a different account.
   const storageKey = useMemo(() => {
     try {
       const username = localStorage.getItem('stock_auth_user');
       if (!username) return null;
-      return `atlas-agent-mobile-msgs-v2:${encodeURIComponent(getBase() || window.location.origin)}:${encodeURIComponent(username)}`;
+      return `atlas-agent-mobile-msgs-v2:${encodeURIComponent(getBase() || window.location.origin)}:${encodeURIComponent(username)}${storageMode === 'r2' ? '' : `:${storageMode}`}`;
     } catch { return null; }
-  }, []);
+  }, [storageMode]);
+  const pendingKey = storageMode !== 'r2' && storageKey ? `${storageKey}:pending-reply` : null;
+  const [pendingReply, setPendingReply] = useState<PendingRead>(() => pendingKey ? readPendingPhoneReply(localStorage, pendingKey, storageMode) : { kind: 'none' });
   const [threadId, setThreadId] = useState(() => {
+    if (pendingReply.kind === 'pending') return pendingReply.record.threadId;
     try {
       const raw = storageKey && localStorage.getItem(storageKey);
       const saved = raw ? JSON.parse(raw) : null;
@@ -1370,6 +1402,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
     return newPhoneAgentThreadId();
   });
   const [msgs, setMsgs] = useState<Msg[]>(() => {
+    if (pendingReply.kind === 'pending') return [...pendingReply.record.prepared.messages, { role: 'assistant', text: pendingReply.record.reply }];
     try {
       const raw = storageKey && localStorage.getItem(storageKey);
       if (raw) {
@@ -1390,6 +1423,40 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
     try { const value = historyKey && JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(value) ? value.filter(t => typeof t?.threadId === 'string' && Array.isArray(t.messages)).map(t => ({ threadId: t.threadId, messages: t.messages.filter((m: Msg) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.text === 'string').slice(-40) })) : []; } catch { return []; }
   });
   const [dialog, setDialog] = useState<'history' | 'quota' | 'activity' | 'language' | 'unlock' | 'photo' | null>(null);
+  const [serverHistory, setServerHistory] = useState<{ id: string; title: string }[] | null>(null);
+  const [serverHistoryState, setServerHistoryState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [serverDetail, setServerDetail] = useState<{ title: string; messages: Msg[] } | null>(null);
+  const [serverDetailLoading, setServerDetailLoading] = useState(false);
+  const historyRequest = useRef(0);
+  useEffect(() => {
+    if (dialog !== 'history' || storageMode === 'r2') return;
+    const request = ++historyRequest.current;
+    const token = getToken(), user = getUsername(), base = getBase();
+    const same = () => request === historyRequest.current && token === getToken() && user === getUsername() && base === getBase();
+    setServerHistory(null); setServerDetail(null); setServerDetailLoading(false); setServerHistoryState('loading');
+    void api.listAgentThreads().then(result => {
+      if (!same()) return;
+      if (result?.meta?.storage !== storageMode || !Array.isArray(result.data) || result.data.some(t => !t || typeof t.id !== 'string' || typeof t.title !== 'string')) throw new Error('invalid history');
+      setServerHistory(result.data.map(t => ({ id: t.id, title: t.title }))); setServerHistoryState('ready');
+    }).catch(() => { if (same()) setServerHistoryState('error'); });
+    return () => { historyRequest.current++; };
+  }, [dialog, storageMode]);
+  const viewServerThread = async (thread: { id: string; title: string }) => {
+    const request = ++historyRequest.current;
+    const token = getToken(), user = getUsername(), base = getBase();
+    const same = () => request === historyRequest.current && token === getToken() && user === getUsername() && base === getBase();
+    setServerDetailLoading(true); setServerDetail(null);
+    try {
+      const result = await api.getAgentThread(thread.id);
+      if (!same()) return;
+      if (result.meta?.storage !== storageMode || result.meta?.empty || !Array.isArray(result.data?.messages)) throw new Error('invalid conversation');
+      const messages = result.data.messages.filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string').map((m: any) => ({ role: m.role as Msg['role'], text: m.text }));
+      setServerDetail({ title: thread.title, messages });
+    } catch { if (same()) setQuickNotice('Lecture de la conversation serveur impossible.'); }
+    finally { if (same()) setServerDetailLoading(false); }
+  };
+  const [deleteHistoryId, setDeleteHistoryId] = useState<string | null>(null);
+  const [deletingHistory, setDeletingHistory] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [policy, setPolicy] = useState<Awaited<ReturnType<typeof api.getAgentPolicy>>['data'] | null>(null);
   const [policyStatus, setPolicyStatus] = useState('');
@@ -1450,14 +1517,14 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
 
   useEffect(() => {
     try {
-      if (storageKey) localStorage.setItem(storageKey, JSON.stringify({ threadId, messages: msgs.slice(-40) }));
+      if (storageKey && pendingReply.kind === 'none') localStorage.setItem(storageKey, JSON.stringify({ threadId, messages: msgs.slice(-40) }));
     } catch { /* conversation remains available for this session */ }
     const el = listRef.current;
     if (el && msgs.length && followMessages.current) {
       const frame = requestAnimationFrame(() => { el.dataset.phoneProgrammaticScroll = 'true'; el.scrollTop = el.scrollHeight; window.setTimeout(() => { delete el.dataset.phoneProgrammaticScroll; }, 150); });
       return () => cancelAnimationFrame(frame);
     }
-  }, [msgs, busy, storageKey, threadId]);
+  }, [msgs, busy, storageKey, threadId, pendingReply.kind]);
 
   useEffect(() => {
     const viewport = window.visualViewport; const shell = shellRef.current;
@@ -1485,8 +1552,23 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
     setHistory(next); return true;
   };
   const newConversation = () => {
-    if (!archiveCurrent()) return;
+    if (pendingReply.kind !== 'none' || !archiveCurrent()) return;
     followMessages.current = true; setThreadId(newPhoneAgentThreadId()); setMsgs([]); setInput(''); setShowLatest(false); setQuickNotice('');
+  };
+  const deleteSavedConversation = async (id: string) => {
+    if (deletingHistory || busy || id === threadId) return;
+    setDeletingHistory(true); setQuickNotice('');
+    try {
+      const result = await api.deleteAgentThread(id);
+      if (result?.success !== true) throw new Error('not acknowledged');
+      const next = history.filter(t => t.threadId !== id);
+      if (historyKey) {
+        try { localStorage.setItem(historyKey, JSON.stringify(next)); }
+        catch { setQuickNotice('Conversation supprimée du serveur, mais la copie locale ne peut pas être effacée.'); setDeleteHistoryId(null); return; }
+      }
+      setHistory(next); setDeleteHistoryId(null); setQuickNotice('Conversation supprimée.');
+    } catch { setQuickNotice('Suppression impossible. La conversation reste enregistrée ; réessayez.'); }
+    finally { setDeletingHistory(false); }
   };
   const refreshContext = async () => {
     setRefreshing(true); setQuickNotice('Actualisation du contexte…');
@@ -1508,36 +1590,94 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
 
   const send = async (prompt?: string) => {
     const text = (prompt ?? input).trim();
-    if (!text || sending.current || (demoAiReset && Date.now() < demoAiReset)) return;
+    if (!text || sending.current || pendingReply.kind !== 'none' || (demoAiReset && Date.now() < demoAiReset)) return;
     sending.current = true;
-    setQuickNotice('');
-    followMessages.current = true; setShowLatest(false);
-    if (inputRef.current) inputRef.current.style.height = '';
-    setInput('');
-    setMsgs((m) => [...m, { role: 'user', text }]);
-    setBusy(true);
+    const sendUser = getUsername(), sendToken = getToken(), sendBase = getBase();
+    const sameSession = () => sendUser === getUsername() && sendToken === getToken() && sendBase === getBase();
+    const safeClient = guardPhoneAgentClient(api, sameSession);
+    setBusy(true); setQuickNotice('');
+    let prepared: Awaited<ReturnType<typeof preparePhonePreviewTurn>> = null;
+    let posted = false;
     try {
+      if (storageMode !== 'r2') {
+        if (!pendingKey) throw new Error('Stockage local indisponible. Impossible de sécuriser la réponse.');
+        // Another tab may have created a recovery record since this view mounted.
+        // This is a best-effort check, not an atomic cross-tab lock.
+        const existing = readPendingPhoneReply(localStorage, pendingKey, storageMode);
+        if (existing.kind !== 'none') {
+          setPendingReply(existing);
+          if (existing.kind === 'pending') {
+            setThreadId(existing.record.threadId);
+            setMsgs([...existing.record.prepared.messages, { role: 'assistant', text: existing.record.reply }]);
+          }
+          throw new Error('Une sauvegarde locale doit être vérifiée avant tout nouvel envoi.');
+        }
+        prepared = await preparePhonePreviewTurn(safeClient, threadId, msgs, text);
+        // A mode change or ambiguous response must never fall through to chat.
+        if (!prepared || prepared.storage !== storageMode || !sameSession()) throw new Error('La session ou le mode de stockage a changé. Rouvrez l’Agent.');
+      }
+      followMessages.current = true; setShowLatest(false);
+      if (inputRef.current) inputRef.current.style.height = '';
+      setInput('');
+      setMsgs((m) => [...m, { role: 'user', text }]);
+      posted = true;
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca';
       const res = await api.assistChat(text, { task: 'mobile_field', timezone, thread_id: threadId });
       const reply = res.data?.reply;
       if (typeof reply !== 'string' || !reply.trim()) throw new Error('Aucune réponse reçue. Réessayez.');
       setMsgs((m) => [...m, { role: 'assistant', text: reply }]);
+      if (prepared) {
+        const record = { threadId, prepared, reply };
+        let serialized = '';
+        try {
+          if (!pendingKey) throw new Error('Local storage unavailable');
+          serialized = savePendingPhoneReply(localStorage, pendingKey, record);
+          setPendingReply({ kind: 'pending', record, serialized });
+        } catch {
+          // Keep the reply in memory and fail closed rather than overwrite a
+          // pre-existing recovery record or pretend it is durable.
+          setPendingReply({ kind: 'invalid' });
+          setQuickNotice('Sauvegarde locale indisponible ou déjà occupée. Copiez la réponse et conservez cette fenêtre.');
+          return;
+        }
+        try {
+          if (!sameSession()) throw new Error('session changed');
+          await finishPhonePreviewTurn(safeClient, threadId, prepared, reply);
+          if (!sameSession()) throw new Error('session changed');
+          if (!clearPendingPhoneReply(localStorage, pendingKey!, serialized)) throw new Error('record changed');
+          setPendingReply({ kind: 'none' });
+        } catch { setQuickNotice('Réponse reçue mais sauvegarde serveur non confirmée. Réessayez la sauvegarde sans renvoyer la question.'); }
+      }
     } catch (e: any) {
       if (e?.code === 'DEMO_AI_QUOTA') {
         const reset = Date.parse(e?.body?.resets_at || '');
         setDemoAiReset(Number.isFinite(reset) && reset > Date.now() ? reset : Date.now() + 60_000);
       }
-      setMsgs((m) => [
-        ...m,
-        {
-          role: 'assistant',
-          text: e?.message || 'Impossible de joindre l’assistant. Vérifiez la connexion ou la config API.',
-        },
-      ]);
+      if (storageMode !== 'r2') {
+        setQuickNotice(e?.message || 'Synchronisation impossible. Réessayez après vérification.');
+      } else if (posted) {
+        setMsgs((m) => [...m, { role: 'assistant', text: e?.message || 'Impossible de joindre l’assistant. Vérifiez la connexion ou la config API.' }]);
+      }
     } finally {
       sending.current = false;
       setBusy(false);
     }
+  };
+
+  const recoverReply = async () => {
+    if (pendingReply.kind !== 'pending' || busy || !pendingKey || pendingReply.record.threadId !== threadId) return;
+    const pending = pendingReply; const user = getUsername(), token = getToken(), base = getBase();
+    setBusy(true); setQuickNotice('');
+    try {
+      const same = () => user === getUsername() && token === getToken() && base === getBase();
+      const safeClient = guardPhoneAgentClient(api, same);
+      await reconcilePhoneReply(safeClient, threadId, pending.record.prepared, pending.record.reply);
+      if (user !== getUsername() || token !== getToken() || base !== getBase()) throw new Error('La session a changé.');
+      if (!clearPendingPhoneReply(localStorage, pendingKey, pending.serialized)) throw new Error('La copie locale a changé.');
+      setMsgs([...pending.record.prepared.messages, { role: 'assistant', text: pending.record.reply }]);
+      setPendingReply({ kind: 'none' }); setQuickNotice('Réponse sauvegardée.');
+    } catch (error) { setQuickNotice(error instanceof Error ? error.message : 'Sauvegarde toujours indisponible.'); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -1551,7 +1691,7 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
         </div>
         <div className="ph-agent-dock-actions">
           <button type="button" disabled={busy} title="Historique" aria-label="Historique des discussions" onClick={() => setDialog('history')}><History size={21} /></button>
-          <button type="button" disabled={busy} title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={newConversation}><MessageSquarePlus size={21} /></button>
+          <button type="button" disabled={busy || pendingReply.kind !== 'none'} title="Nouvelle discussion" aria-label="Nouvelle discussion" onClick={newConversation}><MessageSquarePlus size={21} /></button>
           <button type="button" disabled={refreshing} title="Actualiser le contexte" aria-label="Actualiser le contexte" onClick={() => void refreshContext()}><RefreshCw size={21} /></button>
           <button type="button" title="Quota IA" aria-label="Quota IA" onClick={() => void openQuota()}><Hourglass size={21} /></button>
         </div>
@@ -1559,6 +1699,8 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
       </nav>
       <div className="ph-agent-msgs" ref={listRef} role="log" aria-live="polite" aria-label="Conversation" onScroll={e => onConversationScroll(e.currentTarget)}>
         {quickNotice && <p className="ph-agent-quick-notice" role="status">{quickNotice}</p>}
+        {pendingReply.kind === 'pending' && <div role="status"><p>Une réponse attend la confirmation de sauvegarde. Elle est conservée sur cet appareil, sans renvoyer la question.</p><button type="button" disabled={busy} onClick={() => void recoverReply()}>Réessayer la sauvegarde</button></div>}
+        {pendingReply.kind === 'invalid' && <p role="alert">Récupération locale indisponible ou invalide. Ne supprimez pas les données de cet appareil.</p>}
         {msgs.length === 0 && <div className="ph-agent-quick" role="group" aria-label="Actions rapides">
             {onNavigate && <button type="button" onClick={() => onNavigate('/m/settings/whats-new')}>Mises à jour</button>}
             {onTheme && ([['light', 'Thème clair'], ['dark', 'Thème sombre'], ['system', 'Thème système']] as const).map(([theme, label]) => <button type="button" key={theme} data-theme-toggle onClick={() => { onTheme(theme); setQuickNotice(`${label} activé.`); }}>{label}</button>)}
@@ -1600,9 +1742,20 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
         <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
       </PhoneDialog>}
       {dialog === 'history' && <PhoneDialog titleId="ph-agent-history-title" onClose={() => setDialog(null)}>
-        <h2 id="ph-agent-history-title">Historique des discussions</h2><p>Discussions enregistrées sur cet appareil pour ce compte.</p>{quickNotice && <p role="status">{quickNotice}</p>}
+        <h2 id="ph-agent-history-title">Historique des discussions</h2>{quickNotice && <p role="status">{quickNotice}</p>}
+        {storageMode !== 'r2' && <section aria-label="Conversations serveur">
+          <h3>Conversations récentes du serveur</h3><p>Lecture seule pour le moment ; jusqu’à 20 conversations. Les pièces jointes et actions ne sont pas affichées ici.</p>
+          {serverHistoryState === 'loading' && <p role="status">Chargement de l’historique…</p>}
+          {serverHistoryState === 'error' && <p role="status">Historique serveur indisponible. Fermez puis rouvrez pour réessayer.</p>}
+          {serverHistoryState === 'ready' && !serverHistory?.length && <p>Aucune conversation récente sur le serveur.</p>}
+          {serverHistory?.map(t => <button key={t.id} type="button" disabled={serverDetailLoading} onClick={() => void viewServerThread(t)}>{t.title || 'Conversation'}</button>)}
+          {serverDetailLoading && <p role="status">Chargement de la conversation…</p>}
+          {serverDetail && <div><h4>{serverDetail.title}</h4>{serverDetail.messages.map((m, i) => <p key={i}><strong>{m.role === 'user' ? 'Vous' : 'Atlas Agent'} : </strong>{m.text}</p>)}</div>}
+        </section>}
+        <p>Copies enregistrées sur cet appareil pour ce compte.</p>
         {history.filter(t => t.threadId !== threadId).length === 0 && <p>Aucune autre discussion enregistrée.</p>}
-        <div className="ph-agent-history-list">{history.filter(t => t.threadId !== threadId).map(t => <button type="button" key={t.threadId} onClick={() => { if (!archiveCurrent()) return; setThreadId(t.threadId); setMsgs(t.messages); setInput(''); setShowLatest(false); followMessages.current = true; setDialog(null); }}>{t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'Discussion'}</button>)}</div>
+        <div className="ph-agent-history-list">{history.filter(t => t.threadId !== threadId).map(t => <div className="ph-agent-history-row" key={t.threadId}><button type="button" disabled={deletingHistory || pendingReply.kind !== 'none'} onClick={() => { if (pendingReply.kind !== 'none' || !archiveCurrent()) return; setThreadId(t.threadId); setMsgs(t.messages); setInput(''); setShowLatest(false); followMessages.current = true; setDialog(null); }}>{t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'Discussion'}</button><button type="button" disabled={deletingHistory || busy} aria-label={`Supprimer ${t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'la discussion'}`} onClick={() => { setQuickNotice(''); setDeleteHistoryId(t.threadId); }}><Trash2 size={16} /></button></div>)}</div>
+        {deleteHistoryId && <div role="group" aria-label="Confirmer la suppression"><p>Supprimer cette discussion et son contexte du serveur ? Cette action est définitive.</p><button type="button" disabled={deletingHistory} onClick={() => void deleteSavedConversation(deleteHistoryId)}>{deletingHistory ? 'Suppression…' : 'Confirmer la suppression'}</button><button type="button" disabled={deletingHistory} onClick={() => setDeleteHistoryId(null)}>Annuler</button></div>}
         <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
       </PhoneDialog>}
       {dialog === 'quota' && <PhoneDialog titleId="ph-agent-quota-title" onClose={() => setDialog(null)}>
@@ -1629,14 +1782,14 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
           enterKeyHint="send"
           placeholder="Écrivez votre question…"
           value={input}
-          disabled={busy || !!demoAiReset}
+          disabled={busy || !!demoAiReset || pendingReply.kind !== 'none'}
           onChange={(e) => { const field = e.currentTarget; field.style.height = 'auto'; field.style.height = `${Math.min(120, field.scrollHeight)}px`; setInput(field.value); }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
         />
         <button
           type="submit"
           className="theme-toggle ph-agent-send"
-          disabled={busy || !!demoAiReset || !input.trim()}
+          disabled={busy || !!demoAiReset || pendingReply.kind !== 'none' || !input.trim()}
           aria-label="Envoyer"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>

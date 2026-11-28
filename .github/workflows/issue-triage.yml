@@ -93,5 +93,5 @@ jobs:
           Il nous manque des informations pour le classer : pouvez-vous préciser ce qui s'est passé, où (page/écran), et ce que vous attendiez à la place ?"
           fi
           printf '%s\n' "$BODY_C" > ack.md
-          gh issue comment "$ISSUE" --body-file ack.md
+          gh issue comment "$ISSUE" --repo "$REPO" --body-file ack.md
           echo "Triaged issue #$ISSUE from @$AUTHOR with labels: ${LABELS[*]}"

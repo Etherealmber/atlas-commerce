@@ -466,7 +466,8 @@ export const api = {
     request('/api/import/commit', { method: 'POST', body: JSON.stringify(body) }),
   mobileWorkStatus: (cursor?: { source: 'in_app' | 'github'; value: string }) =>
     request<{ success: boolean; in_app: WorkStatusSource; trackers: { github: WorkStatusSource } }>(`/api/mobile/work-status${cursor ? `?${cursor.source === 'in_app' ? 'in_app_cursor' : 'github_cursor'}=${encodeURIComponent(cursor.value)}` : ''}`),
-  assistStatus: () => request<{ data: { configured: boolean; provider?: string; model?: string; hint?: string } }>('/api/assist/status'),
+  probeAgentStorage: () => request<{ data: { key_self_test: 'pass' | 'fail'; read_rpc: 'pass' | 'fail' | 'not_checked'; storage_mode_changed: false; write_test_performed: false } }>('/api/admin/agent-storage-probe', { method: 'POST', silent: true } as any),
+  assistStatus: () => request<{ data: { configured: boolean; provider?: string; model?: string; hint?: string; agent_history?: { storage: 'r2' | 'supabase' | 'supabase-preview'; version_type: 'string'; require_expected_version: boolean; retention_days: number | null; image_api: 'experimental' | 'unavailable'; physical_cleanup: 'asynchronous' | 'legacy' } } }>('/api/assist/status'),
   getAssistProvider: () =>
     request<{ data: { provider: string; groqConfigured?: boolean; groqModel?: string } }>(
       '/api/settings/assist-provider',
@@ -477,9 +478,9 @@ export const api = {
       body: JSON.stringify({ provider }),
     }),
   listAgentThreads: () =>
-    request<{ data: { id: string; title: string; updated_at?: string; message_count?: number; summary_pending?: boolean }[]; meta?: { unreadable_count?: number; pending_count?: number } }>('/api/admin/agent/threads', { silent: true }),
+    request<{ data: { id: string; title: string; updated_at?: string; message_count?: number; summary_pending?: boolean }[]; meta?: { unreadable_count?: number; pending_count?: number; storage?: string } }>('/api/admin/agent/threads', { silent: true }),
   getAgentThread: (id: string) =>
-    request<{ data: { title?: string; messages?: any[]; updated_at?: string }; meta?: { version: string | null; empty?: boolean } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { silent: true }),
+    request<{ data: { title?: string; messages?: any[]; updated_at?: string }; meta?: { version: string | null; empty?: boolean; storage?: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { silent: true }),
   putAgentThread: (id: string, body: { title?: string; messages?: any[]; expected_version?: string | null }) =>
     request<{ data: { id: string; storage: string; version: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), silent: true } as any),
   deleteAgentThread: (id: string) =>

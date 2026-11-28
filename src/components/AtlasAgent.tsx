@@ -95,7 +95,7 @@ const ACTIVE_THREAD_KEY = 'atlas_agent_active_thread';
 function scopeUser(): string {
   try { return String(getUsername() || 'anon').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 64); } catch { return 'anon'; }
 }
-function threadsKey(): string { return `${THREADS_KEY}:${scopeUser()}`; }
+function threadsKey(storage = 'r2'): string { return `${THREADS_KEY}:${scopeUser()}${storage === 'supabase' ? ':supabase-prod' : storage === 'supabase-preview' ? ':supabase-preview' : ''}`; }
 function activeThreadKey(): string { return `${ACTIVE_THREAD_KEY}:${scopeUser()}`; }
 
 function pageMeta(pathname: string): { title: string; hint: string; path: string } {
@@ -191,9 +191,9 @@ const WELCOME: Msg = {
   text: 'Bonjour — je suis Atlas Agent. Je reste ouvert quand vous changez de page. Posez une question ou utilisez une suggestion.',
 };
 
-function loadThreads(): ThreadMeta[] {
+function loadThreads(storage = 'r2'): ThreadMeta[] {
   try {
-    const raw = localStorage.getItem(threadsKey());
+    const raw = localStorage.getItem(threadsKey(storage));
     if (!raw) return [];
     const p = JSON.parse(raw);
     return Array.isArray(p) ? p.slice(0, 20) : [];
@@ -210,11 +210,11 @@ function threadSnapshot(messages: Msg[]): Msg[] {
     return { ...rest, ...(images?.length ? { images } : { images: undefined }) };
   });
 }
-function pendingKey(id: string) { return `atlas_agent_pending_v1:${scopeUser()}:${id}`; }
+function pendingKey(id: string, storage = 'r2') { return `atlas_agent_pending_v1:${scopeUser()}:${storage === 'supabase' ? 'supabase-prod:' : storage === 'supabase-preview' ? 'supabase-preview:' : ''}${id}`; }
 
-function saveThreads(list: ThreadMeta[]) {
+function saveThreads(list: ThreadMeta[], storage = 'r2') {
   try {
-    localStorage.setItem(threadsKey(), JSON.stringify(list.slice(0, 20)));
+    localStorage.setItem(threadsKey(storage), JSON.stringify(list.slice(0, 20)));
   } catch { /* */ }
 }
 
@@ -225,13 +225,13 @@ function fmtReset(iso?: string): string {
   } catch { return 'au prochain cycle'; }
 }
 
-function msgsKey(threadId: string) {
-  return `${MSGS_KEY}:${scopeUser()}:${threadId}`;
+function msgsKey(threadId: string, storage = 'r2') {
+  return `${MSGS_KEY}:${scopeUser()}:${storage === 'supabase' ? 'supabase-prod:' : storage === 'supabase-preview' ? 'supabase-preview:' : ''}${threadId}`;
 }
 
-function loadMsgs(threadId: string): Msg[] {
+function loadMsgs(threadId: string, storage = 'r2'): Msg[] {
   try {
-    const raw = localStorage.getItem(msgsKey(threadId)) || sessionStorage.getItem(msgsKey(threadId));
+    const raw = localStorage.getItem(msgsKey(threadId, storage)) || sessionStorage.getItem(msgsKey(threadId, storage));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length) return parsed;
@@ -272,8 +272,8 @@ function compressImageDataUrl(dataUrl: string, maxDim = 1280, quality = 0.72): P
   });
 }
 
-function saveMsgs(threadId: string, msgs: Msg[]): boolean {
-  try { localStorage.setItem(msgsKey(threadId), JSON.stringify(threadSnapshot(msgs))); return true; }
+function saveMsgs(threadId: string, msgs: Msg[], storage = 'r2'): boolean {
+  try { localStorage.setItem(msgsKey(threadId, storage), JSON.stringify(threadSnapshot(msgs))); return true; }
   catch { return false; }
 }
 
@@ -558,7 +558,7 @@ export default function AtlasAgent() {
       return newThreadId();
     }
   });
-  const [threads, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
+  const [threads, setThreads] = useState<ThreadMeta[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [mascotHint, setMascotHint] = useState('');
   const [historySearch, setHistorySearch] = useState('');
@@ -649,7 +649,7 @@ export default function AtlasAgent() {
   const [loadingThread, setLoadingThread] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'loading' | 'saved' | 'pending' | 'saving' | 'offline' | 'conflict' | 'too-large'>('loading');
   const [syncEpoch, setSyncEpoch] = useState(0);
-  const syncRef = useRef<{ id: string; user: string; ready: boolean; version: string | null; baseline: string; inFlight: boolean; blocked: boolean; failure: 'conflict' | 'offline' | 'too-large' } | null>(null);
+  const syncRef = useRef<{ id: string; user: string; ready: boolean; version: string | null; baseline: string; inFlight: boolean; blocked: boolean; storage: string; failure: 'conflict' | 'offline' | 'too-large' } | null>(null);
   const [reloadThread, setReloadThread] = useState(0);
  // unused (dictation removed)
   const [attachments, setAttachments] = useState<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
@@ -687,17 +687,8 @@ export default function AtlasAgent() {
   const lastFilesRef = useRef<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
   const [lightbox, setLightbox] = useState<{ src: string; name?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [msgs, setMsgs] = useState<Msg[]>(() => {
-    const id = (() => {
-      try {
-        return localStorage.getItem(activeThreadKey()) || '';
-      } catch {
-        return '';
-      }
-    })();
-    const saved = id ? loadMsgs(id) : [];
-    return saved.length ? saved : [WELCOME];
-  });
+  // Do not expose a legacy cache before the server identifies the storage mode.
+  const [msgs, setMsgs] = useState<Msg[]>([WELCOME]);
   const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
   const [liveTools, setLiveTools] = useState<ToolTrace[]>([]);
   const [activeTool, setActiveTool] = useState('');
@@ -747,21 +738,22 @@ export default function AtlasAgent() {
     if (!open) return;
     let cancelled = false;
     const user = scopeUser();
-    const state = { id: threadId, user, ready: false, version: null as string | null, baseline: '', inFlight: false, blocked: false, failure: 'offline' as 'conflict' | 'offline' | 'too-large' };
+    const state = { id: threadId, user, ready: false, version: null as string | null, baseline: '', inFlight: false, blocked: false, storage: '', failure: 'offline' as 'conflict' | 'offline' | 'too-large' };
     syncRef.current = state;
     setLoadingThread(true); setSyncStatus('loading');
-    const local = loadMsgs(threadId);
-    if (local.length) setMsgs(local);
+    setMsgs([WELCOME]);
     (async () => {
       try {
         const res = await api.getAgentThread(threadId);
         if (cancelled || syncRef.current !== state || scopeUser() !== user) return;
+        const storage = String(res?.meta?.storage || 'r2');
+        const local = loadMsgs(threadId, storage);
         const remote = Array.isArray(res?.data?.messages) ? threadSnapshot(res.data.messages) : [];
         const version = res?.meta?.version ?? null;
-        const key = pendingKey(threadId);
+        const key = pendingKey(threadId, storage);
         let pending: { known: boolean; version: string | null } | null = null;
         try { const raw = localStorage.getItem(key); if (raw) pending = JSON.parse(raw); } catch { /* handled as conflict below */ }
-        state.version = version; state.ready = true;
+        state.version = version; state.storage = storage; state.ready = true;
         if (pending && local.some(m => m.role === 'user') && remote.length && JSON.stringify(threadSnapshot(local)) === JSON.stringify(remote)) {
           // A write may have succeeded even if its acknowledgement was lost.
           try { localStorage.removeItem(key); } catch { /* local persistence unavailable */ }
@@ -770,7 +762,7 @@ export default function AtlasAgent() {
         } else if (pending && local.some(m => m.role === 'user') && ((!pending.known && version !== null) || (pending.known && pending.version !== version))) {
           state.blocked = true; state.failure = 'conflict';
           state.baseline = JSON.stringify(threadSnapshot(local));
-          setSyncStatus('conflict');
+          setMsgs(local); setSyncStatus('conflict');
         } else if (pending && local.some(m => m.role === 'user')) {
           state.baseline = JSON.stringify(remote);
           setMsgs(local);
@@ -781,11 +773,11 @@ export default function AtlasAgent() {
           state.blocked = true; state.failure = 'conflict';
           state.baseline = JSON.stringify(threadSnapshot(local));
           try { localStorage.setItem(key, JSON.stringify({ known: false, version: null })); } catch { /* warning remains visible */ }
-          setSyncStatus('conflict');
+          setMsgs(local); setSyncStatus('conflict');
         } else if (remote.length) {
           state.baseline = JSON.stringify(remote);
           setMsgs(remote);
-          saveMsgs(threadId, remote);
+          saveMsgs(threadId, remote, storage);
           setSyncStatus('saved');
         } else if (local.some(m => m.role === 'user')) {
           state.baseline = JSON.stringify([]);
@@ -793,12 +785,15 @@ export default function AtlasAgent() {
           setSyncStatus('pending');
         } else {
           state.baseline = JSON.stringify(threadSnapshot(local.length ? local : [WELCOME]));
+          setMsgs(local.length ? local : [WELCOME]);
           setSyncStatus('saved');
         }
         if (res?.data?.title && remote.length) {
           setThreads(prev => {
-            const next = [{ id: threadId, title: String(res.data.title).slice(0, 48), updated: Date.now() }, ...prev.filter(x => x.id !== threadId)].slice(0, 20);
-            saveThreads(next); return next;
+            const cached = storage === 'r2' ? loadThreads(storage) : [];
+            const others = new Map([...cached, ...prev].filter(x => x.id !== threadId && !deletedThreads.current.has(`${user}:${x.id}`)).map(x => [x.id, x]));
+            const next = [{ id: threadId, title: String(res.data.title).slice(0, 48), updated: Date.now() }, ...others.values()].slice(0, 20);
+            saveThreads(next, storage); return next;
           });
         }
         setSyncEpoch(v => v + 1);
@@ -818,9 +813,9 @@ export default function AtlasAgent() {
     const snapshot = threadSnapshot(msgs);
     const serialized = JSON.stringify(snapshot);
     if (state.ready && serialized === state.baseline) return;
-    const localSaved = saveMsgs(threadId, snapshot);
+    const localSaved = saveMsgs(threadId, snapshot, state.storage);
     if (!localSaved) { state.blocked = true; setSyncStatus('offline'); return; }
-    const pendingStorageKey = pendingKey(threadId);
+    const pendingStorageKey = pendingKey(threadId, state.storage);
     // Never rebase a conflicted local edit onto the other device's version.
     if (state.blocked && state.failure === 'conflict') { setSyncStatus('conflict'); return; }
     try { localStorage.setItem(pendingStorageKey, JSON.stringify({ known: state.ready, version: state.version })); }
@@ -832,12 +827,12 @@ export default function AtlasAgent() {
     const timer = window.setTimeout(() => {
       if (syncRef.current !== state || scopeUser() !== state.user) return;
       state.inFlight = true; setSyncStatus('saving');
-      const title = loadThreads().find(t => t.id === threadId)?.title || String(snapshot.find(m => m.role === 'user')?.text || 'Sans titre').trim().slice(0, 48);
+      const title = loadThreads(state.storage).find(t => t.id === threadId)?.title || String(snapshot.find(m => m.role === 'user')?.text || 'Sans titre').trim().slice(0, 48);
       void api.putAgentThread(threadId, { title, messages: snapshot, expected_version: state.version }).then(res => {
         if (scopeUser() !== state.user) return;
-        if (res?.data?.storage !== 'r2' || !res.data.version) throw new Error('No R2 acknowledgement');
+        if (!['r2', 'supabase-preview', 'supabase'].includes(res?.data?.storage) || !res.data.version) throw new Error('No storage acknowledgement');
         state.version = res.data.version; state.baseline = serialized;
-        const latest = loadMsgs(threadId);
+        const latest = loadMsgs(threadId, state.storage);
         if (JSON.stringify(threadSnapshot(latest)) === serialized) { localStorage.removeItem(pendingStorageKey); if (syncRef.current === state) setSyncStatus('saved'); }
         else { localStorage.setItem(pendingStorageKey, JSON.stringify({ known: true, version: state.version })); if (syncRef.current === state) setSyncStatus('pending'); }
       }).catch((err: any) => {
@@ -856,6 +851,8 @@ export default function AtlasAgent() {
     if (!open) return;
     let cancelled = false;
     const historyUser = scopeUser();
+    const cachedLegacyThreads = loadThreads();
+    setThreads([]);
     (async () => {
       try {
         const res = await api.listAgentThreads();
@@ -863,10 +860,11 @@ export default function AtlasAgent() {
         setHistoryError(Boolean(res?.meta?.unreadable_count));
         setHistoryPending(Boolean(res?.meta?.pending_count));
         const remote = res?.data;
-        if (!Array.isArray(remote) || !remote.length) return;
+        if (!Array.isArray(remote)) return;
+        const preview = ['supabase-preview', 'supabase'].includes(res?.meta?.storage || '');
         setThreads((prev) => {
           const byId = new Map<string, ThreadMeta>();
-          for (const t of prev) byId.set(t.id, t);
+          if (!preview) for (const t of [...cachedLegacyThreads, ...prev]) if (!deletedThreads.current.has(`${historyUser}:${t.id}`)) byId.set(t.id, t);
           for (const r of remote) {
             const id = String(r.id || '');
             if (!id || deletedThreads.current.has(`${historyUser}:${id}`) || (r.message_count === 0 && String(r.title || '') === 'Sans titre')) continue;
@@ -879,7 +877,7 @@ export default function AtlasAgent() {
             });
           }
           const next = [...byId.values()].sort((a, b) => b.updated - a.updated).slice(0, 20);
-          saveThreads(next);
+          saveThreads(next, preview ? res.meta!.storage : 'r2');
           return next;
         });
       } catch { if (!cancelled) setHistoryError(true); }
@@ -1276,6 +1274,22 @@ export default function AtlasAgent() {
             ...files.filter((f) => f.text_excerpt).map((f) => `--- Extrait de ${f.name} ---\n${f.text_excerpt}`),
           ].filter(Boolean).join('\n') : '',
         ].filter(Boolean).join('\n');
+        const state = syncRef.current;
+        if (state && ['supabase-preview', 'supabase'].includes(state.storage) && state.version === null) {
+          if (!state.ready || state.blocked || state.inFlight || state.id !== threadId || state.user !== scopeUser()) throw new Error('Conversation indisponible : réessayez après synchronisation.');
+          state.inFlight = true;
+          try {
+            const created = await api.putAgentThread(threadId, { title: 'Sans titre', messages: [], expected_version: null });
+            if (!['supabase', 'supabase-preview'].includes(created?.data?.storage) || !created.data.version) throw new Error('Confirmation de sauvegarde manquante.');
+            if (syncRef.current !== state || state.user !== scopeUser() || ac.signal.aborted) throw new Error('Conversation modifiée.');
+            state.version = created.data.version;
+            // The current message will be saved using this new version after the reply.
+            try { localStorage.setItem(pendingKey(threadId, state.storage), JSON.stringify({ known: true, version: state.version })); } catch { throw new Error('Sauvegarde locale indisponible.'); }
+          } catch (error: any) {
+            state.blocked = true; state.failure = error?.code === 'AGENT_THREAD_CONFLICT' ? 'conflict' : 'offline'; setSyncStatus(state.failure);
+            throw error;
+          } finally { state.inFlight = false; }
+        }
         const res = await api.assistChat(prompt, {
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca',
           thread_id: threadId,
@@ -1372,7 +1386,7 @@ export default function AtlasAgent() {
   const switchThread = (id: string) => {
     if (busy || loadingThread || deletingThread || syncStatus === 'pending' || syncStatus === 'saving' || id === threadId) { setHistoryOpen(false); return; }
     conversationRevision.current += 1;
-    const local = loadMsgs(id);
+    const local = loadMsgs(id, syncRef.current?.storage);
     setThreadId(id);
     setMsgs(local.length ? local : [WELCOME]);
     setPendingAction(null);
@@ -1391,8 +1405,8 @@ export default function AtlasAgent() {
       if (result?.success !== true) throw new Error('Deletion not acknowledged');
       deletedThreads.current.add(`${user}:${thread.id}`);
       if (scopeUser() !== user) return;
-      try { localStorage.removeItem(msgsKey(thread.id)); sessionStorage.removeItem(msgsKey(thread.id)); localStorage.removeItem(pendingKey(thread.id)); } catch { /* remote deletion already completed */ }
-      setThreads(prev => { const next = prev.filter(t => t.id !== thread.id); saveThreads(next); return next; });
+      try { localStorage.removeItem(msgsKey(thread.id, syncRef.current?.storage)); sessionStorage.removeItem(msgsKey(thread.id, syncRef.current?.storage)); localStorage.removeItem(pendingKey(thread.id, syncRef.current?.storage)); } catch { /* remote deletion already completed */ }
+      setThreads(prev => { const next = prev.filter(t => t.id !== thread.id); saveThreads(next, syncRef.current?.storage); return next; });
       if (thread.id === threadId) { conversationRevision.current++; syncRef.current = null; setThreadId(newThreadId()); setMsgs([WELCOME]); setInput(''); setAttachments([]); setPendingAction(null); }
     } catch { if (scopeUser() === user) setDeleteError('Suppression impossible. La conversation reste affichée ; réessayez.'); }
     finally { if (scopeUser() === user) setDeletingThread(null); }
@@ -1401,11 +1415,11 @@ export default function AtlasAgent() {
     if (syncStatus !== 'conflict' || busy) return;
     const id = newThreadId();
     const title = String(msgs.find(m => m.role === 'user')?.text || 'Conversation').trim().slice(0, 48);
-    if (!saveMsgs(id, msgs)) { setSyncStatus('offline'); return; }
-    try { localStorage.setItem(pendingKey(id), JSON.stringify({ known: true, version: null })); }
+    if (!saveMsgs(id, msgs, syncRef.current?.storage)) { setSyncStatus('offline'); return; }
+    try { localStorage.setItem(pendingKey(id, syncRef.current?.storage), JSON.stringify({ known: true, version: null })); }
     catch { setSyncStatus('offline'); return; }
     conversationRevision.current += 1;
-    setThreads(prev => { const next = [{ id, title, updated: Date.now() }, ...prev].slice(0, 20); saveThreads(next); return next; });
+    setThreads(prev => { const next = [{ id, title, updated: Date.now() }, ...prev].slice(0, 20); saveThreads(next, syncRef.current?.storage); return next; });
     setThreadId(id); setHistoryOpen(false);
   };
   const activeTitle = threads.find((thread) => thread.id === threadId)?.title || 'Nouvelle conversation';
@@ -1474,7 +1488,7 @@ export default function AtlasAgent() {
           <button type="button" className="atlas-agent-sidebar-new" disabled={busy || loadingThread || syncStatus === 'pending' || syncStatus === 'saving'} onClick={() => switchThread(newThreadId())}><Plus size={16} /> Nouvelle conversation</button>
           <label className="atlas-agent-history-search"><Search size={15} aria-hidden="true" /><input aria-label="Rechercher dans les conversations" placeholder="Rechercher…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /></label>
           <div className="atlas-agent-history-caption">Conversations récentes</div>
-          {historyError && <p className="atlas-agent-history-error" role="status">Certaines conversations R2 sont indisponibles.</p>}
+          {historyError && <p className="atlas-agent-history-error" role="status">L’historique des conversations est indisponible.</p>}
           {historyPending && <p className="atlas-agent-history-error" role="status">Certains titres se chargent à l’ouverture.</p>}
           {deleteError && <p className="atlas-agent-history-error" role="alert">{deleteError}</p>}
           <div className="atlas-agent-workspace-threads">

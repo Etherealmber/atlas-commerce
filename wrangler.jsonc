@@ -28,7 +28,8 @@
   // duplicated trigger never re-notifies. POST /api/cron/finance-reminders
   // (CRON_SECRET) remains available for external schedulers.
   "triggers": {
-    "crons": ["35 7 * * *"]
+    // Agent cleanup is separately routed and is a no-op until Supabase mode is enabled.
+    "crons": ["35 7 * * *", "*/15 * * * *"]
   },
   "assets": {
     "directory": "./dist",

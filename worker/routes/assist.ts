@@ -1,3 +1,5 @@
+import { probeAgentStorage } from '../lib/agentStorageProbe';
+import { agentSupabaseStorageLabel, getAgentDraft, getAgentTranscriptDraft, putAgentTranscriptDraft, useAgentSupabaseStorage } from '../lib/agentSupabaseDraft';
 import type { Hono } from 'hono';
 import type { Env } from '../env';
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
@@ -256,6 +258,8 @@ async function agentAccessVerdict(
 
 /** Delete Atlas Agent conversation blobs older than `days` (default 30) from R2. */
 export async function purgeAgentConversationsOlderThan(env: any, days = 30): Promise<{ deleted: number }> {
+  // No legacy R2 conversation deletion as a side effect of Supabase cutover.
+  if (useAgentSupabaseStorage(env)) return { deleted: 0 };
   let deleted = 0;
   if (!env?.IMAGES) return { deleted: 0 };
   const cutoff = Date.now() - Math.max(1, days) * 86400000;
@@ -357,6 +361,19 @@ async function loadCompactHistoryWithTranscript(
   thread: string,
   maxTurns = 6,
 ): Promise<{ history: string; existingPlain: string; etag: string | null }> {
+  if (useAgentSupabaseStorage(env)) {
+    // Until clients coordinate first-turn creation, never create a parent here:
+    // a client may have already read version null and be preparing its snapshot.
+    if (!await getAgentDraft(env, username, thread)) throw new Error('Agent parent required');
+    const result = await getAgentTranscriptDraft(env, username, thread);
+    const plain = result?.payload || '';
+    const lines = plain.split('\n').filter(l => l.startsWith('U|') || l.startsWith('A|'));
+    const history = lines.slice(-maxTurns * 2).map(l => {
+      const parts = l.split('|'); const who = parts[0] === 'U' ? 'U' : 'A';
+      return `${who}: ${String(parts.slice(2).join('|')).trim().slice(0, who === 'U' ? 160 : 200)}`;
+    }).join('\n');
+    return { history, existingPlain: plain, etag: result?.version || null };
+  }
   if (!env.IMAGES) return { history: '', existingPlain: '', etag: null };
   const key = agentConvKey(username, thread);
   try {
@@ -413,7 +430,7 @@ async function putAgentChatTurn(
   },
 ) {
   try {
-    if (!env.IMAGES) return;
+    if (!env.IMAGES && !useAgentSupabaseStorage(env)) return;
     const thread = row.thread_id || 'live';
     const key = agentConvKey(row.username, thread);
     const ts = new Date().toISOString();
@@ -430,9 +447,13 @@ async function putAgentChatTurn(
       body = lines.join('\n');
       if (!body.endsWith('\n')) body += '\n';
     }
+    if (useAgentSupabaseStorage(env)) {
+      await putAgentTranscriptDraft(env, row.username, thread, body, row.etag);
+      return;
+    }
     const enc = await encryptAgentConv(env, body);
     if (!enc) throw new Error('Transcript encryption unavailable');
-    const written = await env.IMAGES.put(key, enc, {
+    const written = await env.IMAGES!.put(key, enc, {
       onlyIf: row.etag ? { etagMatches: row.etag } : new Headers({ 'If-None-Match': '*' }),
       httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
       customMetadata: {
@@ -739,6 +760,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   });
   
   app.post('/api/settings/agent-data/delete', async (c) => {
+    if (useAgentSupabaseStorage(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pour ce mode de stockage.' }, 503);
     const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
     if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
@@ -763,6 +785,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   
   
   app.get('/api/assist/transcripts', async (c) => {
+    if (useAgentSupabaseStorage(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pour ce mode de stockage.' }, 503);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
     if (!session.username) return c.json({ success: false, error: 'Non authentifié' }, 401);
     if (!c.env.IMAGES) return c.json({ success: true, data: [], meta: { note: 'R2 indisponible' } });
@@ -791,6 +814,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   });
   
   app.get('/api/assist/transcripts/get', async (c) => {
+    if (useAgentSupabaseStorage(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pour ce mode de stockage.' }, 503);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
     if (!session.username) return c.json({ success: false, error: 'Non authentifié' }, 401);
     if (!c.env.IMAGES) return c.json({ success: false, error: 'R2 indisponible' }, 503);
@@ -850,6 +874,9 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   
     let body: any = {};
     try { body = await c.req.json(); } catch { body = {}; }
+    if (useAgentSupabaseStorage(c.env) && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
+      return c.json({ success: false, code: 'AGENT_IMAGE_UNAVAILABLE', error: 'Pièces jointes indisponibles pour ce mode de stockage.' }, 422);
+    }
     if (c.env.ATLAS_DEMO === '1' && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
       return c.json({ success: false, code: 'DEMO_AI_TEXT_ONLY', error: 'Demo AI supports text only.' }, 400);
     }
@@ -1070,6 +1097,9 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     }
     let body: any = {};
     try { body = await c.req.json(); } catch { body = {}; }
+    if (useAgentSupabaseStorage(c.env) && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
+      return c.json({ success: false, code: 'AGENT_IMAGE_UNAVAILABLE', error: 'Pièces jointes indisponibles pour ce mode de stockage.' }, 422);
+    }
     if (c.env.ATLAS_DEMO === '1' && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
       return c.json({ success: false, code: 'DEMO_AI_TEXT_ONLY', error: 'Demo AI supports text only.' }, 400);
     }
@@ -1340,11 +1370,25 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
         provider,
         model,
         groqConfigured: configured,
+        agent_history: useAgentSupabaseStorage(c.env)
+          ? { storage: agentSupabaseStorageLabel(c.env), version_type: 'string', require_expected_version: true, retention_days: 30, image_api: 'experimental', physical_cleanup: 'asynchronous' }
+          : { storage: 'r2', version_type: 'string', require_expected_version: false, retention_days: null, image_api: 'unavailable', physical_cleanup: 'legacy' },
         hint: configured
           ? 'Assistant IA actif (Groq)'
           : 'Définissez: npx wrangler secret put GROQ_API_KEY',
       },
-    });
+    }, 200, { 'Cache-Control': 'private, no-store' });
+  });
+
+  /** Explicit owner/admin diagnostic: never switches storage or writes a row. */
+  app.post('/api/admin/agent-storage-probe', async (c) => {
+    const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
+    if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide' }, 401, { 'Cache-Control': 'private, no-store' });
+    const gate = requireOwner(c);
+    if (!gate.ok) return gate.response;
+    if (c.env.ATLAS_DEMO === '1') return c.json({ success: false, error: 'Diagnostic indisponible en démo.' }, 403, { 'Cache-Control': 'private, no-store' });
+    const result = await probeAgentStorage(c.env);
+    return c.json({ success: true, data: { ...result, storage_mode_changed: false, write_test_performed: false } }, 200, { 'Cache-Control': 'private, no-store' });
   });
 
   /** Admin: Atlas Agent provider (Groq only). */

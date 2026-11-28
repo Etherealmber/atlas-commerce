@@ -1,3 +1,5 @@
+import { classifyScheduledJob } from './lib/agentCronRouting';
+import { runScheduledAgentCleanup } from './lib/agentCleanupScheduled';
 import { parseJournalDeviceContext } from './lib/journalDeviceContext';
 import { withBufferedJournal } from './lib/journalBuffered';
 import { otpCopy } from './lib/otpCopy';
@@ -2858,6 +2860,16 @@ export default {
    * failures stay 'pending' with exponential backoff (max 5 attempts).
    */
   async scheduled(event: any, env: Env, _ctx: ExecutionContext): Promise<void> {
+    const job = classifyScheduledJob(event?.cron);
+    if (job === 'agent-cleanup') {
+      try {
+        const result = await runScheduledAgentCleanup(env);
+        if (!result.skipped) console.log('[cron-agent-cleanup]', JSON.stringify(result));
+      } catch { console.error('[cron-agent-cleanup] unavailable'); }
+      return;
+    }
+    // Never run finance and dunning for an unexpected or newly configured cron.
+    if (job !== 'daily-business') { console.error('[cron] unknown schedule'); return; }
     try {
       await ensureAutoSqlMigrations(env.DB);
     } catch (e) {
