@@ -15,7 +15,7 @@ it('reports exhausted schema initialization without forwarding a request URL or 
   expect(mock).toHaveBeenCalledTimes(2);
   expect(reportCrash).toHaveBeenCalledOnce();
   expect(vi.mocked(reportCrash).mock.calls[0][0]).toMatchObject({ message: 'Initialisation du schéma indisponible après attente' });
-  expect(vi.mocked(reportCrash).mock.calls[0][1]).toEqual({ route: '/application' });
+  expect(vi.mocked(reportCrash).mock.calls[0][1]).toEqual({ route: '/application', componentStack: expect.stringContaining('migration=unknown; phase=unknown; age=unknown') });
 });
 it('does not report unrelated service errors as migration problems', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: false, code: 'DB_QUOTA_EXCEEDED', error: 'Quota' }), { status: 503 })));
@@ -44,4 +44,12 @@ it('never retries a mutation on a schema-busy response', async () => {
   await expect(api.createReceipt({ client_name: 'Test', amount: 10 } as any)).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
   expect(mock).toHaveBeenCalledOnce();
   expect(reportCrash).toHaveBeenCalledOnce();
+});
+
+it('allowlists diagnostic metadata rather than forwarding attacker-controlled values', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: false, code: 'SERVICE_UNAVAILABLE', details: { reason: 'SCHEMA_INITIALIZING', migration: 'auto_sql_migrations_0013_0020', phase: 'payroll', age: 'over_5m', secret: 'private' } }), { status: 503 })));
+  await expect(api.createReceipt({} as any)).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+  const ctx = vi.mocked(reportCrash).mock.calls[0][1]!;
+  expect(ctx.componentStack).toContain('migration=auto_sql_migrations_0013_0020; phase=payroll; age=over_5m');
+  expect(JSON.stringify(ctx)).not.toContain('private');
 });

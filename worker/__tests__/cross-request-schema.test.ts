@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { schemaOnce, schemaOnceForDb } from '../lib/schema';
+import { schemaOnce, schemaOnceForDb, setAutoMigrationPhase } from '../lib/schema';
 
 const db = () => ({ prepare: () => ({}) } as unknown as D1Database);
 describe('request-owned initialization', () => {
@@ -53,4 +53,19 @@ it('omits undefined R2 options in the demo bucket while preserving pagination', 
   await wrapped.list({ prefix: 'agent/', cursor: 'next' });
   expect(list.mock.calls[0][0].prefix).toBe('demo/agent/');
   expect(list.mock.calls[1][0].cursor).toBe('next');
+});
+
+it('reports the active phase and bounded age without clearing or overlapping a stuck initializer', async () => {
+  vi.useFakeTimers();
+  try {
+    const database = db(); let release!: () => void;
+    const first = schemaOnceForDb(database, 'auto_sql_migrations_0013_0020', () => new Promise<void>(resolve => { release = resolve; }));
+    setAutoMigrationPhase(database, 'payroll');
+    await vi.advanceTimersByTimeAsync(60_000);
+    const other = vi.fn(async () => {});
+    const second = schemaOnceForDb(database, 'auto_sql_migrations_0013_0020', other);
+    const rejected = expect(second).rejects.toMatchObject({ migration: 'auto_sql_migrations_0013_0020', phase: 'payroll', age: '1m_to_5m' });
+    await vi.advanceTimersByTimeAsync(3100); await rejected;
+    expect(other).not.toHaveBeenCalled(); release(); await first;
+  } finally { vi.useRealTimers(); }
 });

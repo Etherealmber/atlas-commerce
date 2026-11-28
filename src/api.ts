@@ -257,7 +257,15 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
     // request body or other potentially sensitive request data. Never retry writes.
     if (res.status === 503 && data.code === 'SERVICE_UNAVAILABLE' &&
         (data.details?.reason === 'SCHEMA_INITIALIZING' || data.error === 'Initialisation en cours. Réessayez dans quelques instants.')) {
-      reportCrash(new Error('Initialisation du schéma indisponible après attente'), { route: '/application' });
+      // These values are allowlisted: never include paths, query strings, SQL,
+      // database errors or arbitrary server-supplied text in issue diagnostics.
+      const details = data.details || {};
+      const allowed = (value: unknown, values: string[]) => values.includes(String(value)) ? String(value) : 'unknown';
+      const migration = allowed(details.migration, ['auto_sql_migrations_0013_0020', 'offline_ops_schema_v20']);
+      const phase = allowed(details.phase, ['starting', 'offline', 'cash', 'attendance', 'payroll', 'accounting', 'dunning', 'dgi']);
+      const age = allowed(details.age, ['under_10s', '10s_to_1m', '1m_to_5m', 'over_5m']);
+      const componentStack = `SCHEMA_INITIALIZING: migration=${migration}; phase=${phase}; age=${age}; waiter_limit=3s. Observation côté isolate, pas preuve de cause.`;
+      reportCrash(new Error('Initialisation du schéma indisponible après attente'), { route: '/application', componentStack });
     }
     let msg = data.error || `Erreur (${res.status})`;
     if (/no such column:\s*tax_rate/i.test(msg)) {

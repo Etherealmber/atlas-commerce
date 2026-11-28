@@ -1,4 +1,4 @@
-import { schemaOnceForDb } from './schema';
+import { schemaOnceForDb, setAutoMigrationPhase } from './schema';
 import { ensureOfflineOpsSchema } from './idempotency';
 import { ensureCashShiftSchema } from '../routes/cashShifts';
 import { ensureAttendanceTableSchema } from '../routes/attendance';
@@ -19,12 +19,19 @@ import { ensureDgiSchema } from '../routes/dgi';
 export async function ensureAutoSqlMigrations(db: D1Database | null | undefined): Promise<void> {
   if (!db || typeof (db as any).prepare !== 'function') return;
   await schemaOnceForDb(db, 'auto_sql_migrations_0013_0020', async () => {
+    setAutoMigrationPhase(db, 'offline');
     await ensureOfflineOpsSchema(db);
+    setAutoMigrationPhase(db, 'cash');
     await ensureCashShiftSchema(db);
+    setAutoMigrationPhase(db, 'attendance');
     await ensureAttendanceTableSchema(db);
+    setAutoMigrationPhase(db, 'payroll');
     await ensurePayrollSchema(db);
+    setAutoMigrationPhase(db, 'accounting');
     await ensureAccountingAccountsSchema(db);
+    setAutoMigrationPhase(db, 'dunning');
     await ensureDunningSchema(db);
+    setAutoMigrationPhase(db, 'dgi');
     await ensureDgiSchema(db);
   });
 }

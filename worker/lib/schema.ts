@@ -2,7 +2,9 @@ import { scopedKey } from './dataScope';
 import { AppError } from './errors';
 
 export class SchemaBusyError extends AppError {
-  constructor() { super('SERVICE_UNAVAILABLE', 'Initialisation en cours. Réessayez dans quelques instants.'); }
+  constructor(readonly migration: string = 'unknown', readonly phase: string = 'unknown', readonly age: string = 'unknown') {
+    super('SERVICE_UNAVAILABLE', 'Initialisation en cours. Réessayez dans quelques instants.');
+  }
 }
 /**
  * Shared idempotent schema helpers.
@@ -19,7 +21,7 @@ const _sessionToRootDb = new WeakMap<object, object>();
 const _dbSchemaDone = new WeakMap<object, Set<string>>();
 // These legacy migrations can rebuild tables and must never run concurrently
 // within an isolate. Only a marker is shared, never an I/O promise.
-const _exclusiveDbSchema = new WeakMap<object, Set<string>>();
+const _exclusiveDbSchema = new WeakMap<object, Map<string, { started: number; phase: string }>>();
 const EXCLUSIVE_SCHEMA_KEYS = new Set(['auto_sql_migrations_0013_0020', 'offline_ops_schema_v20']);
 
 /** Associate a D1 session object (from `db.withSession(...)`) with its root D1 binding. */
@@ -44,15 +46,22 @@ export async function schemaOnce(rawKey: string, fn: () => Promise<void>): Promi
   _schemaOnce.add(key);
 }
 
+/** Record only a fixed migration stage, never SQL, user input, or data. */
+export function setAutoMigrationPhase(db: D1Database, phase: 'offline' | 'cash' | 'attendance' | 'payroll' | 'accounting' | 'dunning' | 'dgi'): void {
+  const root = resolveRootDb(db);
+  const owner = root && _exclusiveDbSchema.get(root)?.get('auto_sql_migrations_0013_0020');
+  if (owner) owner.phase = phase;
+}
+
 /** Cache completed initialization per binding, not pending request promises. */
 export async function schemaOnceForDb(db: D1Database, key: string, fn: () => Promise<void>): Promise<void> {
   const root = resolveRootDb(db);
   if (!root || typeof (db as any).prepare !== 'function') return;
   if (_dbSchemaDone.get(root)?.has(key)) return;
-  let active: Set<string> | undefined;
+  let active: Map<string, { started: number; phase: string }> | undefined;
   if (EXCLUSIVE_SCHEMA_KEYS.has(key)) {
     active = _exclusiveDbSchema.get(root);
-    if (!active) { active = new Set<string>(); _exclusiveDbSchema.set(root, active); }
+    if (!active) { active = new Map(); _exclusiveDbSchema.set(root, active); }
     // Wait using timers owned by this request, never the other request's I/O.
     // A bounded wait avoids hanging forever if the initializing request died;
     // fail closed rather than overlap a potentially destructive rebuild.
@@ -60,8 +69,13 @@ export async function schemaOnceForDb(db: D1Database, key: string, fn: () => Pro
       await new Promise<void>(resolve => setTimeout(resolve, 20));
     }
     if (_dbSchemaDone.get(root)?.has(key)) return;
-    if (active.has(key)) throw new SchemaBusyError();
-    active.add(key);
+    const owner = active.get(key);
+    if (owner) {
+      const ageMs = Math.max(0, Date.now() - owner.started);
+      const age = ageMs < 10_000 ? 'under_10s' : ageMs < 60_000 ? '10s_to_1m' : ageMs < 300_000 ? '1m_to_5m' : 'over_5m';
+      throw new SchemaBusyError(key, owner.phase, age);
+    }
+    active.set(key, { started: Date.now(), phase: 'starting' });
   }
   try {
     await fn();
