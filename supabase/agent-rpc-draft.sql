@@ -1,0 +1,57 @@
+-- DRAFT ONLY: not applied by Atlas; review and validate in isolated staging.
+-- Requires agent-preparation.sql. Does not schedule cleanup, store images,
+-- migrate R2 or enable a production cutover. Run only with explicit approval.
+-- Every account_id is supplied by the trusted Worker, NEVER by a browser.
+
+alter table public.atlas_agent_conversations add column if not exists deleted_at timestamptz;
+
+create or replace function public.atlas_agent_get(p_account text, p_thread text)
+returns jsonb language sql security definer set search_path = pg_catalog, public as $$
+  select jsonb_build_object('payload', encrypted_payload, 'version', revision::text,
+    'last_activity_at', last_activity_at)
+  from public.atlas_agent_conversations
+  where account_id = p_account and thread_id = p_thread and deleted_at is null
+    and last_activity_at > now() - interval '30 days';
+$$;
+
+-- A null base version means create-only. Existing, expired, or deleted IDs
+-- cannot be silently recreated. All updates are compare-and-swap.
+create or replace function public.atlas_agent_put(p_account text, p_thread text, p_payload text, p_expected_version text)
+returns jsonb language plpgsql security definer set search_path = pg_catalog, public as $$
+declare new_revision bigint;
+begin
+  if p_account is null or length(p_account) not between 1 and 200 or p_thread is null or length(p_thread) not between 1 and 80
+     or p_payload is null or length(p_payload) not between 1 and 2100000 then raise exception 'invalid input'; end if;
+  if p_expected_version is null then
+    insert into public.atlas_agent_conversations(account_id, thread_id, encrypted_payload)
+      values(p_account, p_thread, p_payload) on conflict do nothing returning revision into new_revision;
+  else
+    -- Compare text rather than casting untrusted values to bigint.
+    update public.atlas_agent_conversations set encrypted_payload = p_payload,
+      revision = revision + 1, last_activity_at = now()
+      where account_id = p_account and thread_id = p_thread and deleted_at is null
+        and last_activity_at > now() - interval '30 days' and revision::text = p_expected_version
+      returning revision into new_revision;
+  end if;
+  if new_revision is null then return jsonb_build_object('ok', false, 'conflict', true); end if;
+  return jsonb_build_object('ok', true, 'version', new_revision::text);
+end $$;
+
+-- Retain a tombstone so stale requests cannot recreate deleted conversations.
+-- Does not yet delete R2 images and MUST NOT be exposed as complete deletion.
+create or replace function public.atlas_agent_tombstone(p_account text, p_thread text)
+returns jsonb language plpgsql security definer set search_path = pg_catalog, public as $$
+begin
+  if p_account is null or length(p_account) not between 1 and 200 or p_thread is null or length(p_thread) not between 1 and 80 then raise exception 'invalid input'; end if;
+  insert into public.atlas_agent_conversations(account_id, thread_id, encrypted_payload, deleted_at)
+    values(p_account, p_thread, '', now())
+  on conflict (account_id, thread_id) do update set encrypted_payload = '', deleted_at = coalesce(atlas_agent_conversations.deleted_at, now()), revision = atlas_agent_conversations.revision + 1;
+  return jsonb_build_object('ok', true);
+end $$;
+
+revoke all on function public.atlas_agent_get(text,text) from public, anon, authenticated;
+revoke all on function public.atlas_agent_put(text,text,text,text) from public, anon, authenticated;
+revoke all on function public.atlas_agent_tombstone(text,text) from public, anon, authenticated;
+grant execute on function public.atlas_agent_get(text,text) to service_role;
+grant execute on function public.atlas_agent_put(text,text,text,text) to service_role;
+grant execute on function public.atlas_agent_tombstone(text,text) to service_role;
