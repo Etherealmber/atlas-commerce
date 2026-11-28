@@ -790,7 +790,9 @@ export default function AtlasAgent() {
         }
         if (res?.data?.title && remote.length) {
           setThreads(prev => {
-            const next = [{ id: threadId, title: String(res.data.title).slice(0, 48), updated: Date.now() }, ...prev.filter(x => x.id !== threadId)].slice(0, 20);
+            const cached = storage === 'r2' ? loadThreads(storage) : [];
+            const others = new Map([...cached, ...prev].filter(x => x.id !== threadId && !deletedThreads.current.has(`${user}:${x.id}`)).map(x => [x.id, x]));
+            const next = [{ id: threadId, title: String(res.data.title).slice(0, 48), updated: Date.now() }, ...others.values()].slice(0, 20);
             saveThreads(next, storage); return next;
           });
         }
