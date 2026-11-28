@@ -425,7 +425,7 @@ Version actuelle : **0.9.4-beta** (gelée jusqu'au prochain ordre de push).
 Cycle bêta **0.x** — la vraie release sera **1.0.0**. Historique repris depuis la première version interne ; le détail complet et vivant est dans l'app (**Nouveautés**), y compris l’ancien cycle bêta pré-renumérotation, renuméroté en **0.x** (0.0.1 → 0.4.4).
 
 <details>
-<summary>📦 Historique des versions (0.0.1-beta → 0.9.3-beta) — cliquer pour déplier</summary>
+<summary><strong>📦 Historique des versions</strong> · 0.0.1-beta → 0.9.3-beta</summary>
 
 ### 0.9.3-beta
 - Mode démo `test` / `test` : base fictive séparée et modifiable, 1 heure par appareil toutes les 24 h, puis remise à zéro ; avertissement à la connexion, compte à rebours, fonctionne aussi en local, sur le web mobile et Android.

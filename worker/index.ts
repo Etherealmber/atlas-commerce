@@ -1335,7 +1335,7 @@ app.onError(async (err, c) => {
   }
   if (err instanceof SchemaBusyError) {
     c.header('Retry-After', '3');
-    return apiFail(c, err.message, 'SERVICE_UNAVAILABLE');
+    return apiFail(c, err.message, 'SERVICE_UNAVAILABLE', { reason: 'SCHEMA_INITIALIZING' });
   }
   // Authentication errors may contain request secrets; never log their raw exceptions.
   try { if (!errPath.startsWith('/api/reports/') && !errPath.startsWith('/api/auth/') && !errPath.startsWith(EMBEDDED_CHALLENGE_PATH) && !errPath.startsWith(V3_WEBVIEW_CHALLENGE_PATH) && !errPath.startsWith(V3_BROWSER_CHALLENGE_PATH)) console.error('[onError]', c.get('requestId') || '-', c.req.method, errPath, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }

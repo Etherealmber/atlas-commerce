@@ -159,3 +159,9 @@ it('skips the unrelated schema barrier only for reviewed agent chat and thread r
   expect(requiresAutoSqlMigrations('DELETE', '/api/admin/agent/threads/abc')).toBe(false);
   expect(requiresAutoSqlMigrations('POST', '/api/assist/approve')).toBe(true);
 });
+
+it('allows crash intake past unrelated auto-migrations but keeps other writes guarded', () => {
+  expect(requiresAutoSqlMigrations('POST', '/api/crash-reports')).toBe(false);
+  expect(requiresAutoSqlMigrations('GET', '/api/crash-reports')).toBe(true);
+  expect(requiresAutoSqlMigrations('POST', '/api/reports')).toBe(true);
+});

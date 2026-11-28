@@ -6,6 +6,7 @@ export type WorkStatusSource = {
 };
 
 import { journalDeviceContext } from './lib/journalDeviceContext';
+import { reportCrash } from './lib/crashReporter';
 import { readAgentStream } from './lib/agentStream';
 import { getToken, clearToken, refreshSessionRole, getRefreshedTokenFor } from './auth';
 import { getLang } from './i18n/core';
@@ -242,6 +243,12 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
     throw err;
   }
   if (!res.ok || data.success === false) {
+    // Report this specific exhausted initialization error, without URL, query,
+    // request body or other potentially sensitive request data. Never retry writes.
+    if (res.status === 503 && data.code === 'SERVICE_UNAVAILABLE' &&
+        (data.details?.reason === 'SCHEMA_INITIALIZING' || data.error === 'Initialisation en cours. Réessayez dans quelques instants.')) {
+      reportCrash(new Error('Initialisation du schéma indisponible après attente'), { route: '/application' });
+    }
     let msg = data.error || `Erreur (${res.status})`;
     if (/no such column:\s*tax_rate/i.test(msg)) {
       msg = 'Schéma base à jour manquant (TVA). Rechargez après déploiement — migration automatique.';

@@ -34,6 +34,9 @@ export async function ensureAutoSqlMigrations(db: D1Database | null | undefined)
  * proposals only; approval and all business mutation routes remain guarded. */
 export function requiresAutoSqlMigrations(method: string, path: string): boolean {
   const verb = method.toUpperCase();
+  // Crash intake uses its own report/rate-limit tables, not the tables rebuilt
+  // by 0013–0020; allow it to record a migration-busy failure.
+  if (verb === 'POST' && path === '/api/crash-reports') return false;
   if (verb === 'POST' && (path === '/api/assist/chat' || path === '/api/assist/chat/stream')) return false;
   if (verb === 'GET' && path === '/api/admin/agent/threads') return false;
   if ((verb === 'GET' || verb === 'PUT' || verb === 'DELETE') && /^\/api\/admin\/agent\/threads\/[^/]+$/.test(path)) return false;
