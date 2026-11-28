@@ -126,3 +126,23 @@ it('deletes only the authenticated user’s snapshot and transcript for one thre
   const failed = await router.fetch(new Request('https://example.test/api/admin/agent/threads/t1', { method: 'DELETE', headers: { Authorization: 'Bearer session' } }), { IMAGES: { delete: remove } } as any);
   expect(failed.status).toBe(503);
 });
+
+it('actually removes a stored thread and its transcript from the user bucket', async () => {
+  const objects = new Map<string, Uint8Array>([['agent-chats/v2/alice/t1.conv', new Uint8Array([1])], ['agent-chats/v2/bob/t1.conv', new Uint8Array([2])]]);
+  const bucket = {
+    put: async (key: string, bytes: Uint8Array) => { objects.set(key, bytes); return { etag: 'v1' }; },
+    get: async (key: string) => { const bytes = objects.get(key); return bytes ? { etag: 'v1', arrayBuffer: async () => bytes.slice().buffer } : null; },
+    delete: async (keys: string[]) => { for (const key of keys) objects.delete(key); },
+    list: async ({ prefix }: any) => ({ objects: [...objects.keys()].filter(k => k.startsWith(prefix)).map(key => ({ key, uploaded: new Date() })), truncated: false }),
+  };
+  const router = app(); const env: any = { IMAGES: bucket, AGENT_CHAT_SECRET: 'secret' };
+  const url = 'https://example.test/api/admin/agent/threads/t1';
+  const headers = { Authorization: 'Bearer session', 'Content-Type': 'application/json' };
+  expect((await router.fetch(new Request(url, { method: 'PUT', headers, body: JSON.stringify({ messages: [{ role: 'user', text: 'Hello' }] }) }), env)).status).toBe(200);
+  expect((await router.fetch(new Request(url, { method: 'DELETE', headers }), env)).status).toBe(200);
+  expect(objects.has('agent/alice/t1.agent')).toBe(false);
+  expect(objects.has('agent-chats/v2/alice/t1.conv')).toBe(false);
+  expect(objects.has('agent-chats/v2/bob/t1.conv')).toBe(true);
+  const response = await router.fetch(new Request('https://example.test/api/admin/agent/threads', { headers }), env);
+  expect((await response.json() as any).data).toEqual([]);
+});

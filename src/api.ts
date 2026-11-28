@@ -458,7 +458,7 @@ export const api = {
   putAgentThread: (id: string, body: { title?: string; messages?: any[]; expected_version?: string | null }) =>
     request<{ data: { id: string; storage: string; version: string } }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), silent: true } as any),
   deleteAgentThread: (id: string) =>
-    request(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    request<{ success: boolean }>(`/api/admin/agent/threads/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   /* v225 — agent governance, privacy deletes, 2FA, devices */
   dbMigrateStatus: () => request<{ data: { enabled: boolean; primary: string; source: { name: string; rows: number }[]; target: { name: string; rows: number }[] } }>('/api/admin/db-migrate/status'),
   dbMigrateCopy: (body: { tables?: string[]; cursor?: Record<string, number> }) => request<{ data: { copied: Record<string, number>; cursor: Record<string, number>; done: string[]; remainingBudget: number } }>('/api/admin/db-migrate/copy', { method: 'POST', body: JSON.stringify(body) } as any),

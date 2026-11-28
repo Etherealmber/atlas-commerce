@@ -179,3 +179,40 @@ html body aside.atlas-agent-panel .atlas-agent-tools-list { border-inline-start:
 .atlas-agent-approval-menu strong { font-size: 13px; }
 .atlas-agent-approval-menu p { margin: 4px 0 9px; font-size: 11px; line-height: 1.4; color: var(--agent-muted); }
 html body aside.atlas-agent-panel .atlas-agent-approval-menu button:disabled { padding: 0; border: 0; background: transparent; color: var(--agent-muted); font-size: 12px; opacity: .8; }
+
+/* A single title in the compact header; the rail owns history in wide mode. */
+html body aside.atlas-agent-panel .atlas-agent-head span.atlas-agent-workspace-title { display: none; }
+html body aside.atlas-agent-panel .atlas-agent-header-title { align-items: center; overflow: visible; }
+html body aside.atlas-agent-panel .atlas-agent-head button.atlas-agent-history-trigger:not(#agent-ui-a) { flex: 1 1 auto; overflow: hidden; }
+html body aside.atlas-agent-panel .atlas-agent-history-trigger > span { overflow: hidden; flex: 1 1 auto; }
+html body aside.atlas-agent-panel .atlas-agent-history-trigger small { white-space: nowrap; line-height: 1.4; }
+html body aside.atlas-agent-panel .atlas-agent-history-trigger strong { max-width: 100%; }
+@media (min-width: 721px) {
+  html body aside.atlas-agent-panel.atlas-agent-has-sidebar .atlas-agent-head span.atlas-agent-workspace-title { display: block; min-width: 0; }
+}
+/* Unboxed, chronological tool activity, not model reasoning. */
+html body aside.atlas-agent-panel .atlas-agent-msg.assistant .atlas-agent-tools { align-self: stretch; margin: 0 0 10px; padding: 0; }
+html body aside.atlas-agent-panel .atlas-agent-tools button.atlas-agent-tools-toggle:not(#agent-activity-a) { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 3px 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--agent-muted) !important; font-size: 12px; font-weight: 600; text-align: start; }
+.atlas-agent-tools-toggle svg { transition: transform .18s ease; }
+.atlas-agent-tools-toggle svg.is-open { transform: rotate(180deg); }
+html body aside.atlas-agent-panel .atlas-agent-tools-list { gap: 0; margin: 5px 0 0 5px; padding: 2px 0 2px 14px; border-inline-start: 1px solid var(--agent-line); }
+html body aside.atlas-agent-panel .atlas-agent-tools-list li { position: relative; padding: 7px 0; border: 0 !important; border-radius: 0; background: transparent !important; color: var(--agent-muted) !important; line-height: 1.45; }
+html body aside.atlas-agent-panel .atlas-agent-tools-list li::before { content: ''; position: absolute; inset-inline-start: -18px; top: 13px; width: 7px; height: 7px; border-radius: 50%; background: #81a6dc; }
+html body aside.atlas-agent-panel .atlas-agent-tools-list li.bad::before { background: #d56868; }
+html body aside.atlas-agent-panel .atlas-agent-tools-list li span:last-child { flex: none; font-size: 11px; }
+/* Floating speech bubble: neutralize global button skins. */
+html body .atlas-agent-mascot-hint { right: 25px; bottom: 91px; padding: 12px 11px 12px 15px; align-items: flex-start; background: #fff; color: #253753; border: 1px solid #c6d9fb; border-radius: 16px 16px 5px 16px; }
+html body .atlas-agent-mascot-hint::after { content: ''; position: absolute; right: 14px; bottom: -8px; width: 14px; height: 14px; background: inherit; border-right: 1px solid #c6d9fb; border-bottom: 1px solid #c6d9fb; transform: rotate(45deg); }
+html body .atlas-agent-mascot-hint button.atlas-agent-hint-open, html body .atlas-agent-mascot-hint button.atlas-agent-hint-close { min-width: 0 !important; min-height: 0 !important; height: auto !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; background: transparent !important; color: inherit !important; box-shadow: none !important; }
+html body .atlas-agent-mascot-hint button.atlas-agent-hint-open { font-weight: 600; line-height: 1.45; }
+html body .atlas-agent-mascot-hint button.atlas-agent-hint-close { margin-inline-start: 8px; font-size: 18px; line-height: 1; }
+html:not(.atlas-agent-docked) body button.atlas-agent-fab.atlas-agent-fab-premium { width: 60px !important; height: 60px !important; border: 2px solid #fff !important; background: #edf5ff !important; box-shadow: 0 8px 26px #284b8a35, 0 2px 6px #284b8a24 !important; }
+html body aside.atlas-agent-panel .atlas-agent-head .atlas-agent-header-mark { width: 40px; height: 40px; }
+@media (prefers-reduced-motion: reduce) { .atlas-agent-tools-toggle svg { transition: none; } }
+html body aside.atlas-agent-panel .atlas-agent-result-card > details > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.atlas-agent-result-card > details > summary::-webkit-details-marker { display: none; }
+.atlas-agent-result-card > details > summary > span:nth-child(2) { flex: 1; min-width: 0; }
+html body aside.atlas-agent-panel .atlas-agent-result-link { display: inline-flex; align-items: center; gap: 5px; margin: 0 12px 10px; color: #285cab; font-size: 12px; font-weight: 700; text-decoration: none; }
+html body aside.atlas-agent-panel .atlas-agent-result-link:hover { text-decoration: underline; }
+html body aside.atlas-agent-panel .atlas-agent-result-card details > p { margin: 0; padding: 8px 12px; color: var(--agent-muted); font-size: 12px; }
+html body aside.atlas-agent-panel .atlas-agent-approval-menu button:disabled:not(#agent-approval-a):not(#agent-approval-b) { display: block !important; width: 100% !important; min-width: 0 !important; height: auto !important; min-height: 0 !important; padding: 7px 8px !important; border: 1px solid var(--agent-line) !important; border-radius: 8px !important; background: transparent !important; color: var(--agent-muted) !important; -webkit-text-fill-color: var(--agent-muted) !important; text-align: start !important; white-space: normal !important; overflow-wrap: anywhere; line-height: 1.4; opacity: 1; }

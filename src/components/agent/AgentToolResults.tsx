@@ -1,4 +1,5 @@
-import { Table2 } from 'lucide-react';
+import { Table2, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 type Trace = { name: string; ok?: boolean; data?: unknown };
 type Column = { key: string; label: string };
@@ -21,9 +22,10 @@ export function AgentToolResults({ tools }: { tools: Trace[] }) {
     const data = tool.data;
     const rows = Array.isArray(data) ? data : data && typeof data === 'object' && Array.isArray((data as any).items) ? (data as any).items : null;
     if (!rows || rows.some((row: unknown) => !row || typeof row !== 'object' || Array.isArray(row))) return null;
-    return <details className="atlas-agent-result-card" key={`${tool.name}-${index}`}>
+    const invoiceResult = tool.name === 'list_unpaid_invoices' || tool.name === 'list_recent_invoices';
+    return <div className="atlas-agent-result-card" key={`${tool.name}-${index}`}><details>
       <summary><span className="atlas-agent-result-icon"><Table2 size={16} aria-hidden="true" /></span><span><strong>{definition.title}</strong><small>{rows.length} résultat{rows.length === 1 ? '' : 's'} renvoyé{rows.length === 1 ? '' : 's'} · données au moment de la réponse</small></span><span className="atlas-agent-result-view">Voir</span></summary>
       {rows.length ? <div className="atlas-agent-result-table"><table><thead><tr>{definition.columns.map(column => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{rows.slice(0, 20).map((row: Record<string, unknown>, i: number) => <tr key={i}>{definition.columns.map(column => <td key={column.key}>{scalar(row[column.key])}</td>)}</tr>)}</tbody></table>{rows.length > 20 && <p>20 premières lignes affichées.</p>}</div> : <p>Aucun résultat renvoyé par cet outil.</p>}
-    </details>;
+    </details>{invoiceResult && <Link className="atlas-agent-result-link" to="/invoices">Ouvrir les factures <ArrowRight size={14} aria-hidden="true" /></Link>}</div>;
   })}</>;
 }

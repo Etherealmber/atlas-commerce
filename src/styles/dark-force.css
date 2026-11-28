@@ -8072,3 +8072,9 @@ html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-tools-list li 
 
 html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-current-title { color: var(--agent-ink) !important; -webkit-text-fill-color: var(--agent-ink) !important; }
 html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-sync-status { color: var(--agent-ink) !important; background: var(--agent-surface) !important; border-color: var(--agent-line) !important; }
+/* Agent activity and mascot bubble retain their scoped appearance in dark mode. */
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-tools-list li:not(#agent-activity-a) { background: transparent !important; border: 0 !important; color: var(--agent-muted) !important; }
+html[data-theme="dark"] body .atlas-agent-mascot-hint { background: #24344c; color: #eff5ff; border-color: #6683b0; }
+html[data-theme="dark"] body .atlas-agent-mascot-hint::after { border-color: #6683b0; }
+html[data-theme="dark"] body .atlas-agent-mascot-hint button.atlas-agent-hint-open:not(#agent-activity-a), html[data-theme="dark"] body .atlas-agent-mascot-hint button.atlas-agent-hint-close:not(#agent-activity-a) { background: transparent !important; color: #eff5ff !important; -webkit-text-fill-color: #eff5ff !important; box-shadow: none !important; }
+html[data-theme="dark"] body aside.atlas-agent-panel .atlas-agent-result-link { color: #9fc2ff !important; -webkit-text-fill-color: #9fc2ff !important; }

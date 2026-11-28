@@ -153,13 +153,12 @@ function sourcesFromTools(tools: ToolTrace[]): { label: string; href: string }[]
       add('Boîte d’actions', '/actions');
     }
     if (t.name === 'list_unpaid_invoices' || t.name === 'list_recent_invoices' || t.name === 'get_invoice_brief') {
-      const items = d?.items || (d?.id ? [d] : []);
+      const items = Array.isArray(d) ? d : d?.items || (d?.id ? [d] : []);
       if (Array.isArray(items)) {
         for (const inv of items.slice(0, 4)) {
           if (inv?.id) add(String(inv.number || `FA #${inv.id}`), `/invoices/${inv.id}`);
         }
       }
-      add('Factures', '/invoices');
     }
     if (t.name === 'list_open_quotes') add('Devis', '/quotes');
     if (t.name === 'search_clients') add('Clients', '/clients');
@@ -567,6 +566,7 @@ export default function AtlasAgent() {
   const [deletingThread, setDeletingThread] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<(ThreadMeta & { user: string }) | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const deletedThreads = useRef(new Set<string>());
   const [expanded, setExpanded] = useState(() => {
     try { return localStorage.getItem('atlas_agent_expanded') === '1'; } catch { return false; }
   });
@@ -854,10 +854,11 @@ export default function AtlasAgent() {
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    const historyUser = scopeUser();
     (async () => {
       try {
         const res = await api.listAgentThreads();
-        if (cancelled) return;
+        if (cancelled || scopeUser() !== historyUser) return;
         setHistoryError(Boolean(res?.meta?.unreadable_count));
         setHistoryPending(Boolean(res?.meta?.pending_count));
         const remote = res?.data;
@@ -867,7 +868,7 @@ export default function AtlasAgent() {
           for (const t of prev) byId.set(t.id, t);
           for (const r of remote) {
             const id = String(r.id || '');
-            if (!id || (r.message_count === 0 && String(r.title || '') === 'Sans titre')) continue;
+            if (!id || deletedThreads.current.has(`${historyUser}:${id}`) || (r.message_count === 0 && String(r.title || '') === 'Sans titre')) continue;
             const updated = r.updated_at ? new Date(r.updated_at).getTime() : Date.now();
             const existing = byId.get(id);
             byId.set(id, {
@@ -1385,12 +1386,13 @@ export default function AtlasAgent() {
     const user = scopeUser();
     setDeletingThread(thread.id); setDeleteError('');
     try {
-      await api.deleteAgentThread(thread.id);
+      const result = await api.deleteAgentThread(thread.id);
+      if (result?.success !== true) throw new Error('Deletion not acknowledged');
+      deletedThreads.current.add(`${user}:${thread.id}`);
       if (scopeUser() !== user) return;
       try { localStorage.removeItem(msgsKey(thread.id)); sessionStorage.removeItem(msgsKey(thread.id)); localStorage.removeItem(pendingKey(thread.id)); } catch { /* remote deletion already completed */ }
       setThreads(prev => { const next = prev.filter(t => t.id !== thread.id); saveThreads(next); return next; });
       if (thread.id === threadId) { conversationRevision.current++; syncRef.current = null; setThreadId(newThreadId()); setMsgs([WELCOME]); setInput(''); setAttachments([]); setPendingAction(null); }
-      setHistoryOpen(false);
     } catch { if (scopeUser() === user) setDeleteError('Suppression impossible. La conversation reste affichée ; réessayez.'); }
     finally { if (scopeUser() === user) setDeletingThread(null); }
   };
@@ -1539,6 +1541,8 @@ export default function AtlasAgent() {
         
 
 
+        {deletingThread && <div className="atlas-agent-sync-status" role="status">Suppression de la conversation…</div>}
+        {deleteError && !historyOpen && <div className="atlas-agent-sync-status" role="alert">{deleteError}</div>}
         {syncStatus !== 'saved' && <div className="atlas-agent-sync-status" role="status">
           {syncStatus === 'loading' ? 'Chargement de la conversation R2…' : syncStatus === 'saving' || syncStatus === 'pending' ? 'Sauvegarde de la conversation sur R2…' : syncStatus === 'conflict' ? 'Conversation modifiée ailleurs : votre copie locale est conservée, sans écraser R2.' : syncStatus === 'too-large' ? 'Conversation trop volumineuse pour R2. Démarrez une nouvelle conversation ; la copie locale est conservée si possible.' : 'R2 indisponible : sauvegarde locale seulement, si le navigateur le permet.'}
           {syncStatus === 'offline' && <button type="button" className="secondary" onClick={() => setReloadThread(v => v + 1)}>Réessayer</button>}
@@ -1585,7 +1589,7 @@ export default function AtlasAgent() {
                     aria-expanded={!!expandedTools[i]}
                     onClick={() => setExpandedTools((s) => ({ ...s, [i]: !s[i] }))}
                   >
-                    {expandedTools[i] ? '▾' : '▸'} {m.tools.some((tool) => tool.ok === false) ? 'Activité avec erreur' : m.tools.some((tool) => tool.ok !== true) ? 'Activité' : 'Activité terminée'} · {m.tools.length} étape{m.tools.length > 1 ? 's' : ''}
+                    {m.tools.some((tool) => tool.ok === false) ? 'Activité avec erreur' : m.tools.some((tool) => tool.ok !== true) ? 'Activité' : 'Activité terminée'} · {m.tools.length} étape{m.tools.length > 1 ? 's' : ''} <ChevronDown size={14} className={expandedTools[i] ? 'is-open' : ''} aria-hidden="true" />
                   </button>
                   {expandedTools[i] && (
                     <ul className="atlas-agent-tools-list">
@@ -1729,9 +1733,9 @@ export default function AtlasAgent() {
               ) : null}
 
 
-              {m.sources && m.sources.length > 0 && (
+              {m.sources?.some((source) => source.href !== '/invoices' || source.label !== 'Factures') && (
                 <div className="atlas-agent-sources">
-                  {m.sources.map((s, j) => (
+                  {m.sources.filter((source) => source.href !== '/invoices' || source.label !== 'Factures').map((s, j) => (
                     <Link key={j} to={s.href} className="atlas-agent-source">
                       {s.label}
                     </Link>
