@@ -50,6 +50,9 @@ begin
       returning revision into next_revision;
   end if;
   if next_revision is null then return jsonb_build_object('ok', false, 'conflict', true); end if;
+  -- A completed model turn is activity even if the client snapshot is delayed.
+  update public.atlas_agent_conversations set last_activity_at = now()
+    where account_id = p_account and thread_id = p_thread;
   return jsonb_build_object('ok', true, 'version', next_revision::text);
 end $$;
 revoke all on function public.atlas_agent_transcript_get(text,text) from public, anon, authenticated;

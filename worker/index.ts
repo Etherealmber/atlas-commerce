@@ -1,3 +1,4 @@
+import { runScheduledAgentCleanup } from './lib/agentCleanupScheduled';
 import { parseJournalDeviceContext } from './lib/journalDeviceContext';
 import { withBufferedJournal } from './lib/journalBuffered';
 import { otpCopy } from './lib/otpCopy';
@@ -2869,6 +2870,14 @@ export default {
     } catch (e) {
       // Never throw from the cron handler — the next run drains the outbox.
       console.error('[cron-finance] reminders failed:', String((e as any)?.message || e));
+    }
+    // Supabase Agent expiry and encrypted-image cleanup only in the selected
+    // storage mode. Failed or unresolved jobs remain queued for the next run.
+    try {
+      const agentCleanup = await runScheduledAgentCleanup(env);
+      if (!agentCleanup.skipped) console.log('[cron-agent-cleanup]', JSON.stringify(agentCleanup));
+    } catch {
+      console.error('[cron-agent-cleanup] unavailable');
     }
     // v260 — drain queued crash/user reports to GitHub once a token exists.
     try {

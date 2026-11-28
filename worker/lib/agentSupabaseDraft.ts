@@ -1,4 +1,4 @@
-/** Staging-only adapter. Not wired to Agent routes; no R2/image cleanup. */
+/** Supabase Agent adapter. Production requires explicit configuration and provisioning. */
 import type { Env } from '../env';
 import { supabaseJournalConfig } from './journalSupabase';
 import { decryptAgentPayload, encryptAgentPayload } from '../../experiments/agent-storage/crypto';
@@ -11,7 +11,7 @@ export class AgentStorageConflict extends Error {
 }
 
 type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list' | 'atlas_agent_tombstone' | 'atlas_agent_transcript_get' | 'atlas_agent_transcript_put' | 'atlas_agent_expire' | 'atlas_agent_cleanup_claim' | 'atlas_agent_cleanup_finish' | 'atlas_agent_upload_begin' | 'atlas_agent_upload_finish';
-type DraftEnv = Env & { AGENT_HISTORY_ENCRYPTION_KEY?: string };
+type DraftEnv = Env;
 
 /** Hash exact authenticated username; never use a lossy R2-safe encoding. */
 export async function agentAccountId(username: string): Promise<string> {
@@ -91,6 +91,14 @@ export async function tombstoneAgentDraft(env: DraftEnv, username: string, threa
 /** Explicitly limited to an isolated test environment, never production/demo. */
 export function useAgentStoragePreview(env: any): boolean {
   return env?.ENVIRONMENT === 'agent-storage-test' && env?.AGENT_STORAGE_PREVIEW === '1' && env?.ATLAS_DEMO !== '1';
+}
+
+/** Explicit production opt-in; demo remains isolated. No R2 fallback on failure. */
+export function useAgentSupabaseStorage(env: any): boolean {
+  return useAgentStoragePreview(env) || (env?.ENVIRONMENT === 'production' && env?.AGENT_HISTORY_STORAGE === 'supabase' && env?.ATLAS_DEMO !== '1');
+}
+export function agentSupabaseStorageLabel(env: any): 'supabase' | 'supabase-preview' {
+  return useAgentStoragePreview(env) ? 'supabase-preview' : 'supabase';
 }
 
 /** Independent encrypted model-context revision, never falls back to R2. */

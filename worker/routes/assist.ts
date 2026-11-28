@@ -1,4 +1,4 @@
-import { getAgentDraft, getAgentTranscriptDraft, putAgentTranscriptDraft, useAgentStoragePreview } from '../lib/agentSupabaseDraft';
+import { getAgentDraft, getAgentTranscriptDraft, putAgentTranscriptDraft, useAgentSupabaseStorage } from '../lib/agentSupabaseDraft';
 import type { Hono } from 'hono';
 import type { Env } from '../env';
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
@@ -257,6 +257,8 @@ async function agentAccessVerdict(
 
 /** Delete Atlas Agent conversation blobs older than `days` (default 30) from R2. */
 export async function purgeAgentConversationsOlderThan(env: any, days = 30): Promise<{ deleted: number }> {
+  // No legacy R2 conversation deletion as a side effect of Supabase cutover.
+  if (useAgentSupabaseStorage(env)) return { deleted: 0 };
   let deleted = 0;
   if (!env?.IMAGES) return { deleted: 0 };
   const cutoff = Date.now() - Math.max(1, days) * 86400000;
@@ -358,7 +360,7 @@ async function loadCompactHistoryWithTranscript(
   thread: string,
   maxTurns = 6,
 ): Promise<{ history: string; existingPlain: string; etag: string | null }> {
-  if (useAgentStoragePreview(env)) {
+  if (useAgentSupabaseStorage(env)) {
     // Until clients coordinate first-turn creation, never create a parent here:
     // a client may have already read version null and be preparing its snapshot.
     if (!await getAgentDraft(env, username, thread)) throw new Error('Agent parent required');
@@ -427,7 +429,7 @@ async function putAgentChatTurn(
   },
 ) {
   try {
-    if (!env.IMAGES && !useAgentStoragePreview(env)) return;
+    if (!env.IMAGES && !useAgentSupabaseStorage(env)) return;
     const thread = row.thread_id || 'live';
     const key = agentConvKey(row.username, thread);
     const ts = new Date().toISOString();
@@ -444,7 +446,7 @@ async function putAgentChatTurn(
       body = lines.join('\n');
       if (!body.endsWith('\n')) body += '\n';
     }
-    if (useAgentStoragePreview(env)) {
+    if (useAgentSupabaseStorage(env)) {
       await putAgentTranscriptDraft(env, row.username, thread, body, row.etag);
       return;
     }
@@ -757,7 +759,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   });
   
   app.post('/api/settings/agent-data/delete', async (c) => {
-    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pendant le test de stockage.' }, 503);
+    if (useAgentSupabaseStorage(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pour ce mode de stockage.' }, 503);
     const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
     if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
@@ -782,7 +784,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   
   
   app.get('/api/assist/transcripts', async (c) => {
-    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pendant le test de stockage.' }, 503);
+    if (useAgentSupabaseStorage(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pour ce mode de stockage.' }, 503);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
     if (!session.username) return c.json({ success: false, error: 'Non authentifié' }, 401);
     if (!c.env.IMAGES) return c.json({ success: true, data: [], meta: { note: 'R2 indisponible' } });
@@ -811,7 +813,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   });
   
   app.get('/api/assist/transcripts/get', async (c) => {
-    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pendant le test de stockage.' }, 503);
+    if (useAgentSupabaseStorage(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pour ce mode de stockage.' }, 503);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
     if (!session.username) return c.json({ success: false, error: 'Non authentifié' }, 401);
     if (!c.env.IMAGES) return c.json({ success: false, error: 'R2 indisponible' }, 503);
@@ -871,8 +873,8 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   
     let body: any = {};
     try { body = await c.req.json(); } catch { body = {}; }
-    if (useAgentStoragePreview(c.env) && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
-      return c.json({ success: false, code: 'AGENT_IMAGE_UNAVAILABLE', error: 'Pièces jointes indisponibles dans ce test.' }, 422);
+    if (useAgentSupabaseStorage(c.env) && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
+      return c.json({ success: false, code: 'AGENT_IMAGE_UNAVAILABLE', error: 'Pièces jointes indisponibles pour ce mode de stockage.' }, 422);
     }
     if (c.env.ATLAS_DEMO === '1' && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
       return c.json({ success: false, code: 'DEMO_AI_TEXT_ONLY', error: 'Demo AI supports text only.' }, 400);
@@ -1094,8 +1096,8 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     }
     let body: any = {};
     try { body = await c.req.json(); } catch { body = {}; }
-    if (useAgentStoragePreview(c.env) && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
-      return c.json({ success: false, code: 'AGENT_IMAGE_UNAVAILABLE', error: 'Pièces jointes indisponibles dans ce test.' }, 422);
+    if (useAgentSupabaseStorage(c.env) && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
+      return c.json({ success: false, code: 'AGENT_IMAGE_UNAVAILABLE', error: 'Pièces jointes indisponibles pour ce mode de stockage.' }, 422);
     }
     if (c.env.ATLAS_DEMO === '1' && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
       return c.json({ success: false, code: 'DEMO_AI_TEXT_ONLY', error: 'Demo AI supports text only.' }, 400);

@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { registerMailboxRoutes } from '../routes/mailbox';
 
 afterEach(() => vi.unstubAllGlobals());
-it('previews list, versioned save, load, conflict and tombstone without R2 or plaintext', async () => {
+it.each([{ ENVIRONMENT: 'agent-storage-test', AGENT_STORAGE_PREVIEW: '1', label: 'supabase-preview' }, { ENVIRONMENT: 'production', AGENT_HISTORY_STORAGE: 'supabase', label: 'supabase' }])('uses $label for versioned list, save, load and deletion without R2', async (mode) => {
   const rows = new Map<string, any>(); const writes = vi.fn();
   vi.stubGlobal('fetch', vi.fn(async (url: string, options: RequestInit) => {
     const body = JSON.parse(String(options.body)); const key = `${body.p_account}:${body.p_thread}`;
@@ -19,11 +19,11 @@ it('previews list, versioned save, load, conflict and tombstone without R2 or pl
   }));
   const app = new Hono<any>();
   registerMailboxRoutes(app, { sessionUserFromHeader: () => ({ username: 'alice', role: 'owner' }) } as any);
-  const env: any = { ENVIRONMENT: 'agent-storage-test', AGENT_STORAGE_PREVIEW: '1', SUPABASE_JOURNAL_URL: 'https://project.supabase.co', SUPABASE_JOURNAL_SECRET_KEY: 'sb_secret_test', AGENT_HISTORY_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(42))) };
+  const env: any = { ...mode, SUPABASE_JOURNAL_URL: 'https://project.supabase.co', SUPABASE_JOURNAL_SECRET_KEY: 'sb_secret_test', AGENT_HISTORY_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(42))) };
   const path = 'https://example.test/api/admin/agent/threads/t1';
   const request = (method: string, body?: any, url = path) => app.fetch(new Request(url, { method, headers: { Authorization: 'Bearer session', 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) }), env);
   const payload = { title: 'Private title', messages: [{ role: 'user', text: 'private message' }], expected_version: null };
-  const put = await request('PUT', payload); expect(put.status).toBe(200); expect((await put.json() as any).data).toMatchObject({ storage: 'supabase-preview', version: '1' });
+  const put = await request('PUT', payload); expect(put.status).toBe(200); expect((await put.json() as any).data).toMatchObject({ storage: mode.label, version: '1' });
   expect(JSON.stringify(writes.mock.calls)).not.toContain('private message');
   const list = await request('GET', undefined, 'https://example.test/api/admin/agent/threads'); expect((await list.json() as any).data).toMatchObject([{ id: 't1', title: 'Private title' }]);
   const get = await request('GET'); expect((await get.json() as any).data.messages[0].text).toBe('private message');
@@ -40,4 +40,21 @@ it('never enables the preview for production or demo contexts', async () => {
   expect(useAgentStoragePreview({ ENVIRONMENT: 'production', AGENT_STORAGE_PREVIEW: '1' })).toBe(false);
   expect(useAgentStoragePreview({ ENVIRONMENT: 'agent-storage-test', AGENT_STORAGE_PREVIEW: '1', ATLAS_DEMO: '1' })).toBe(false);
   expect(useAgentStoragePreview({ ENVIRONMENT: 'agent-storage-test' })).toBe(false);
+});
+
+it('selects Supabase only with explicit production configuration and never falls back to R2 on failure', async () => {
+  const { useAgentSupabaseStorage } = await import('../lib/agentSupabaseDraft');
+  const { purgeAgentConversationsOlderThan } = await import('../routes/assist');
+  const { runScheduledAgentCleanup } = await import('../lib/agentCleanupScheduled');
+  expect(useAgentSupabaseStorage({ ENVIRONMENT: 'production' })).toBe(false);
+  expect(useAgentSupabaseStorage({ ENVIRONMENT: 'production', AGENT_HISTORY_STORAGE: 'supabase' })).toBe(true);
+  expect(useAgentSupabaseStorage({ ENVIRONMENT: 'production', AGENT_HISTORY_STORAGE: 'supabase', ATLAS_DEMO: '1' })).toBe(false);
+  expect(await runScheduledAgentCleanup({ ENVIRONMENT: 'production' } as any)).toEqual({ skipped: true });
+  const bucket = { list: vi.fn(), get: vi.fn(), put: vi.fn(), delete: vi.fn() };
+  const env: any = { ENVIRONMENT: 'production', AGENT_HISTORY_STORAGE: 'supabase', IMAGES: bucket };
+  const app = new Hono<any>(); registerMailboxRoutes(app, { sessionUserFromHeader: () => ({ username: 'alice', role: 'owner' }) } as any);
+  const response = await app.request('/api/admin/agent/threads/t1', { method: 'PUT', headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [], expected_version: null }) }, env);
+  expect(response.status).toBe(503);
+  expect(await purgeAgentConversationsOlderThan(env)).toEqual({ deleted: 0 });
+  expect(bucket.put).not.toHaveBeenCalled(); expect(bucket.get).not.toHaveBeenCalled(); expect(bucket.list).not.toHaveBeenCalled(); expect(bucket.delete).not.toHaveBeenCalled();
 });

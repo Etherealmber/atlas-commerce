@@ -24,7 +24,9 @@ it('stores independent encrypted context with CAS and deletes it with its parent
     expect(await getAgentTranscriptDraft(env, 'alice', 't', fetcher)).toEqual({ payload: 'private context', version: '1' });
     expect(await getAgentTranscriptDraft(env, 'bob', 't', fetcher)).toBeNull();
     expect(JSON.stringify((await db.query('select * from public.atlas_agent_transcripts')).rows)).not.toContain('private context');
+    await db.query("update public.atlas_agent_conversations set last_activity_at = now() - interval '29 days' where account_id=$1 and thread_id='t'", [account]);
     expect(await putAgentTranscriptDraft(env, 'alice', 't', 'next', '1', fetcher)).toBe('2');
+    expect((await db.query<any>("select last_activity_at > now() - interval '1 minute' as recent from public.atlas_agent_conversations where account_id=$1 and thread_id='t'", [account])).rows[0].recent).toBe(true);
     await expect(putAgentTranscriptDraft(env, 'alice', 't', 'stale', '1', fetcher)).rejects.toBeInstanceOf(AgentStorageConflict);
     await db.query('select public.atlas_agent_tombstone($1,$2)', [account, 't']);
     expect((await db.query<any>('select count(*)::int as n from public.atlas_agent_transcripts')).rows[0].n).toBe(0);

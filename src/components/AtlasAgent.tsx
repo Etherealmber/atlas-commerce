@@ -95,7 +95,7 @@ const ACTIVE_THREAD_KEY = 'atlas_agent_active_thread';
 function scopeUser(): string {
   try { return String(getUsername() || 'anon').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 64); } catch { return 'anon'; }
 }
-function threadsKey(storage = 'r2'): string { return `${THREADS_KEY}:${scopeUser()}${storage === 'supabase-preview' ? ':supabase-preview' : ''}`; }
+function threadsKey(storage = 'r2'): string { return `${THREADS_KEY}:${scopeUser()}${storage === 'supabase' ? ':supabase-prod' : storage === 'supabase-preview' ? ':supabase-preview' : ''}`; }
 function activeThreadKey(): string { return `${ACTIVE_THREAD_KEY}:${scopeUser()}`; }
 
 function pageMeta(pathname: string): { title: string; hint: string; path: string } {
@@ -210,7 +210,7 @@ function threadSnapshot(messages: Msg[]): Msg[] {
     return { ...rest, ...(images?.length ? { images } : { images: undefined }) };
   });
 }
-function pendingKey(id: string, storage = 'r2') { return `atlas_agent_pending_v1:${scopeUser()}:${storage === 'supabase-preview' ? 'supabase-preview:' : ''}${id}`; }
+function pendingKey(id: string, storage = 'r2') { return `atlas_agent_pending_v1:${scopeUser()}:${storage === 'supabase' ? 'supabase-prod:' : storage === 'supabase-preview' ? 'supabase-preview:' : ''}${id}`; }
 
 function saveThreads(list: ThreadMeta[], storage = 'r2') {
   try {
@@ -226,7 +226,7 @@ function fmtReset(iso?: string): string {
 }
 
 function msgsKey(threadId: string, storage = 'r2') {
-  return `${MSGS_KEY}:${scopeUser()}:${storage === 'supabase-preview' ? 'supabase-preview:' : ''}${threadId}`;
+  return `${MSGS_KEY}:${scopeUser()}:${storage === 'supabase' ? 'supabase-prod:' : storage === 'supabase-preview' ? 'supabase-preview:' : ''}${threadId}`;
 }
 
 function loadMsgs(threadId: string, storage = 'r2'): Msg[] {
@@ -794,7 +794,7 @@ export default function AtlasAgent() {
           setSyncStatus('pending');
         } else {
           state.baseline = JSON.stringify(threadSnapshot(local.length ? local : [WELCOME]));
-          if (storage === 'supabase-preview') setMsgs(local.length ? local : [WELCOME]);
+          if ((storage === 'supabase-preview' || storage === 'supabase')) setMsgs(local.length ? local : [WELCOME]);
           setSyncStatus('saved');
         }
         if (res?.data?.title && remote.length) {
@@ -837,7 +837,7 @@ export default function AtlasAgent() {
       const title = loadThreads(state.storage).find(t => t.id === threadId)?.title || String(snapshot.find(m => m.role === 'user')?.text || 'Sans titre').trim().slice(0, 48);
       void api.putAgentThread(threadId, { title, messages: snapshot, expected_version: state.version }).then(res => {
         if (scopeUser() !== state.user) return;
-        if (!['r2', 'supabase-preview'].includes(res?.data?.storage) || !res.data.version) throw new Error('No storage acknowledgement');
+        if (!['r2', 'supabase-preview', 'supabase'].includes(res?.data?.storage) || !res.data.version) throw new Error('No storage acknowledgement');
         state.version = res.data.version; state.baseline = serialized;
         const latest = loadMsgs(threadId, state.storage);
         if (JSON.stringify(threadSnapshot(latest)) === serialized) { localStorage.removeItem(pendingStorageKey); if (syncRef.current === state) setSyncStatus('saved'); }
@@ -866,7 +866,7 @@ export default function AtlasAgent() {
         setHistoryPending(Boolean(res?.meta?.pending_count));
         const remote = res?.data;
         if (!Array.isArray(remote)) return;
-        const preview = res?.meta?.storage === 'supabase-preview';
+        const preview = ['supabase-preview', 'supabase'].includes(res?.meta?.storage || '');
         if (!remote.length && !preview) return;
         setThreads((prev) => {
           const byId = new Map<string, ThreadMeta>();
@@ -883,7 +883,7 @@ export default function AtlasAgent() {
             });
           }
           const next = [...byId.values()].sort((a, b) => b.updated - a.updated).slice(0, 20);
-          saveThreads(next, preview ? 'supabase-preview' : 'r2');
+          saveThreads(next, preview ? res.meta!.storage : 'r2');
           return next;
         });
       } catch { if (!cancelled) setHistoryError(true); }
@@ -1281,12 +1281,12 @@ export default function AtlasAgent() {
           ].filter(Boolean).join('\n') : '',
         ].filter(Boolean).join('\n');
         const state = syncRef.current;
-        if (state?.storage === 'supabase-preview' && state.version === null) {
+        if (state && ['supabase-preview', 'supabase'].includes(state.storage) && state.version === null) {
           if (!state.ready || state.blocked || state.inFlight || state.id !== threadId || state.user !== scopeUser()) throw new Error('Conversation indisponible : réessayez après synchronisation.');
           state.inFlight = true;
           try {
             const created = await api.putAgentThread(threadId, { title: 'Sans titre', messages: [], expected_version: null });
-            if (created?.data?.storage !== 'supabase-preview' || !created.data.version) throw new Error('Confirmation de sauvegarde manquante.');
+            if (!['supabase', 'supabase-preview'].includes(created?.data?.storage) || !created.data.version) throw new Error('Confirmation de sauvegarde manquante.');
             if (syncRef.current !== state || state.user !== scopeUser() || ac.signal.aborted) throw new Error('Conversation modifiée.');
             state.version = created.data.version;
             // The current message will be saved using this new version after the reply.

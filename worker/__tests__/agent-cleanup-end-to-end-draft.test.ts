@@ -3,6 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { agentAccountId, agentCleanupQueueDraft } from '../lib/agentSupabaseDraft';
 import { runAgentCleanupDraft } from '../../experiments/agent-storage/cleanup';
+import { runScheduledAgentCleanup } from '../lib/agentCleanupScheduled';
 
 it('connects the queue RPCs to bounded R2 deletion without completing during an unresolved upload', async () => {
   const db = new PGlite();
@@ -31,7 +32,8 @@ it('connects the queue RPCs to bounded R2 deletion without completing during an 
     // The upload is now known completed and the object's deletion confirmed.
     await db.query('select public.atlas_agent_upload_finish($1,$2,$3,$4)', [account, 'thread', image, true]);
     await db.exec("update public.atlas_agent_cleanup_queue set next_attempt_at = now() - interval '1 second'");
-    expect(await runAgentCleanupDraft(queue, bucket)).toEqual({ expired: 0, claimed: 1, failed: 0, pending: 0 });
+    vi.stubGlobal('fetch', fetcher);
+    expect(await runScheduledAgentCleanup({ ...env, ENVIRONMENT: 'production', AGENT_HISTORY_STORAGE: 'supabase', IMAGES: bucket })).toEqual({ skipped: false, expired: 0, claimed: 1, failed: 0, pending: 0 });
     expect((await db.query<any>('select count(*)::int n from public.atlas_agent_cleanup_queue')).rows[0].n).toBe(0);
-  } finally { await db.close(); }
+  } finally { vi.unstubAllGlobals(); await db.close(); }
 });
