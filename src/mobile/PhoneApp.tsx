@@ -16,6 +16,7 @@ import PhoneDock, { canOpenPhoneBalance, canOpenPhoneClients, canOpenPhoneEmploy
 import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
+import { preparePhonePreviewTurn, finishPhonePreviewTurn } from './agentPreviewSync';
 import { t as translate } from '../i18n/core';
 import { AgentMarkdown } from '../components/agent/AgentMarkdown';
 import { AgentClarification, parseClarification } from '../components/agent/AgentClarification';
@@ -1351,16 +1352,43 @@ function PhonePageFrame({ agent, disabled, children }: { agent: boolean; disable
   return agent ? <>{children}</> : <PageTransition disabled={disabled}>{children}</PageTransition>;
 }
 
-export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated }: { onNavigate?: (path: string) => void; onBack?: () => void; onTheme?: (theme: 'light' | 'dark' | 'system') => void; onProductCreated?: (direct: boolean) => void } = {}) {
+type PhoneAgentProps = { onNavigate?: (path: string) => void; onBack?: () => void; onTheme?: (theme: 'light' | 'dark' | 'system') => void; onProductCreated?: (direct: boolean) => void };
+type PhoneAgentStorage = 'r2' | 'supabase' | 'supabase-preview';
+
+/** Never load local conversations until the server identifies its storage mode. */
+export function PhoneAgentMobile(props: PhoneAgentProps = {}) {
+  const [mode, setMode] = useState<PhoneAgentStorage | null>(null);
+  const [failure, setFailure] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    setFailure(false);
+    api.assistStatus().then(result => {
+      if (cancelled) return;
+      if (!result?.data || typeof result.data.configured !== 'boolean') { setFailure(true); return; }
+      const capability = result.data.agent_history;
+      // Older Workers omit the field and use the legacy protocol.
+      if (!capability) { setMode('r2'); return; }
+      if (capability.storage === 'r2' && capability.require_expected_version === false) setMode('r2');
+      else if ((capability.storage === 'supabase' || capability.storage === 'supabase-preview') && capability.require_expected_version === true && capability.version_type === 'string') setMode(capability.storage);
+      else setFailure(true);
+    }).catch(() => { if (!cancelled) setFailure(true); });
+    return () => { cancelled = true; };
+  }, [attempt]);
+  if (!mode) return <div className="ph-agent-shell" role="status">{failure ? <><p>Stockage de l’Agent indisponible. Les conversations locales restent sur cet appareil.</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Réessayer</button></> : <p>Chargement de l’Agent…</p>}</div>;
+  return <PhoneAgentMobileReady {...props} storageMode={mode} />;
+}
+
+function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, storageMode }: PhoneAgentProps & { storageMode: PhoneAgentStorage }) {
   type Msg = { role: 'user' | 'assistant'; text: string };
   // Never display the old unscoped local conversation for a different account.
   const storageKey = useMemo(() => {
     try {
       const username = localStorage.getItem('stock_auth_user');
       if (!username) return null;
-      return `atlas-agent-mobile-msgs-v2:${encodeURIComponent(getBase() || window.location.origin)}:${encodeURIComponent(username)}`;
+      return `atlas-agent-mobile-msgs-v2:${encodeURIComponent(getBase() || window.location.origin)}:${encodeURIComponent(username)}${storageMode === 'r2' ? '' : `:${storageMode}`}`;
     } catch { return null; }
-  }, []);
+  }, [storageMode]);
   const [threadId, setThreadId] = useState(() => {
     try {
       const raw = storageKey && localStorage.getItem(storageKey);
@@ -1527,30 +1555,39 @@ export function PhoneAgentMobile({ onNavigate, onBack, onTheme, onProductCreated
     const text = (prompt ?? input).trim();
     if (!text || sending.current || (demoAiReset && Date.now() < demoAiReset)) return;
     sending.current = true;
-    setQuickNotice('');
-    followMessages.current = true; setShowLatest(false);
-    if (inputRef.current) inputRef.current.style.height = '';
-    setInput('');
-    setMsgs((m) => [...m, { role: 'user', text }]);
-    setBusy(true);
+    setBusy(true); setQuickNotice('');
+    let prepared: Awaited<ReturnType<typeof preparePhonePreviewTurn>> = null;
+    let posted = false;
     try {
+      if (storageMode !== 'r2') {
+        prepared = await preparePhonePreviewTurn(api, threadId, msgs, text);
+        // A mode change or ambiguous response must never fall through to chat.
+        if (!prepared || prepared.storage !== storageMode) throw new Error('Le mode de stockage a changé. Rouvrez l’Agent.');
+      }
+      followMessages.current = true; setShowLatest(false);
+      if (inputRef.current) inputRef.current.style.height = '';
+      setInput('');
+      setMsgs((m) => [...m, { role: 'user', text }]);
+      posted = true;
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Casablanca';
       const res = await api.assistChat(text, { task: 'mobile_field', timezone, thread_id: threadId });
       const reply = res.data?.reply;
       if (typeof reply !== 'string' || !reply.trim()) throw new Error('Aucune réponse reçue. Réessayez.');
       setMsgs((m) => [...m, { role: 'assistant', text: reply }]);
+      if (prepared) {
+        try { await finishPhonePreviewTurn(api, threadId, prepared, reply); }
+        catch { setQuickNotice('Réponse reçue mais sauvegarde serveur non confirmée. Conservez cette conversation et vérifiez la connexion.'); }
+      }
     } catch (e: any) {
       if (e?.code === 'DEMO_AI_QUOTA') {
         const reset = Date.parse(e?.body?.resets_at || '');
         setDemoAiReset(Number.isFinite(reset) && reset > Date.now() ? reset : Date.now() + 60_000);
       }
-      setMsgs((m) => [
-        ...m,
-        {
-          role: 'assistant',
-          text: e?.message || 'Impossible de joindre l’assistant. Vérifiez la connexion ou la config API.',
-        },
-      ]);
+      if (storageMode !== 'r2') {
+        setQuickNotice(e?.message || 'Synchronisation impossible. Réessayez après vérification.');
+      } else if (posted) {
+        setMsgs((m) => [...m, { role: 'assistant', text: e?.message || 'Impossible de joindre l’assistant. Vérifiez la connexion ou la config API.' }]);
+      }
     } finally {
       sending.current = false;
       setBusy(false);

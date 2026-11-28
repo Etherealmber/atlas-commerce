@@ -7,7 +7,7 @@ import { usePhoneTopBar } from '../mobile/usePhoneTopBar';
 import { api } from '../api';
 
 let host: HTMLDivElement; let root: Root;
-beforeEach(() => { (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); });
+beforeEach(() => { vi.spyOn(api, 'assistStatus').mockResolvedValue({ data: { configured: true } } as any); (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); localStorage.clear(); vi.restoreAllMocks(); });
 
 it('sends and resets a local Agent conversation without inventing extra controls', async () => {
@@ -287,4 +287,62 @@ it('deletes an archived conversation only after the server confirms, and retains
   expect(remove).toHaveBeenCalledTimes(2);
   expect(dialog.textContent).not.toContain('Quels articles');
   expect(dialog.textContent).toContain('Conversation supprimée');
+});
+
+it('negotiates Supabase and saves a versioned first turn before the model call', async () => {
+  localStorage.setItem('stock_auth_user', 'alice');
+  localStorage.setItem(`atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:alice`, JSON.stringify({ threadId: 'mobile-old', messages: [{ role: 'user', text: 'Legacy private' }] }));
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
+  let completeFirst!: (value: any) => void;
+  const put = vi.spyOn(api, 'putAgentThread').mockImplementationOnce(() => new Promise(resolve => { completeFirst = resolve; })).mockResolvedValueOnce({ data: { storage: 'supabase', version: '2' } } as any);
+  const chat = vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Salut' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  expect(host.textContent).not.toContain('Legacy private');
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Bonjour'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(put.mock.calls[0][1]).toMatchObject({ expected_version: null, messages: [{ role: 'user', text: 'Bonjour' }] });
+  expect(chat).not.toHaveBeenCalled();
+  await act(async () => completeFirst({ data: { storage: 'supabase', version: '1' } }));
+  expect(chat).toHaveBeenCalledOnce();
+  expect(put.mock.calls[1][1]).toMatchObject({ expected_version: '1', messages: [{ role: 'user', text: 'Bonjour' }, { role: 'assistant', text: 'Salut' }] });
+  expect(host.textContent).toContain('Salut');
+  expect(localStorage.getItem(`atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:alice`)).toContain('Legacy private');
+});
+
+it('keeps the input and does not call the model after a Supabase conflict', async () => {
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
+  vi.spyOn(api, 'putAgentThread').mockRejectedValue(new Error('Conflit de version'));
+  const chat = vi.spyOn(api, 'assistChat');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Bonjour'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(chat).not.toHaveBeenCalled(); expect(input.value).toBe('Bonjour'); expect(host.textContent).toContain('Conflit de version');
+});
+
+it('does not show or overwrite old phone history if storage negotiation fails', async () => {
+  localStorage.setItem('stock_auth_user', 'alice');
+  const key = `atlas-agent-mobile-msgs-v2:${encodeURIComponent(window.location.origin)}:alice`;
+  localStorage.setItem(key, JSON.stringify({ threadId: 'mobile-old', messages: [{ role: 'user', text: 'Legacy secret' }] }));
+  vi.mocked(api.assistStatus).mockRejectedValue(new Error('offline'));
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  expect(host.textContent).not.toContain('Legacy secret');
+  expect(host.textContent).toContain('Stockage de l’Agent indisponible');
+  expect(localStorage.getItem(key)).toContain('Legacy secret');
+});
+
+it('warns when the model answered but the versioned reply save fails', async () => {
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [] }, meta: { storage: 'supabase', version: null } } as any);
+  vi.spyOn(api, 'putAgentThread').mockResolvedValueOnce({ data: { storage: 'supabase', version: '1' } } as any).mockRejectedValueOnce(new Error('offline'));
+  vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse reçue' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Bonjour'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(host.textContent).toContain('Réponse reçue');
+  expect(host.textContent).toContain('sauvegarde serveur non confirmée');
 });
