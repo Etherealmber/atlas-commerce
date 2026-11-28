@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { agentAccountId, AgentStorageConflict, getAgentDraft, putAgentDraft } from '../lib/agentSupabaseDraft';
+import { agentAccountId, AgentStorageConflict, getAgentDraft, listAgentDraft, putAgentDraft } from '../lib/agentSupabaseDraft';
 
 const env: any = { SUPABASE_JOURNAL_URL: 'https://project.supabase.co', SUPABASE_JOURNAL_SECRET_KEY: 'sb_secret_test', AGENT_HISTORY_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(42))) };
 describe('staging-only encrypted Agent Supabase adapter', () => {
@@ -28,4 +28,14 @@ describe('staging-only encrypted Agent Supabase adapter', () => {
     expect(fetcher).not.toHaveBeenCalled();
     expect(await agentAccountId('a@b')).not.toBe(await agentAccountId('a_b'));
   });
+});
+
+it('lists only bounded, validated metadata from the authenticated account', async () => {
+  const fetcher = vi.fn(async (_url: any, init: any) => {
+    expect(JSON.parse(init.body)).toEqual({ p_account: await agentAccountId('alice'), p_limit: 20 });
+    return Response.json([{ id: 't1', updated_at: '2026-10-20T00:00:00Z', private: 'ignored' }]);
+  }) as any;
+  expect(await listAgentDraft(env, 'alice', fetcher)).toEqual([{ id: 't1', updated_at: '2026-10-20T00:00:00Z' }]);
+  const bad = vi.fn(async () => Response.json([{ id: '../private', updated_at: 'bad' }])) as any;
+  await expect(listAgentDraft(env, 'alice', bad)).rejects.toThrow('Agent history unavailable');
 });

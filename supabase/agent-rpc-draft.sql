@@ -16,6 +16,21 @@ returns jsonb language sql security definer set search_path = pg_catalog as $$
     and last_activity_at > now() - interval '30 days';
 $$;
 
+-- Lightweight bounded history discovery: no plaintext or ciphertext is returned.
+-- No physical retention cleanup is performed by this read.
+create or replace function public.atlas_agent_list(p_account text, p_limit integer default 20)
+returns jsonb language sql security definer set search_path = pg_catalog as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', thread_id, 'updated_at', last_activity_at)
+    order by last_activity_at desc, thread_id desc), '[]'::jsonb)
+  from (
+    select thread_id, last_activity_at from public.atlas_agent_conversations
+    where account_id = p_account and deleted_at is null
+      and last_activity_at > now() - interval '30 days'
+    order by last_activity_at desc, thread_id desc
+    limit least(greatest(coalesce(p_limit, 20), 1), 40)
+  ) rows;
+$$;
+
 -- A null base version means create-only. Existing, expired, or deleted IDs
 -- cannot be silently recreated. All updates are compare-and-swap.
 create or replace function public.atlas_agent_put(p_account text, p_thread text, p_payload text, p_expected_version text)
@@ -51,9 +66,11 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+revoke all on function public.atlas_agent_list(text,integer) from public, anon, authenticated;
 revoke all on function public.atlas_agent_get(text,text) from public, anon, authenticated;
 revoke all on function public.atlas_agent_put(text,text,text,text) from public, anon, authenticated;
 revoke all on function public.atlas_agent_tombstone(text,text) from public, anon, authenticated;
+grant execute on function public.atlas_agent_list(text,integer) to service_role;
 grant execute on function public.atlas_agent_get(text,text) to service_role;
 grant execute on function public.atlas_agent_put(text,text,text,text) to service_role;
 grant execute on function public.atlas_agent_tombstone(text,text) to service_role;

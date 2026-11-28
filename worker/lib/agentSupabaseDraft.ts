@@ -10,7 +10,7 @@ export class AgentStorageConflict extends Error {
   constructor() { super('Agent history conflict'); }
 }
 
-type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put';
+type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list';
 type DraftEnv = Env & { AGENT_HISTORY_ENCRYPTION_KEY?: string };
 
 /** Hash exact authenticated username; never use a lossy R2-safe encoding. */
@@ -35,6 +35,14 @@ function secret(env: DraftEnv): string {
   const value = String(env.AGENT_HISTORY_ENCRYPTION_KEY || '');
   if (!value) throw new AgentStorageUnavailable();
   return value;
+}
+
+/** One bounded metadata request, with no decrypted titles or message bodies. */
+export async function listAgentDraft(env: DraftEnv, username: string, fetcher: typeof fetch = fetch): Promise<Array<{ id: string; updated_at: string }>> {
+  const account = await agentAccountId(username);
+  const rows = await rpc(env, 'atlas_agent_list', { p_account: account, p_limit: 20 }, fetcher);
+  if (!Array.isArray(rows) || rows.length > 20 || rows.some(row => !row || typeof row.id !== 'string' || !validThread(row.id) || typeof row.updated_at !== 'string' || !Number.isFinite(Date.parse(row.updated_at)))) throw new AgentStorageUnavailable();
+  return rows.map(row => ({ id: row.id, updated_at: row.updated_at }));
 }
 
 /** No fallback to legacy R2. Returns only after authenticated decryption. */
