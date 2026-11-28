@@ -466,7 +466,7 @@ export const api = {
     request('/api/import/commit', { method: 'POST', body: JSON.stringify(body) }),
   mobileWorkStatus: (cursor?: { source: 'in_app' | 'github'; value: string }) =>
     request<{ success: boolean; in_app: WorkStatusSource; trackers: { github: WorkStatusSource } }>(`/api/mobile/work-status${cursor ? `?${cursor.source === 'in_app' ? 'in_app_cursor' : 'github_cursor'}=${encodeURIComponent(cursor.value)}` : ''}`),
-  assistStatus: () => request<{ data: { configured: boolean; provider?: string; model?: string; hint?: string } }>('/api/assist/status'),
+  assistStatus: () => request<{ data: { configured: boolean; provider?: string; model?: string; hint?: string; agent_history?: { storage: 'r2' | 'supabase' | 'supabase-preview'; version_type: 'string'; require_expected_version: boolean; retention_days: number | null; image_api: 'experimental' | 'unavailable'; physical_cleanup: 'asynchronous' | 'legacy' } } }>('/api/assist/status'),
   getAssistProvider: () =>
     request<{ data: { provider: string; groqConfigured?: boolean; groqModel?: string } }>(
       '/api/settings/assist-provider',

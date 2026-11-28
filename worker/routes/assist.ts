@@ -1,4 +1,4 @@
-import { getAgentDraft, getAgentTranscriptDraft, putAgentTranscriptDraft, useAgentSupabaseStorage } from '../lib/agentSupabaseDraft';
+import { agentSupabaseStorageLabel, getAgentDraft, getAgentTranscriptDraft, putAgentTranscriptDraft, useAgentSupabaseStorage } from '../lib/agentSupabaseDraft';
 import type { Hono } from 'hono';
 import type { Env } from '../env';
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
@@ -1369,11 +1369,14 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
         provider,
         model,
         groqConfigured: configured,
+        agent_history: useAgentSupabaseStorage(c.env)
+          ? { storage: agentSupabaseStorageLabel(c.env), version_type: 'string', require_expected_version: true, retention_days: 30, image_api: 'experimental', physical_cleanup: 'asynchronous' }
+          : { storage: 'r2', version_type: 'string', require_expected_version: false, retention_days: null, image_api: 'unavailable', physical_cleanup: 'legacy' },
         hint: configured
           ? 'Assistant IA actif (Groq)'
           : 'Définissez: npx wrangler secret put GROQ_API_KEY',
       },
-    });
+    }, 200, { 'Cache-Control': 'private, no-store' });
   });
 
   /** Admin: Atlas Agent provider (Groq only). */

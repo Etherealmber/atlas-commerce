@@ -21,3 +21,10 @@ it('does not write a snapshot for the legacy R2 mode', async () => {
   expect(await preparePhonePreviewTurn(client, 't', [], 'new')).toBeNull();
   expect(client.putAgentThread).not.toHaveBeenCalled();
 });
+
+it('accepts the Supabase production label while preserving create-only semantics', async () => {
+  const client = { getAgentThread: vi.fn(async () => ({ data: { messages: [] }, meta: { storage: 'supabase', version: null } })), putAgentThread: vi.fn().mockResolvedValue({ data: { storage: 'supabase', version: '1' } }) };
+  const turn = await preparePhonePreviewTurn(client, 't', [], 'Bonjour');
+  expect(turn?.version).toBe('1');
+  expect(client.putAgentThread).toHaveBeenCalledWith('t', expect.objectContaining({ expected_version: null }));
+});
