@@ -10,7 +10,7 @@ export class AgentStorageConflict extends Error {
   constructor() { super('Agent history conflict'); }
 }
 
-type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list' | 'atlas_agent_tombstone' | 'atlas_agent_transcript_get' | 'atlas_agent_transcript_put';
+type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list' | 'atlas_agent_tombstone' | 'atlas_agent_transcript_get' | 'atlas_agent_transcript_put' | 'atlas_agent_expire' | 'atlas_agent_cleanup_claim' | 'atlas_agent_cleanup_finish';
 type DraftEnv = Env & { AGENT_HISTORY_ENCRYPTION_KEY?: string };
 
 /** Hash exact authenticated username; never use a lossy R2-safe encoding. */
@@ -131,4 +131,29 @@ export async function ensureAgentParentDraft(env: DraftEnv, username: string, th
     if (!(error instanceof AgentStorageConflict)) throw error;
     if (!(await getAgentDraft(env, username, thread, fetcher))) throw error;
   }
+}
+
+/** Worker-only queue bridge for isolated testing; not installed as a cron. */
+export function agentCleanupQueueDraft(env: DraftEnv, fetcher: typeof fetch = fetch) {
+  const validToken = (token: string) => /^[a-f0-9]{32,64}$/.test(token);
+  return {
+    async expire(limit: number): Promise<number> {
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new AgentStorageUnavailable();
+      const result = await rpc(env, 'atlas_agent_expire', { p_limit: limit }, fetcher);
+      if (!Number.isInteger(result) || result < 0 || result > limit) throw new AgentStorageUnavailable();
+      return result;
+    },
+    async claim(token: string, limit: number): Promise<Array<{ account_id: string; thread_id: string; attempts: number }>> {
+      if (!validToken(token) || !Number.isInteger(limit) || limit < 1 || limit > 25) throw new AgentStorageUnavailable();
+      const result = await rpc(env, 'atlas_agent_cleanup_claim', { p_token: token, p_limit: limit }, fetcher);
+      if (!Array.isArray(result) || result.length > limit || result.some(job => !job || typeof job.account_id !== 'string' || !/^[a-f0-9]{64}$/.test(job.account_id) || typeof job.thread_id !== 'string' || !validThread(job.thread_id) || !Number.isSafeInteger(job.attempts) || job.attempts < 1)) throw new AgentStorageUnavailable();
+      return result.map(job => ({ account_id: job.account_id, thread_id: job.thread_id, attempts: job.attempts }));
+    },
+    async finish(job: { account_id: string; thread_id: string }, token: string, complete: boolean): Promise<boolean> {
+      if (!/^[a-f0-9]{64}$/.test(job.account_id) || !validThread(job.thread_id) || !validToken(token) || typeof complete !== 'boolean') throw new AgentStorageUnavailable();
+      const result = await rpc(env, 'atlas_agent_cleanup_finish', { p_account: job.account_id, p_thread: job.thread_id, p_token: token, p_complete: complete }, fetcher);
+      if (typeof result !== 'boolean') throw new AgentStorageUnavailable();
+      return result;
+    },
+  };
 }

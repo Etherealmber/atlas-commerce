@@ -10,23 +10,29 @@ type Queue = {
 type Bucket = Pick<R2Bucket, 'put' | 'get' | 'list' | 'delete'>;
 
 /**
- * Bounded experimental worker that performs real image deletion but never acknowledges
- * completion: writer fencing and upload recovery are not implemented yet.
- * A rejected R2 call or failed lease release leaves the job durable for retry.
+ * Experimental worker: performs real R2 deletion, never scheduled here.
+ * Only safe when ALL writers use the durable SQL upload fence and only the
+ * SQL finish RPC can acknowledge completion. Unknown uploads retain intents.
  */
-export async function runAgentCleanupDraft(queue: Queue, bucket: Bucket): Promise<{ expired: number; claimed: number; failed: number }> {
+export async function runAgentCleanupDraft(queue: Queue, bucket: Bucket): Promise<{ expired: number; claimed: number; failed: number; pending: number }> {
   const expired = await queue.expire(50);
   const token = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   const jobs = await queue.claim(token, 10);
   if (!Array.isArray(jobs) || jobs.length > 10) throw new Error('Invalid cleanup response');
-  let failed = 0;
+  let failed = 0; let pending = 0;
   for (const job of jobs) {
+    let empty = false;
+    try { empty = (await deleteAgentImagesDraft(bucket, job.account_id, job.thread_id, 10)).complete; }
+    catch { failed++; }
     try {
-      await deleteAgentImagesDraft(bucket, job.account_id, job.thread_id, 10);
+      // The DB refuses completion while any upload intent exists. If a batch
+      // is unfinished or fenced, release the lease with a retry delay.
+      const finished = empty && await queue.finish(job, token, true);
+      if (!finished) {
+        pending++;
+        if (!await queue.finish(job, token, false)) failed++;
+      }
     } catch { failed++; }
-    // Until writer fencing exists, even an empty prefix cannot prove that a
-    // delayed upload won't create an orphan. Always retain the cleanup intent.
-    try { if (!await queue.finish(job, token, false)) failed++; } catch { failed++; }
   }
-  return { expired, claimed: jobs.length, failed };
+  return { expired, claimed: jobs.length, failed, pending };
 }

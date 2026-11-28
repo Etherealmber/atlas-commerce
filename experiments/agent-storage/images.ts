@@ -3,7 +3,7 @@ import { decryptAgentPayload, encryptAgentPayload } from './crypto';
 
 const MAX_IMAGE_BYTES = 1_000_000;
 const MAX_IMAGE_BASE64 = Math.ceil(MAX_IMAGE_BYTES / 3) * 4;
-const ID = /^[a-zA-Z0-9_-]{1,80}$/;
+const ID = /^[a-zA-Z0-9._-]{1,80}$/;
 const ACCOUNT = /^[a-f0-9]{64}$/;
 const IMAGE = /^[a-f0-9]{32}$/;
 const MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
@@ -11,7 +11,7 @@ const MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 type Bucket = Pick<R2Bucket, 'put' | 'get' | 'list' | 'delete'>;
 
 function prefix(account: string, thread: string): string {
-  if (!ACCOUNT.test(account) || !ID.test(thread)) throw new Error('Invalid image context');
+  if (!ACCOUNT.test(account) || !ID.test(thread) || thread === '.' || thread === '..') throw new Error('Invalid image context');
   return `agent-images/v1/${account}/${thread}/`;
 }
 function objectKey(account: string, thread: string, imageId: string): string {
