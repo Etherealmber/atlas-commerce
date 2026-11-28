@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PhoneAgentMobile } from '../mobile/PhoneApp';
 import { usePhoneTopBar } from '../mobile/usePhoneTopBar';
 import { api } from '../api';
+import * as exportTools from '../lib/agentConversationExport';
 
 let host: HTMLDivElement; let root: Root;
 beforeEach(() => { vi.spyOn(api, 'assistStatus').mockResolvedValue({ data: { configured: true } } as any); (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); });
@@ -345,4 +346,17 @@ it('warns when the model answered but the versioned reply save fails', async () 
   await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
   expect(host.textContent).toContain('Réponse reçue');
   expect(host.textContent).toContain('sauvegarde serveur non confirmée');
+});
+
+
+it('downloads the displayed phone conversation from history', async () => {
+  vi.spyOn(api, 'assistChat').mockResolvedValue({ data: { reply: 'Réponse mobile' } } as any);
+  const download = vi.spyOn(exportTools, 'downloadAgentConversation').mockImplementation(() => {});
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Bonjour'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Historique des discussions"]')!.click());
+  await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="Télécharger la conversation affichée"]')!.click());
+  expect(download).toHaveBeenCalledWith(expect.arrayContaining([{ role: 'user', text: 'Bonjour' }, { role: 'assistant', text: 'Réponse mobile' }]));
 });

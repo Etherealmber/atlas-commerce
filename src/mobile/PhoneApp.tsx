@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
 import { NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package, MessageSquarePlus, Plus, Send, ChevronRight, Bell, Minus, Trash2, CircleAlert, CircleCheck, CreditCard, ShieldCheck, Copy, ChevronDown, History, Hourglass } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, ShoppingCart, Search, ScanLine, RefreshCw, Grid2X2, List, Package, MessageSquarePlus, Plus, Send, ChevronRight, Bell, Minus, Trash2, CircleAlert, CircleCheck, CreditCard, ShieldCheck, Copy, ChevronDown, History, Hourglass, Download } from 'lucide-react';
 import PhoneDeviceScan from './PhoneDeviceScan';
 import PhoneClients from './PhoneClients';
 import { PhoneEmployeeDetail, PhoneEmployeeDirectory } from './PhoneEmployees';
@@ -17,6 +17,7 @@ import { usePhoneTheme } from './usePhoneTheme';
 import { usePhoneTopBar } from './usePhoneTopBar';
 import { api, getBase } from '../api';
 import { preparePhonePreviewTurn, finishPhonePreviewTurn } from './agentPreviewSync';
+import { downloadAgentConversation } from '../lib/agentConversationExport';
 import { t as translate } from '../i18n/core';
 import { AgentMarkdown } from '../components/agent/AgentMarkdown';
 import { AgentClarification, parseClarification } from '../components/agent/AgentClarification';
@@ -1655,6 +1656,7 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
       </PhoneDialog>}
       {dialog === 'history' && <PhoneDialog titleId="ph-agent-history-title" onClose={() => setDialog(null)}>
         <h2 id="ph-agent-history-title">Historique des discussions</h2><p>Discussions enregistrées sur cet appareil pour ce compte.</p>{quickNotice && <p role="status">{quickNotice}</p>}
+        <button type="button" className="ph-btn" disabled={busy || !msgs.some(m => m.role === 'user')} aria-label="Télécharger la conversation affichée" onClick={() => { try { downloadAgentConversation(msgs); } catch { setQuickNotice('Téléchargement impossible sur cet appareil.'); } }}><Download size={16} /> Télécharger la conversation affichée (texte uniquement)</button>
         {history.filter(t => t.threadId !== threadId).length === 0 && <p>Aucune autre discussion enregistrée.</p>}
         <div className="ph-agent-history-list">{history.filter(t => t.threadId !== threadId).map(t => <div className="ph-agent-history-row" key={t.threadId}><button type="button" disabled={deletingHistory} onClick={() => { if (!archiveCurrent()) return; setThreadId(t.threadId); setMsgs(t.messages); setInput(''); setShowLatest(false); followMessages.current = true; setDialog(null); }}>{t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'Discussion'}</button><button type="button" disabled={deletingHistory || busy} aria-label={`Supprimer ${t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'la discussion'}`} onClick={() => { setQuickNotice(''); setDeleteHistoryId(t.threadId); }}><Trash2 size={16} /></button></div>)}</div>
         {deleteHistoryId && <div role="group" aria-label="Confirmer la suppression"><p>Supprimer cette discussion et son contexte du serveur ? Cette action est définitive.</p><button type="button" disabled={deletingHistory} onClick={() => void deleteSavedConversation(deleteHistoryId)}>{deletingHistory ? 'Suppression…' : 'Confirmer la suppression'}</button><button type="button" disabled={deletingHistory} onClick={() => setDeleteHistoryId(null)}>Annuler</button></div>}
