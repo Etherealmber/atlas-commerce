@@ -43,9 +43,11 @@ describe('phone shell dark mode — unified charcoal controls', () => {
     const app = readFileSync(resolve(__dirname, '../mobile/PhoneApp.tsx'), 'utf8');
     const bubble = app.indexOf("className={'ph-agent-bubble ' + m.role}");
     const copy = app.indexOf('ph-agent-copy', bubble);
-    const bubbleEnd = app.indexOf('</div>', app.indexOf('</ReactMarkdown>', bubble));
+    const markdown = app.indexOf('<AgentMarkdown ', bubble);
+    const bubbleEnd = app.indexOf('</div>', markdown);
     expect(bubble).toBeGreaterThan(0);
-    expect(copy).toBeGreaterThan(bubble);
+    expect(markdown).toBeGreaterThan(bubble);
+    expect(copy).toBeGreaterThan(markdown);
     expect(copy).toBeLessThan(bubbleEnd);
     expect(phone).toContain('.ph-agent-bubble.assistant .ph-agent-copy');
   });

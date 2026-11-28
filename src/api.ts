@@ -6,6 +6,7 @@ export type WorkStatusSource = {
 };
 
 import { journalDeviceContext } from './lib/journalDeviceContext';
+import { reportCrash } from './lib/crashReporter';
 import { readAgentStream } from './lib/agentStream';
 import { getToken, clearToken, refreshSessionRole, getRefreshedTokenFor } from './auth';
 import { getLang } from './i18n/core';
@@ -92,9 +93,19 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
       // Retry transient upstream / edge errors on GET only
       if (isIdempotentGet && (res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxAttempts - 1) {
         const retryAfter = res.headers.get('Retry-After');
-        const code = res.status === 503 ? ((await res.clone().json().catch(() => ({}))) as { code?: string }).code : undefined;
-        // Quota exhaustion and a server-requested cool-down are not transient
-        // 250ms failures. Retrying immediately triples load and delays the UI.
+        const body = res.status === 503 ? await res.clone().json().catch(() => ({})) as { code?: string; details?: { reason?: string } } : {};
+        const code = body.code;
+        // Only a confirmed schema-busy response gets one bounded retry. Never
+        // retry a write; this branch is exclusively GET/HEAD. Respect cooldown.
+        if (code === 'SERVICE_UNAVAILABLE' && body.details?.reason === 'SCHEMA_INITIALIZING' && retryAfter) {
+          const seconds = Number(retryAfter);
+          if (attempt === 0 && Number.isFinite(seconds) && seconds > 0 && seconds <= 3) {
+            await new Promise((r) => setTimeout(r, seconds * 1000));
+            continue;
+          }
+          break;
+        }
+        // Quota exhaustion and other requested cool-downs are not transient.
         if (code === 'DB_QUOTA_EXCEEDED' || code === 'JOURNAL_R2_ONLY' || code === 'JOURNAL_SUPABASE_UNAVAILABLE' || retryAfter) break;
         await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
         continue;
@@ -242,6 +253,20 @@ async function requestRaw<T>(path: string, options?: RequestInit & { silent?: bo
     throw err;
   }
   if (!res.ok || data.success === false) {
+    // Report this specific exhausted initialization error, without URL, query,
+    // request body or other potentially sensitive request data. Never retry writes.
+    if (res.status === 503 && data.code === 'SERVICE_UNAVAILABLE' &&
+        (data.details?.reason === 'SCHEMA_INITIALIZING' || data.error === 'Initialisation en cours. Réessayez dans quelques instants.')) {
+      // These values are allowlisted: never include paths, query strings, SQL,
+      // database errors or arbitrary server-supplied text in issue diagnostics.
+      const details = data.details || {};
+      const allowed = (value: unknown, values: string[]) => values.includes(String(value)) ? String(value) : 'unknown';
+      const migration = allowed(details.migration, ['auto_sql_migrations_0013_0020', 'offline_ops_schema_v20']);
+      const phase = allowed(details.phase, ['starting', 'offline', 'cash', 'attendance', 'payroll', 'accounting', 'dunning', 'dgi']);
+      const age = allowed(details.age, ['under_10s', '10s_to_1m', '1m_to_5m', 'over_5m']);
+      const componentStack = `SCHEMA_INITIALIZING: migration=${migration}; phase=${phase}; age=${age}; waiter_limit=3s. Observation côté isolate, pas preuve de cause.`;
+      reportCrash(new Error('Initialisation du schéma indisponible après attente'), { route: '/application', componentStack });
+    }
     let msg = data.error || `Erreur (${res.status})`;
     if (/no such column:\s*tax_rate/i.test(msg)) {
       msg = 'Schéma base à jour manquant (TVA). Rechargez après déploiement — migration automatique.';

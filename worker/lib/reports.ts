@@ -404,7 +404,7 @@ export async function reportCrash(db: D1Database, env: ReportsEnv, rawBody: any,
           ``,
           `### Message`, '```', p.message, '```',
           p.stack ? `### Stack\n\`\`\`\n${p.stack}\n\`\`\`` : '',
-          p.componentStack ? `### Composant React\n\`\`\`\n${p.componentStack}\n\`\`\`` : '',
+          p.componentStack ? `### ${p.message === 'Initialisation du schéma indisponible après attente' ? 'Diagnostic reçu du client (non vérifié)' : 'Composant React'}\n\`\`\`\n${p.componentStack}\n\`\`\`` : '',
           ``,
           `> Rapport assaini automatiquement (secrets retirés). Les occurrences suivantes de la même empreinte mettent à jour ce ticket au lieu d'en créer un nouveau.`,
         ].filter(Boolean).join('\n');
@@ -632,7 +632,7 @@ export async function retryPendingReports(env: ReportsEnv): Promise<RetryResult>
           row.ua ? `- User-Agent : ${row.ua}` : '',
           ``, `### Message`, '```', String(row.message), '```',
           row.stack ? `### Stack\n\`\`\`\n${String(row.stack).slice(0, 4000)}\n\`\`\`` : '',
-          row.component_stack ? `### Composant React\n\`\`\`\n${String(row.component_stack).slice(0, 2000)}\n\`\`\`` : '',
+          row.component_stack ? `### ${row.message === 'Initialisation du schéma indisponible après attente' ? 'Diagnostic reçu du client (non vérifié)' : 'Composant React'}\n\`\`\`\n${String(row.component_stack).slice(0, 2000)}\n\`\`\`` : '',
         ].filter(Boolean).join('\n');
         const issue = await composeIssue(env, {
           kind: 'crash', channel, message: String(row.message), stack: String(row.stack || ''), componentStack: String(row.component_stack || ''),

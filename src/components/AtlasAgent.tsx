@@ -15,7 +15,8 @@ import { ImageLightbox } from './ui/ImageLightbox';
 import { sanitizeImageDataUrl , getUsername } from '../auth';
 import { Attachment01Icon } from '@hugeicons/core-free-icons';
 import { createPortal } from 'react-dom';
-import { renderMiniMarkdown } from '../lib/miniMarkdown';
+import { AgentMarkdown } from './agent/AgentMarkdown';
+import { AgentClarification, parseClarification } from './agent/AgentClarification';
 import ImageAnnotator from './ui/ImageAnnotator';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -1606,7 +1607,7 @@ export default function AtlasAgent() {
 
               <div className="atlas-agent-bubble">
                 <span className={m.role === 'assistant' ? 'atlas-agent-msg-label' : 'sr-only'}>{m.role === 'assistant' ? 'Atlas Agent' : 'Vous'}</span>
-                {m.role === 'assistant' ? renderMiniMarkdown(String(m.text || '')) : m.text}
+                {m.role === 'assistant' ? <AgentMarkdown text={m.streaming ? String(m.text || '') : parseClarification(String(m.text || '')).text} /> : m.text}
                 {m.role === 'user' && ((m as any).fileNames || []).length ? (
                   <div className="atlas-agent-msg-files">
                     {((m as any).fileNames || []).map((n: string, k: number) => (
@@ -1630,6 +1631,7 @@ export default function AtlasAgent() {
                 ) : null}
                 {m.streaming ? <span className="atlas-agent-caret">▍</span> : null}
               </div>
+              {m.role === 'assistant' && !m.streaming && parseClarification(String(m.text || '')).question && <AgentClarification key={`${threadId}-${i}`} question={parseClarification(String(m.text || '')).question!} disabled={busy || loadingThread || !!deletingThread || i !== msgs.length - 1} onSubmit={answer => void send(answer)} />}
               {m.role === 'assistant' && !m.streaming && m.tools?.length ? <AgentToolResults tools={m.tools} /> : null}
               {m.role === 'user' && !m.streaming && m.text.trim() ? (
                 <div className="atlas-agent-msg-actions atlas-agent-msg-actions--user">

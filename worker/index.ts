@@ -12,7 +12,7 @@ import { registerSnakeScoreRoutes } from './routes/snakeScore';
 import { registerWorkStatusRoute } from './routes/workStatus';
 import { Hono } from 'hono';
 import { schemaOnce, registerDbRoot, resolveRootDb } from './lib/schema';
-import { ensureAutoSqlMigrations, requiresAutoSqlMigrations } from './lib/autoMigrations';
+import { ensureAutoSqlMigrations, requiresAutoSqlMigrations, runAutoSqlMigrationsForRequest } from './lib/autoMigrations';
 import { sha256Hex, ensurePaymentHistoryTable, ensureReceiptsTable, expensesLinkedToReceipt, getInvoiceLinks, cascadeDeleteInvoice, publicRateLimit, ensureReceiptSituationColumn, ensureQrPrivacySettings, ensureInvoicePublicToken, makePublicToken, ensureHmacKeyColumns, publicTokenSecretsAsync, hmacSha256Hex, makeSecureQrPayload, parseSecureQrPayload, documentIntegrityHash, createAtlasTimestampToken, verifyAtlasTimestampToken, invoiceDocHashPayload, digestSignatureImage, validateStoredSignature, ensureInvoiceItemPromoColumns, ensureInvoiceTaxExempt, ensureInvoiceRefundColumns, validateRefundReason, validateCreditPrefix, ensureProductBulkDiscounts, tableColumns, hasColumn, applyBulkDiscount, ensureStockMovementsTable, ensureValuationTables, getValuationMethod, runAutoTransfers, applyMovingAverageCost, applyStockDelta, purgeEphemeralSecurityData, ensureIdempotencyTable, extractIdempotencyKey, idempotencyGet, idempotencyPut, ensurePeriodLockColumn, assertPeriodOpen, ensureVoidColumns, archiveInvoiceSnapshot, ensureDocumentActors } from './lib/ledgerHelpers';
 import {
   cfGeo,
@@ -723,7 +723,9 @@ app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
   if (requiresAutoSqlMigrations(c.req.method, path)) {
     const migrationDb = (resolveRootDb((c.env as any).DB) || (c.env as any).DB) as D1Database | undefined;
-    await ensureAutoSqlMigrations(migrationDb);
+    let executionContext: { waitUntil(promise: Promise<unknown>): void } | undefined;
+    try { executionContext = c.executionCtx; } catch { /* absent in some tests */ }
+    await runAutoSqlMigrationsForRequest(migrationDb, executionContext);
   }
   await next();
 });
@@ -1335,7 +1337,7 @@ app.onError(async (err, c) => {
   }
   if (err instanceof SchemaBusyError) {
     c.header('Retry-After', '3');
-    return apiFail(c, err.message, 'SERVICE_UNAVAILABLE');
+    return apiFail(c, err.message, 'SERVICE_UNAVAILABLE', { reason: 'SCHEMA_INITIALIZING', migration: err.migration, phase: err.phase, age: err.age });
   }
   // Authentication errors may contain request secrets; never log their raw exceptions.
   try { if (!errPath.startsWith('/api/reports/') && !errPath.startsWith('/api/auth/') && !errPath.startsWith(EMBEDDED_CHALLENGE_PATH) && !errPath.startsWith(V3_WEBVIEW_CHALLENGE_PATH) && !errPath.startsWith(V3_BROWSER_CHALLENGE_PATH)) console.error('[onError]', c.get('requestId') || '-', c.req.method, errPath, String((err as any)?.stack || err || '').slice(0, 500)); } catch { /* */ }

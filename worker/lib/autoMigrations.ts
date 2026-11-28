@@ -1,4 +1,4 @@
-import { schemaOnceForDb } from './schema';
+import { schemaOnceForDb, setAutoMigrationPhase } from './schema';
 import { ensureOfflineOpsSchema } from './idempotency';
 import { ensureCashShiftSchema } from '../routes/cashShifts';
 import { ensureAttendanceTableSchema } from '../routes/attendance';
@@ -19,14 +19,30 @@ import { ensureDgiSchema } from '../routes/dgi';
 export async function ensureAutoSqlMigrations(db: D1Database | null | undefined): Promise<void> {
   if (!db || typeof (db as any).prepare !== 'function') return;
   await schemaOnceForDb(db, 'auto_sql_migrations_0013_0020', async () => {
+    setAutoMigrationPhase(db, 'offline');
     await ensureOfflineOpsSchema(db);
+    setAutoMigrationPhase(db, 'cash');
     await ensureCashShiftSchema(db);
+    setAutoMigrationPhase(db, 'attendance');
     await ensureAttendanceTableSchema(db);
+    setAutoMigrationPhase(db, 'payroll');
     await ensurePayrollSchema(db);
+    setAutoMigrationPhase(db, 'accounting');
     await ensureAccountingAccountsSchema(db);
+    setAutoMigrationPhase(db, 'dunning');
     await ensureDunningSchema(db);
+    setAutoMigrationPhase(db, 'dgi');
     await ensureDgiSchema(db);
   });
+}
+
+/** Keep initialization alive after a client disconnect when an execution context
+ * is available. The promise is awaited only by its own request, never shared
+ * with another request or isolate. Cloudflare bounds waitUntil lifetime. */
+export async function runAutoSqlMigrationsForRequest(db: D1Database | null | undefined, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<void> {
+  const work = ensureAutoSqlMigrations(db);
+  try { context?.waitUntil(work); } catch { /* local/test contexts can lack waitUntil */ }
+  await work;
 }
 
 /** Only reviewed endpoints that never access the tables rebuilt by these
@@ -34,6 +50,9 @@ export async function ensureAutoSqlMigrations(db: D1Database | null | undefined)
  * proposals only; approval and all business mutation routes remain guarded. */
 export function requiresAutoSqlMigrations(method: string, path: string): boolean {
   const verb = method.toUpperCase();
+  // Crash intake uses its own report/rate-limit tables, not the tables rebuilt
+  // by 0013–0020; allow it to record a migration-busy failure.
+  if (verb === 'POST' && path === '/api/crash-reports') return false;
   if (verb === 'POST' && (path === '/api/assist/chat' || path === '/api/assist/chat/stream')) return false;
   if (verb === 'GET' && path === '/api/admin/agent/threads') return false;
   if ((verb === 'GET' || verb === 'PUT' || verb === 'DELETE') && /^\/api\/admin\/agent\/threads\/[^/]+$/.test(path)) return false;

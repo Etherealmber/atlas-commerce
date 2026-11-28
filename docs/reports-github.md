@@ -163,3 +163,11 @@ admin (`listReports` + compteur `pending`).
 Android jamais utilisé pour le dépôt web), file web en attente du secret web, reclassement des
 anciens crashs navigateur, regroupement par message + budget de sous-requêtes, triage Groq
 (prompt sans données personnelles, parsing JSON, plafond quotidien, pause sur 429).
+
+### Diagnostic d'une initialisation de schéma bloquée
+
+Après déploiement de cette modification, un échec `SCHEMA_INITIALIZING` persistant peut inclure dans le rapport de crash le nom de la migration exclusive, l'étape courante (offline, cash, attendance, payroll, accounting, dunning ou dgi), et une tranche d'âge du marqueur. L'attente du demandeur est bornée à environ trois secondes. Ces champs sont des valeurs autorisées prédéfinies : aucune requête, valeur métier, instruction SQL ou erreur D1 brute n'est envoyée. Un ancien serveur peut fournir `unknown`.
+
+Ces informations sont **rapportées par le client et non vérifiées**. Elles décrivent uniquement le marqueur dans un isolate, pas l'état de tous les isolates ; un âge élevé ne prouve pas que la requête initiale a été annulée. Vérifier les logs Cloudflare et la chronologie du déploiement, la dernière étape, les erreurs D1 et l'état du schéma avant de conclure. Ne pas supprimer le garde ni relancer une reconstruction destructive en parallèle. La déduplication conserve les détails du premier rapport, pas l'historique de chaque occurrence.
+
+L'envoi reste soumis aux limites de session et de débit, à la disponibilité de D1 et aux identifiants GitHub. La clé `GROQ_API_KEY` dans GitHub Actions permet le triage du workflow, mais ne configure pas la clé Groq du Worker. Le triage IA propose des hypothèses : il ne peut pas établir seul une cause racine. Les tickets existants ne reçoivent pas rétroactivement ces diagnostics ; une analyse manuelle peut être relancée via `/atlas-triage` ou `workflow_dispatch` après fusion du workflow.

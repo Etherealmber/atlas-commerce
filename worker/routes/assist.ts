@@ -987,7 +987,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
       const chatTools = agentChatTools(role, knowledge);
       const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
       const system =
-        atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined, responseLanguage }) + knowSection;
+        atlasAgentSystem({ role, username, timezone: tz, source: sourceRefined, responseLanguage }) + knowSection + '\nSi une demande est réellement ambiguë et nécessite une précision, ne lance aucune action fondée sur une supposition. Pose une question courte avec 2 à 4 choix pertinents en terminant ta réponse par un bloc exact : ```atlas-clarification\n{"question":"Votre question ?","options":["Choix 1","Choix 2"]}\n```. Ne mets aucun texte après ce bloc. Sinon réponds normalement. Les choix ne constituent jamais une autorisation de modification.';
       // v233 — compact memory: the agent reads its recent conversation without replaying full turns
       const { history, existingPlain, etag } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
       const finalMessage = (history
@@ -1125,7 +1125,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
           const chatTools = agentChatTools(role, knowledge);
           const knowSection = knowledge ? knowledgePromptSections(knowledge, userMessage) : '';
           const system =
-            atlasAgentSystem({ role, username, timezone: tz, source, responseLanguage }) + knowSection;
+            atlasAgentSystem({ role, username, timezone: tz, source, responseLanguage }) + knowSection + '\nSi une demande est réellement ambiguë et nécessite une précision, ne lance aucune action fondée sur une supposition. Pose une question courte avec 2 à 4 choix pertinents en terminant ta réponse par un bloc exact : ```atlas-clarification\n{"question":"Votre question ?","options":["Choix 1","Choix 2"]}\n```. Ne mets aucun texte après ce bloc. Sinon réponds normalement. Les choix ne constituent jamais une autorisation de modification.';
           const { history, existingPlain, etag } = await loadCompactHistoryWithTranscript(c.env, username, threadId, 6);
           const finalMessage = (history
             ? `Historique récent de la conversation (contexte uniquement — ne pas recopier):\n${history}\n\n${message}`
