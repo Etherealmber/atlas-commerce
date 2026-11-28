@@ -1,4 +1,4 @@
-import { useAgentStoragePreview } from '../lib/agentSupabaseDraft';
+import { getAgentDraft, getAgentTranscriptDraft, putAgentTranscriptDraft, useAgentStoragePreview } from '../lib/agentSupabaseDraft';
 import type { Hono } from 'hono';
 import type { Env } from '../env';
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
@@ -358,6 +358,19 @@ async function loadCompactHistoryWithTranscript(
   thread: string,
   maxTurns = 6,
 ): Promise<{ history: string; existingPlain: string; etag: string | null }> {
+  if (useAgentStoragePreview(env)) {
+    // Until clients coordinate first-turn creation, never create a parent here:
+    // a client may have already read version null and be preparing its snapshot.
+    if (!await getAgentDraft(env, username, thread)) throw new Error('Agent parent required');
+    const result = await getAgentTranscriptDraft(env, username, thread);
+    const plain = result?.payload || '';
+    const lines = plain.split('\n').filter(l => l.startsWith('U|') || l.startsWith('A|'));
+    const history = lines.slice(-maxTurns * 2).map(l => {
+      const parts = l.split('|'); const who = parts[0] === 'U' ? 'U' : 'A';
+      return `${who}: ${String(parts.slice(2).join('|')).trim().slice(0, who === 'U' ? 160 : 200)}`;
+    }).join('\n');
+    return { history, existingPlain: plain, etag: result?.version || null };
+  }
   if (!env.IMAGES) return { history: '', existingPlain: '', etag: null };
   const key = agentConvKey(username, thread);
   try {
@@ -414,7 +427,7 @@ async function putAgentChatTurn(
   },
 ) {
   try {
-    if (!env.IMAGES) return;
+    if (!env.IMAGES && !useAgentStoragePreview(env)) return;
     const thread = row.thread_id || 'live';
     const key = agentConvKey(row.username, thread);
     const ts = new Date().toISOString();
@@ -431,9 +444,13 @@ async function putAgentChatTurn(
       body = lines.join('\n');
       if (!body.endsWith('\n')) body += '\n';
     }
+    if (useAgentStoragePreview(env)) {
+      await putAgentTranscriptDraft(env, row.username, thread, body, row.etag);
+      return;
+    }
     const enc = await encryptAgentConv(env, body);
     if (!enc) throw new Error('Transcript encryption unavailable');
-    const written = await env.IMAGES.put(key, enc, {
+    const written = await env.IMAGES!.put(key, enc, {
       onlyIf: row.etag ? { etagMatches: row.etag } : new Headers({ 'If-None-Match': '*' }),
       httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' },
       customMetadata: {
@@ -740,6 +757,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   });
   
   app.post('/api/settings/agent-data/delete', async (c) => {
+    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pendant le test de stockage.' }, 503);
     const reason = await authFailReason(c.req.header('Authorization'), c.env, c.env.DB, clientIp(c), c.req.header('X-Device-Fingerprint') || '');
     if (reason !== 'ok') return c.json({ success: false, error: 'Session invalide', code: 'UNAUTHORIZED' }, 401);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
@@ -764,6 +782,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   
   
   app.get('/api/assist/transcripts', async (c) => {
+    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pendant le test de stockage.' }, 503);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
     if (!session.username) return c.json({ success: false, error: 'Non authentifié' }, 401);
     if (!c.env.IMAGES) return c.json({ success: true, data: [], meta: { note: 'R2 indisponible' } });
@@ -792,6 +811,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   });
   
   app.get('/api/assist/transcripts/get', async (c) => {
+    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Fonction indisponible pendant le test de stockage.' }, 503);
     const session = sessionUserFromHeader(c.req.header('Authorization'));
     if (!session.username) return c.json({ success: false, error: 'Non authentifié' }, 401);
     if (!c.env.IMAGES) return c.json({ success: false, error: 'R2 indisponible' }, 503);
@@ -830,7 +850,6 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
    * métier role-filtered via runAssistTool. Même comportement des deux côtés. */
   
   app.post('/api/assist/chat', async (c) => {
-    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Agent indisponible pendant le test de stockage.' }, 503);
     const authHeader = c.req.header('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return c.json({ success: false, error: tr(pickUiLang(c.req.header('Accept-Language')), 'auth_required') }, 401);
@@ -852,6 +871,9 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
   
     let body: any = {};
     try { body = await c.req.json(); } catch { body = {}; }
+    if (useAgentStoragePreview(c.env) && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
+      return c.json({ success: false, code: 'AGENT_IMAGE_UNAVAILABLE', error: 'Pièces jointes indisponibles dans ce test.' }, 422);
+    }
     if (c.env.ATLAS_DEMO === '1' && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
       return c.json({ success: false, code: 'DEMO_AI_TEXT_ONLY', error: 'Demo AI supports text only.' }, 400);
     }
@@ -1057,7 +1079,6 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
    * turn costs exactly what a buffered turn costs. Turns WITH images take the
    * buffered vision path and arrive as a single token event. */
   app.post('/api/assist/chat/stream', async (c) => {
-    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Agent indisponible pendant le test de stockage.' }, 503);
     const authHeader = c.req.header('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return c.json({ success: false, error: tr(pickUiLang(c.req.header('Accept-Language')), 'auth_required') }, 401);
@@ -1073,6 +1094,9 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
     }
     let body: any = {};
     try { body = await c.req.json(); } catch { body = {}; }
+    if (useAgentStoragePreview(c.env) && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
+      return c.json({ success: false, code: 'AGENT_IMAGE_UNAVAILABLE', error: 'Pièces jointes indisponibles dans ce test.' }, 422);
+    }
     if (c.env.ATLAS_DEMO === '1' && ((Array.isArray(body.images) && body.images.length) || (Array.isArray(body.documents) && body.documents.length))) {
       return c.json({ success: false, code: 'DEMO_AI_TEXT_ONLY', error: 'Demo AI supports text only.' }, 400);
     }
