@@ -835,7 +835,7 @@ export default function AtlasAgent() {
       const title = loadThreads().find(t => t.id === threadId)?.title || String(snapshot.find(m => m.role === 'user')?.text || 'Sans titre').trim().slice(0, 48);
       void api.putAgentThread(threadId, { title, messages: snapshot, expected_version: state.version }).then(res => {
         if (scopeUser() !== state.user) return;
-        if (res?.data?.storage !== 'r2' || !res.data.version) throw new Error('No R2 acknowledgement');
+        if (!['r2', 'supabase-preview'].includes(res?.data?.storage) || !res.data.version) throw new Error('No storage acknowledgement');
         state.version = res.data.version; state.baseline = serialized;
         const latest = loadMsgs(threadId);
         if (JSON.stringify(threadSnapshot(latest)) === serialized) { localStorage.removeItem(pendingStorageKey); if (syncRef.current === state) setSyncStatus('saved'); }

@@ -5,6 +5,7 @@
  */
 import type { Hono } from 'hono';
 import { schemaOnceForDb } from '../lib/schema';
+import { AgentStorageConflict, getAgentDraft, listAgentDraft, putAgentDraft, tombstoneAgentDraft, useAgentStoragePreview } from '../lib/agentSupabaseDraft';
 
 type MailboxRouteDeps = {
   verifyBackupAccess: (
@@ -151,6 +152,10 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
   app.get('/api/admin/agent/threads', async (c) => {
     const gate = agentUserKeyFromRequest(c);
     if (!gate.ok) return gate.response;
+    if (useAgentStoragePreview(c.env)) {
+      try { return c.json({ success: true, data: await listAgentDraft(c.env, gate.username), meta: { unreadable_count: 0, pending_count: 0 } }); }
+      catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Historique de test indisponible.' }, 503); }
+    }
     let objects: Array<{ id: string; uploaded: number }>;
     try { objects = await listAgentThreadKeys(c.env, gate.userKey); } catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Historique R2 indisponible.' }, 503); }
     // Mobile clients have a short startup deadline. Return all discovered IDs
@@ -191,6 +196,15 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
     if (!gate.ok) return gate.response;
     const id = String(c.req.param('id') || '');
     if (!validAgentThreadId(id)) return c.json({ success: false, error: 'Identifiant invalide.' }, 400);
+    if (useAgentStoragePreview(c.env)) {
+      try {
+        const result = await getAgentDraft(c.env, gate.username, id);
+        if (!result) return c.json({ success: true, data: { title: 'Sans titre', messages: [], updated_at: null }, meta: { empty: true, version: null } });
+        const data = JSON.parse(result.payload);
+        if (!data || typeof data.title !== 'string' || !Array.isArray(data.messages)) throw new Error('invalid history');
+        return c.json({ success: true, data, meta: { version: result.version } });
+      } catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Lecture de test indisponible.' }, 503); }
+    }
     try {
       const result = await loadAgentThreadR2(c.env, gate.userKey, id);
       if (!result) return c.json({ success: true, data: { title: 'Sans titre', messages: [], updated_at: null }, meta: { empty: true, version: null } });
@@ -208,6 +222,19 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
     if (!Array.isArray(body.messages)) return c.json({ success: false, error: 'Messages invalides.' }, 400);
     if (body.messages.length > 500) return c.json({ success: false, code: 'AGENT_THREAD_TOO_LARGE', error: 'Conversation trop volumineuse.' }, 413);
     const payload = { title: String(body.title || 'Sans titre').slice(0, 200), messages: body.messages, updated_at: new Date().toISOString() };
+    if (useAgentStoragePreview(c.env)) {
+      // Image persistence and Android version support are not implemented in
+      // this isolated preview. Reject rather than put image data in Supabase.
+      if (!Object.prototype.hasOwnProperty.call(body, 'expected_version')) return c.json({ success: false, code: 'AGENT_VERSION_REQUIRED', error: 'Version requise pour ce test.' }, 409);
+      if (/data:image\//i.test(JSON.stringify(body.messages))) return c.json({ success: false, code: 'AGENT_IMAGE_UNAVAILABLE', error: 'Images indisponibles dans ce test.' }, 422);
+      try {
+        const version = await putAgentDraft(c.env, gate.username, id, JSON.stringify(payload), body.expected_version, { title: payload.title, message_count: payload.messages.length });
+        return c.json({ success: true, data: { id, title: payload.title, storage: 'supabase-preview', version } });
+      } catch (error) {
+        if (error instanceof AgentStorageConflict) return c.json({ success: false, code: 'AGENT_THREAD_CONFLICT', error: 'Cette conversation a été modifiée ailleurs.' }, 409);
+        return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Sauvegarde de test indisponible.' }, 503);
+      }
+    }
     try {
       const version = await storeAgentThreadR2(c.env, gate.userKey, id, payload, body.expected_version);
       return c.json({ success: true, data: { id, title: payload.title, storage: 'r2', version } });
@@ -223,6 +250,10 @@ export function registerMailboxRoutes(app: Hono<any>, deps: MailboxRouteDeps): v
     if (!gate.ok) return gate.response;
     const id = String(c.req.param('id') || '');
     if (!validAgentThreadId(id)) return c.json({ success: false, error: 'Identifiant invalide.' }, 400);
+    if (useAgentStoragePreview(c.env)) {
+      try { await tombstoneAgentDraft(c.env, gate.username, id); return c.json({ success: true, meta: { preview: true } }); }
+      catch { return c.json({ success: false, code: 'AGENT_STORAGE_UNAVAILABLE', error: 'Suppression de test indisponible.' }, 503); }
+    }
     try {
       if (!c.env.IMAGES) throw new Error('storage unavailable');
       // The UI snapshot and model-context transcript have different user-key

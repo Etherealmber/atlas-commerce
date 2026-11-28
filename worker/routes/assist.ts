@@ -1,3 +1,4 @@
+import { useAgentStoragePreview } from '../lib/agentSupabaseDraft';
 import type { Hono } from 'hono';
 import type { Env } from '../env';
 import { canMutateBusiness, normalizeRole } from '../lib/rbac';
@@ -829,6 +830,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
    * métier role-filtered via runAssistTool. Même comportement des deux côtés. */
   
   app.post('/api/assist/chat', async (c) => {
+    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Agent indisponible pendant le test de stockage.' }, 503);
     const authHeader = c.req.header('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return c.json({ success: false, error: tr(pickUiLang(c.req.header('Accept-Language')), 'auth_required') }, 401);
@@ -1055,6 +1057,7 @@ export function registerAssistRoutes(app: Hono<any>, deps: AssistRouteDeps): voi
    * turn costs exactly what a buffered turn costs. Turns WITH images take the
    * buffered vision path and arrive as a single token event. */
   app.post('/api/assist/chat/stream', async (c) => {
+    if (useAgentStoragePreview(c.env)) return c.json({ success: false, code: 'AGENT_PREVIEW_INCOMPLETE', error: 'Agent indisponible pendant le test de stockage.' }, 503);
     const authHeader = c.req.header('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return c.json({ success: false, error: tr(pickUiLang(c.req.header('Accept-Language')), 'auth_required') }, 401);

@@ -10,7 +10,7 @@ export class AgentStorageConflict extends Error {
   constructor() { super('Agent history conflict'); }
 }
 
-type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list';
+type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list' | 'atlas_agent_tombstone';
 type DraftEnv = Env & { AGENT_HISTORY_ENCRYPTION_KEY?: string };
 
 /** Hash exact authenticated username; never use a lossy R2-safe encoding. */
@@ -78,4 +78,17 @@ export async function putAgentDraft(env: DraftEnv, username: string, thread: str
   if (result?.ok === false && result.conflict === true) throw new AgentStorageConflict();
   if (result?.ok !== true || typeof result.version !== 'string' || !/^[1-9][0-9]{0,18}$/.test(result.version)) throw new AgentStorageUnavailable();
   return result.version;
+}
+
+/** Preview-only metadata tombstone. It does not remove attachments. */
+export async function tombstoneAgentDraft(env: DraftEnv, username: string, thread: string, fetcher: typeof fetch = fetch): Promise<void> {
+  if (!validThread(thread)) throw new AgentStorageUnavailable();
+  const account = await agentAccountId(username);
+  const result = await rpc(env, 'atlas_agent_tombstone', { p_account: account, p_thread: thread }, fetcher);
+  if (result?.ok !== true) throw new AgentStorageUnavailable();
+}
+
+/** Explicitly limited to an isolated test environment, never production/demo. */
+export function useAgentStoragePreview(env: any): boolean {
+  return env?.ENVIRONMENT === 'agent-storage-test' && env?.AGENT_STORAGE_PREVIEW === '1' && env?.ATLAS_DEMO !== '1';
 }
