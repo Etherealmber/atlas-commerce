@@ -8,6 +8,55 @@ begin;
 alter table public.atlas_agent_conversations add column if not exists deleted_at timestamptz;
 alter table public.atlas_agent_conversations add column if not exists encrypted_summary text;
 
+-- Model context has its own revision so snapshot updates and model turns do
+-- not overwrite one another. Parent tombstones fence all transcript writes.
+create table if not exists public.atlas_agent_transcripts (
+  account_id text not null,
+  thread_id text not null,
+  encrypted_payload text not null,
+  revision bigint not null default 1 check (revision > 0),
+  primary key (account_id, thread_id),
+  foreign key (account_id, thread_id) references public.atlas_agent_conversations(account_id, thread_id)
+);
+alter table public.atlas_agent_transcripts enable row level security;
+revoke all on table public.atlas_agent_transcripts from public, anon, authenticated, service_role;
+
+create or replace function public.atlas_agent_transcript_get(p_account text, p_thread text)
+returns jsonb language sql security definer set search_path = pg_catalog as $$
+  select jsonb_build_object('payload', t.encrypted_payload, 'version', t.revision::text)
+  from public.atlas_agent_transcripts t join public.atlas_agent_conversations c
+    on c.account_id = t.account_id and c.thread_id = t.thread_id
+  where t.account_id = p_account and t.thread_id = p_thread
+    and c.deleted_at is null and c.last_activity_at > now() - interval '30 days';
+$$;
+
+-- Caller must have created the parent snapshot first. Locking the parent
+-- serializes this write with deletion/expiry; there is no R2 fallback.
+create or replace function public.atlas_agent_transcript_put(p_account text, p_thread text, p_payload text, p_expected_version text)
+returns jsonb language plpgsql security definer set search_path = pg_catalog as $$
+declare next_revision bigint;
+begin
+  if p_account is null or length(p_account) not between 1 and 200 or p_thread is null or length(p_thread) not between 1 and 80
+    or p_payload is null or length(p_payload) not between 1 and 2100000 then raise exception 'invalid input'; end if;
+  perform 1 from public.atlas_agent_conversations where account_id = p_account and thread_id = p_thread
+    and deleted_at is null and last_activity_at > now() - interval '30 days' for update;
+  if not found then return jsonb_build_object('ok', false, 'conflict', true); end if;
+  if p_expected_version is null then
+    insert into public.atlas_agent_transcripts(account_id, thread_id, encrypted_payload)
+      values(p_account, p_thread, p_payload) on conflict do nothing returning revision into next_revision;
+  else
+    update public.atlas_agent_transcripts set encrypted_payload = p_payload, revision = revision + 1
+      where account_id = p_account and thread_id = p_thread and revision::text = p_expected_version
+      returning revision into next_revision;
+  end if;
+  if next_revision is null then return jsonb_build_object('ok', false, 'conflict', true); end if;
+  return jsonb_build_object('ok', true, 'version', next_revision::text);
+end $$;
+revoke all on function public.atlas_agent_transcript_get(text,text) from public, anon, authenticated;
+revoke all on function public.atlas_agent_transcript_put(text,text,text,text) from public, anon, authenticated;
+grant execute on function public.atlas_agent_transcript_get(text,text) to service_role;
+grant execute on function public.atlas_agent_transcript_put(text,text,text,text) to service_role;
+
 -- Durable cleanup intent, created in the same transaction as the tombstone.
 -- No worker or schedule is installed by this draft.
 create table if not exists public.atlas_agent_cleanup_queue (
@@ -127,6 +176,7 @@ begin
   insert into public.atlas_agent_conversations(account_id, thread_id, encrypted_payload, deleted_at)
     values(p_account, p_thread, '', now())
   on conflict (account_id, thread_id) do update set encrypted_payload = '', encrypted_summary = null, deleted_at = coalesce(atlas_agent_conversations.deleted_at, now()), revision = atlas_agent_conversations.revision + 1;
+  delete from public.atlas_agent_transcripts where account_id = p_account and thread_id = p_thread;
   insert into public.atlas_agent_cleanup_queue(account_id, thread_id) values(p_account, p_thread) on conflict do nothing;
   return jsonb_build_object('ok', true);
 end $$;
@@ -147,6 +197,9 @@ begin
       set encrypted_payload = '', encrypted_summary = null, deleted_at = now(), revision = c.revision + 1
       from candidates x where c.account_id = x.account_id and c.thread_id = x.thread_id
       returning c.account_id, c.thread_id
+  ), removed_transcripts as (
+    delete from public.atlas_agent_transcripts t using expired e
+      where t.account_id = e.account_id and t.thread_id = e.thread_id returning 1
   ), queued as (
     insert into public.atlas_agent_cleanup_queue(account_id, thread_id)
     select account_id, thread_id from expired on conflict do nothing returning 1

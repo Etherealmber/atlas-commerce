@@ -10,7 +10,7 @@ export class AgentStorageConflict extends Error {
   constructor() { super('Agent history conflict'); }
 }
 
-type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list' | 'atlas_agent_tombstone';
+type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list' | 'atlas_agent_tombstone' | 'atlas_agent_transcript_get' | 'atlas_agent_transcript_put';
 type DraftEnv = Env & { AGENT_HISTORY_ENCRYPTION_KEY?: string };
 
 /** Hash exact authenticated username; never use a lossy R2-safe encoding. */
@@ -91,4 +91,27 @@ export async function tombstoneAgentDraft(env: DraftEnv, username: string, threa
 /** Explicitly limited to an isolated test environment, never production/demo. */
 export function useAgentStoragePreview(env: any): boolean {
   return env?.ENVIRONMENT === 'agent-storage-test' && env?.AGENT_STORAGE_PREVIEW === '1' && env?.ATLAS_DEMO !== '1';
+}
+
+/** Independent encrypted model-context revision, never falls back to R2. */
+export async function getAgentTranscriptDraft(env: DraftEnv, username: string, thread: string, fetcher: typeof fetch = fetch): Promise<{ payload: string; version: string } | null> {
+  if (!validThread(thread)) throw new AgentStorageUnavailable();
+  const key = secret(env); const account = await agentAccountId(username);
+  const row = await rpc(env, 'atlas_agent_transcript_get', { p_account: account, p_thread: thread }, fetcher);
+  if (row === null) return null;
+  if (!row || typeof row.payload !== 'string' || typeof row.version !== 'string' || !/^[1-9][0-9]{0,18}$/.test(row.version)) throw new AgentStorageUnavailable();
+  try { return { payload: await decryptAgentPayload(key, `${account}:transcript`, thread, row.payload), version: row.version }; }
+  catch { throw new AgentStorageUnavailable(); }
+}
+
+export async function putAgentTranscriptDraft(env: DraftEnv, username: string, thread: string, payload: string, version: string | null, fetcher: typeof fetch = fetch): Promise<string> {
+  if (!validThread(thread) || (version !== null && !/^[1-9][0-9]{0,18}$/.test(version))) throw new AgentStorageUnavailable();
+  const key = secret(env); const account = await agentAccountId(username);
+  let ciphertext: string;
+  try { ciphertext = await encryptAgentPayload(key, `${account}:transcript`, thread, payload); }
+  catch { throw new AgentStorageUnavailable(); }
+  const result = await rpc(env, 'atlas_agent_transcript_put', { p_account: account, p_thread: thread, p_payload: ciphertext, p_expected_version: version }, fetcher);
+  if (result?.ok === false && result.conflict === true) throw new AgentStorageConflict();
+  if (result?.ok !== true || typeof result.version !== 'string' || !/^[1-9][0-9]{0,18}$/.test(result.version)) throw new AgentStorageUnavailable();
+  return result.version;
 }

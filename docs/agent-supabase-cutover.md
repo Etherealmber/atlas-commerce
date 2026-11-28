@@ -34,3 +34,7 @@ The draft now includes a bounded, account-filtered metadata list and a server-si
 ### Upload fencing prototype (not enabled)
 
 The draft now records an upload intent while locking the active conversation before any R2 PUT. Tombstones use the same row lock. A known-completed PUT racing a tombstone is deleted before its intent is released; cleanup completion is blocked while intents exist. Unknown or interrupted PUT outcomes deliberately remain pending indefinitely rather than being assumed safe. The runner still never marks cleanup complete. A safe recovery strategy for unresolved uploads, true concurrent database/R2 tests, queue integration and authorization are required before production; do not apply this draft SQL to the live project.
+
+### Model transcript prototype (not enabled)
+
+The draft now has separately encrypted model transcripts and independent compare-and-swap revisions. Parent tombstones and expiry remove the transcript in the same database transaction, and writes require an active parent. The adapter has no legacy R2 fallback. Local PGlite tests exercise isolation, stale writes, deletion and expiry. Chat endpoints remain blocked in the isolated preview: the current clients can send a first chat before creating a snapshot, and streaming/buffered turn persistence, conflict handling and idempotency still need integration. This prototype is not a live migration and its SQL must not be applied to production yet.
