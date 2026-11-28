@@ -258,9 +258,10 @@ it('shows real expandable activity without a redundant generic invoice shortcut,
 });
 
 it('does not resurrect a deleted conversation when an older history request finishes', async () => {
-  localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'stale', title: 'À supprimer', updated: 10 }]));
+  localStorage.setItem('atlas_agent_active_thread:admin', 'stale');
   let finishList!: (value: any) => void;
   vi.mocked(api.listAgentThreads).mockReturnValue(new Promise(resolve => { finishList = resolve; }));
+  vi.mocked(api.getAgentThread).mockImplementation(async id => id === 'stale' ? { data: { title: 'À supprimer', messages: [{ role: 'user', text: 'Question' }] }, meta: { version: '1' } } as any : { data: { messages: [] }, meta: { version: null } } as any);
   vi.spyOn(api, 'deleteAgentThread').mockResolvedValue({ success: true });
   await render();
   await click('[aria-label="Agrandir le panneau"]');
@@ -269,6 +270,37 @@ it('does not resurrect a deleted conversation when an older history request fini
   await act(async () => finishList({ data: [{ id: 'stale', title: 'À supprimer', message_count: 1, updated_at: '2026-01-01' }] }));
   expect(host.querySelector('[aria-label="Supprimer À supprimer"]')).toBeNull();
   expect(localStorage.getItem('atlas_agent_threads_v1:admin')).not.toContain('stale');
+});
+
+it('does not expose legacy history while storage mode is unknown', async () => {
+  localStorage.setItem('atlas_agent_active_thread:admin', 'stale');
+  localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'stale', title: 'Legacy secret', updated: 10 }]));
+  localStorage.setItem('atlas_agent_msgs_v1:admin:stale', JSON.stringify([{ role: 'user', text: 'Old private text' }]));
+  let finishList!: (value: any) => void;
+  let finishThread!: (value: any) => void;
+  vi.mocked(api.listAgentThreads).mockReturnValue(new Promise(resolve => { finishList = resolve; }));
+  vi.mocked(api.getAgentThread).mockReturnValue(new Promise(resolve => { finishThread = resolve; }));
+  await render();
+  await click('[aria-label="Agrandir le panneau"]');
+  expect(host.textContent).not.toContain('Legacy secret');
+  expect(host.textContent).not.toContain('Old private text');
+  await act(async () => { finishList({ data: [], meta: { storage: 'supabase' } }); finishThread({ data: { messages: [] }, meta: { storage: 'supabase', version: null } }); });
+  expect(host.textContent).not.toContain('Legacy secret');
+  expect(host.textContent).not.toContain('Old private text');
+  expect(localStorage.getItem('atlas_agent_msgs_v1:admin:stale')).toContain('Old private text');
+});
+
+it('does not expose legacy history when storage discovery fails', async () => {
+  localStorage.setItem('atlas_agent_active_thread:admin', 'stale');
+  localStorage.setItem('atlas_agent_threads_v1:admin', JSON.stringify([{ id: 'stale', title: 'Legacy secret', updated: 10 }]));
+  localStorage.setItem('atlas_agent_msgs_v1:admin:stale', JSON.stringify([{ role: 'user', text: 'Old private text' }]));
+  vi.mocked(api.listAgentThreads).mockRejectedValue(new Error('offline'));
+  vi.mocked(api.getAgentThread).mockRejectedValue(new Error('offline'));
+  await render();
+  await click('[aria-label="Agrandir le panneau"]');
+  expect(host.textContent).not.toContain('Legacy secret');
+  expect(host.textContent).not.toContain('Old private text');
+  expect(localStorage.getItem('atlas_agent_msgs_v1:admin:stale')).toContain('Old private text');
 });
 
 it('does not hide a thread when deletion lacks a success acknowledgement', async () => {

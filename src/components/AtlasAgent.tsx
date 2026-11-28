@@ -558,7 +558,7 @@ export default function AtlasAgent() {
       return newThreadId();
     }
   });
-  const [threads, setThreads] = useState<ThreadMeta[]>(() => loadThreads());
+  const [threads, setThreads] = useState<ThreadMeta[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [mascotHint, setMascotHint] = useState('');
   const [historySearch, setHistorySearch] = useState('');
@@ -687,17 +687,8 @@ export default function AtlasAgent() {
   const lastFilesRef = useRef<{ name: string; type: string; data_url: string; preview_url?: string; text_excerpt?: string }[]>([]);
   const [lightbox, setLightbox] = useState<{ src: string; name?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [msgs, setMsgs] = useState<Msg[]>(() => {
-    const id = (() => {
-      try {
-        return localStorage.getItem(activeThreadKey()) || '';
-      } catch {
-        return '';
-      }
-    })();
-    const saved = id ? loadMsgs(id) : [];
-    return saved.length ? saved : [WELCOME];
-  });
+  // Do not expose a legacy cache before the server identifies the storage mode.
+  const [msgs, setMsgs] = useState<Msg[]>([WELCOME]);
   const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
   const [liveTools, setLiveTools] = useState<ToolTrace[]>([]);
   const [activeTool, setActiveTool] = useState('');
@@ -750,7 +741,7 @@ export default function AtlasAgent() {
     const state = { id: threadId, user, ready: false, version: null as string | null, baseline: '', inFlight: false, blocked: false, storage: '', failure: 'offline' as 'conflict' | 'offline' | 'too-large' };
     syncRef.current = state;
     setLoadingThread(true); setSyncStatus('loading');
-    if (loadMsgs(threadId).length) setMsgs(loadMsgs(threadId));
+    setMsgs([WELCOME]);
     (async () => {
       try {
         const res = await api.getAgentThread(threadId);
@@ -771,7 +762,7 @@ export default function AtlasAgent() {
         } else if (pending && local.some(m => m.role === 'user') && ((!pending.known && version !== null) || (pending.known && pending.version !== version))) {
           state.blocked = true; state.failure = 'conflict';
           state.baseline = JSON.stringify(threadSnapshot(local));
-          setSyncStatus('conflict');
+          setMsgs(local); setSyncStatus('conflict');
         } else if (pending && local.some(m => m.role === 'user')) {
           state.baseline = JSON.stringify(remote);
           setMsgs(local);
@@ -782,7 +773,7 @@ export default function AtlasAgent() {
           state.blocked = true; state.failure = 'conflict';
           state.baseline = JSON.stringify(threadSnapshot(local));
           try { localStorage.setItem(key, JSON.stringify({ known: false, version: null })); } catch { /* warning remains visible */ }
-          setSyncStatus('conflict');
+          setMsgs(local); setSyncStatus('conflict');
         } else if (remote.length) {
           state.baseline = JSON.stringify(remote);
           setMsgs(remote);
@@ -794,7 +785,7 @@ export default function AtlasAgent() {
           setSyncStatus('pending');
         } else {
           state.baseline = JSON.stringify(threadSnapshot(local.length ? local : [WELCOME]));
-          if ((storage === 'supabase-preview' || storage === 'supabase')) setMsgs(local.length ? local : [WELCOME]);
+          setMsgs(local.length ? local : [WELCOME]);
           setSyncStatus('saved');
         }
         if (res?.data?.title && remote.length) {
@@ -858,6 +849,8 @@ export default function AtlasAgent() {
     if (!open) return;
     let cancelled = false;
     const historyUser = scopeUser();
+    const cachedLegacyThreads = loadThreads();
+    setThreads([]);
     (async () => {
       try {
         const res = await api.listAgentThreads();
@@ -867,10 +860,9 @@ export default function AtlasAgent() {
         const remote = res?.data;
         if (!Array.isArray(remote)) return;
         const preview = ['supabase-preview', 'supabase'].includes(res?.meta?.storage || '');
-        if (!remote.length && !preview) return;
         setThreads((prev) => {
           const byId = new Map<string, ThreadMeta>();
-          if (!preview) for (const t of prev) byId.set(t.id, t);
+          if (!preview) for (const t of [...cachedLegacyThreads, ...prev]) if (!deletedThreads.current.has(`${historyUser}:${t.id}`)) byId.set(t.id, t);
           for (const r of remote) {
             const id = String(r.id || '');
             if (!id || deletedThreads.current.has(`${historyUser}:${id}`) || (r.message_count === 0 && String(r.title || '') === 'Sans titre')) continue;
@@ -1494,7 +1486,7 @@ export default function AtlasAgent() {
           <button type="button" className="atlas-agent-sidebar-new" disabled={busy || loadingThread || syncStatus === 'pending' || syncStatus === 'saving'} onClick={() => switchThread(newThreadId())}><Plus size={16} /> Nouvelle conversation</button>
           <label className="atlas-agent-history-search"><Search size={15} aria-hidden="true" /><input aria-label="Rechercher dans les conversations" placeholder="Rechercher…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /></label>
           <div className="atlas-agent-history-caption">Conversations récentes</div>
-          {historyError && <p className="atlas-agent-history-error" role="status">Certaines conversations R2 sont indisponibles.</p>}
+          {historyError && <p className="atlas-agent-history-error" role="status">L’historique des conversations est indisponible.</p>}
           {historyPending && <p className="atlas-agent-history-error" role="status">Certains titres se chargent à l’ouverture.</p>}
           {deleteError && <p className="atlas-agent-history-error" role="alert">{deleteError}</p>}
           <div className="atlas-agent-workspace-threads">
