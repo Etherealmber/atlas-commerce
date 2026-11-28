@@ -10,13 +10,13 @@ describe('Agent Supabase RPC draft (local only)', () => {
       await db.exec(readFileSync('supabase/agent-preparation.sql', 'utf8'));
       const script = readFileSync('supabase/agent-rpc-draft.sql', 'utf8');
       await db.exec(script); await db.exec(script);
-      const put = async (account: string, version: string | null) => (await db.query<any>('select public.atlas_agent_put($1, $2, $3, $4) as result', [account, 'thread', 'ciphertext', version])).rows[0].result;
+      const put = async (account: string, version: string | null) => (await db.query<any>('select public.atlas_agent_put($1, $2, $3, $4, $5) as result', [account, 'thread', 'ciphertext', version, 'encrypted-summary'])).rows[0].result;
       const get = async (account: string) => (await db.query<any>('select public.atlas_agent_get($1,$2) as result', [account, 'thread'])).rows[0].result;
       expect(await put('alice', null)).toEqual({ ok: true, version: '1' });
       expect(await get('bob')).toBeNull();
       const list = async (account: string) => (await db.query<any>('select public.atlas_agent_list($1, 20) as result', [account])).rows[0].result;
       expect(await list('bob')).toEqual([]);
-      expect(await list('alice')).toMatchObject([{ id: 'thread' }]);
+      expect(await list('alice')).toMatchObject([{ id: 'thread', encrypted_summary: 'encrypted-summary' }]);
       expect(await put('alice', '1')).toEqual({ ok: true, version: '2' });
       expect(await put('alice', '1')).toEqual({ ok: false, conflict: true });
       await db.query('select public.atlas_agent_tombstone($1,$2)', ['alice', 'thread']);
