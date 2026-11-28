@@ -12,6 +12,10 @@ describe('Agent cleanup queue SQL (not deployed)', () => {
       await db.exec(draft); await db.exec(draft);
       await db.query('select public.atlas_agent_put($1,$2,$3,$4,$5)', ['alice', 'a', 'encrypted', null, 'summary']);
       await db.query('select public.atlas_agent_put($1,$2,$3,$4,$5)', ['bob', 'b', 'encrypted', null, 'summary']);
+      const image = 'e'.repeat(32);
+      const begin = async () => (await db.query<any>('select public.atlas_agent_upload_begin($1,$2,$3) as result', ['alice', 'a', image])).rows[0].result;
+      const uploadFinish = async (removed: boolean) => (await db.query<any>('select public.atlas_agent_upload_finish($1,$2,$3,$4) as result', ['alice', 'a', image, removed])).rows[0].result;
+      expect(await begin()).toBe(true);
       await db.query('select public.atlas_agent_tombstone($1,$2)', ['alice', 'a']);
       await db.query('select public.atlas_agent_tombstone($1,$2)', ['alice', 'a']);
       await db.exec("update public.atlas_agent_conversations set last_activity_at = now() - interval '31 days' where account_id = 'bob'");
@@ -24,6 +28,12 @@ describe('Agent cleanup queue SQL (not deployed)', () => {
       const first = await claim(token1, 1); const second = await claim(token2, 10);
       expect(first).toHaveLength(1); expect(second).toHaveLength(1);
       expect(await claim('c'.repeat(32), 10)).toEqual([]);
+      const aliceJob = [...first, ...second].find((j: any) => j.account_id === 'alice');
+      const aliceToken = first[0].account_id === 'alice' ? token1 : token2;
+      expect(await begin()).toBe(false);
+      expect(await uploadFinish(false)).toBe(false);
+      expect(await finish(aliceJob.account_id, aliceJob.thread_id, aliceToken, true)).toBe(false);
+      expect(await uploadFinish(true)).toBe(true);
       const job = first[0];
       expect(await finish(job.account_id, job.thread_id, token2, true)).toBe(false);
       expect(await finish(job.account_id, job.thread_id, token1, false)).toBe(true);

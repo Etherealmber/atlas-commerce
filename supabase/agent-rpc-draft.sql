@@ -25,6 +25,51 @@ create index if not exists atlas_agent_cleanup_ready on public.atlas_agent_clean
 alter table public.atlas_agent_cleanup_queue enable row level security;
 revoke all on table public.atlas_agent_cleanup_queue from public, anon, authenticated, service_role;
 
+-- Durable upload intents. Never expire automatically: an R2 PUT with an
+-- unknown outcome could still complete after a timeout or Worker crash.
+create table if not exists public.atlas_agent_upload_intents (
+  account_id text not null,
+  thread_id text not null,
+  image_id text not null check (image_id ~ '^[a-f0-9]{32}$'),
+  created_at timestamptz not null default now(),
+  primary key (account_id, thread_id, image_id),
+  foreign key (account_id, thread_id) references public.atlas_agent_conversations(account_id, thread_id)
+);
+alter table public.atlas_agent_upload_intents enable row level security;
+revoke all on table public.atlas_agent_upload_intents from public, anon, authenticated, service_role;
+
+-- Lock the same row as tombstone/expiry to linearize reservation and deletion.
+create or replace function public.atlas_agent_upload_begin(p_account text, p_thread text, p_image text)
+returns boolean language plpgsql security definer set search_path = pg_catalog as $$
+begin
+  if p_account is null or p_thread is null or p_image is null or p_image !~ '^[a-f0-9]{32}$' then raise exception 'invalid input'; end if;
+  perform 1 from public.atlas_agent_conversations where account_id = p_account and thread_id = p_thread
+    and deleted_at is null and last_activity_at > now() - interval '30 days' for update;
+  if not found then return false; end if;
+  insert into public.atlas_agent_upload_intents(account_id, thread_id, image_id) values(p_account, p_thread, p_image);
+  return true;
+end $$;
+
+-- On an active conversation, a known-completed PUT may be committed. After a
+-- tombstone, only a known-completed PUT followed by confirmed R2 deletion may
+-- be released. UNKNOWN PUT outcomes must never call with p_removed=true.
+create or replace function public.atlas_agent_upload_finish(p_account text, p_thread text, p_image text, p_removed boolean)
+returns boolean language plpgsql security definer set search_path = pg_catalog as $$
+declare active boolean; affected integer;
+begin
+  if p_account is null or p_thread is null or p_image is null or p_image !~ '^[a-f0-9]{32}$' or p_removed is null then raise exception 'invalid input'; end if;
+  select deleted_at is null and last_activity_at > now() - interval '30 days' into active
+    from public.atlas_agent_conversations where account_id = p_account and thread_id = p_thread for update;
+  if not found or (not active and not p_removed) then return false; end if;
+  delete from public.atlas_agent_upload_intents where account_id = p_account and thread_id = p_thread and image_id = p_image;
+  get diagnostics affected = row_count;
+  return affected = 1;
+end $$;
+revoke all on function public.atlas_agent_upload_begin(text,text,text) from public, anon, authenticated;
+revoke all on function public.atlas_agent_upload_finish(text,text,text,boolean) from public, anon, authenticated;
+grant execute on function public.atlas_agent_upload_begin(text,text,text) to service_role;
+grant execute on function public.atlas_agent_upload_finish(text,text,text,boolean) to service_role;
+
 create or replace function public.atlas_agent_get(p_account text, p_thread text)
 returns jsonb language sql security definer set search_path = pg_catalog as $$
   select jsonb_build_object('payload', encrypted_payload, 'version', revision::text,
@@ -138,7 +183,8 @@ declare affected integer;
 begin
   if p_token is null or p_token !~ '^[a-f0-9]{32,64}$' or p_complete is null then raise exception 'invalid input'; end if;
   if p_complete then
-    delete from public.atlas_agent_cleanup_queue where account_id = p_account and thread_id = p_thread and lease_token = p_token and lease_until > now();
+    delete from public.atlas_agent_cleanup_queue q where q.account_id = p_account and q.thread_id = p_thread and q.lease_token = p_token and q.lease_until > now()
+      and not exists (select 1 from public.atlas_agent_upload_intents i where i.account_id = q.account_id and i.thread_id = q.thread_id);
   else
     update public.atlas_agent_cleanup_queue set lease_token = null, lease_until = null, next_attempt_at = now() + interval '1 minute'
       where account_id = p_account and thread_id = p_thread and lease_token = p_token and lease_until > now();

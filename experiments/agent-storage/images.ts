@@ -28,14 +28,28 @@ function checkDataUrl(dataUrl: string): void {
   if (bytes.length > MAX_IMAGE_BYTES || btoa(bytes) !== match[2]) throw new Error('Invalid image');
 }
 
-/** Encrypt each image separately, authenticating account, thread, and image ID. */
-export async function putAgentImageDraft(bucket: Bucket, key: string, account: string, thread: string, dataUrl: string): Promise<string> {
+type UploadFence = {
+  begin(account: string, thread: string, imageId: string): Promise<boolean>;
+  finish(account: string, thread: string, imageId: string, removed: boolean): Promise<boolean>;
+};
+
+/**
+ * Register before the R2 write. Unknown PUT outcomes leave an intent forever
+ * until a safe recovery protocol resolves them. This trades liveness for safety.
+ */
+export async function putAgentImageDraft(bucket: Bucket, fence: UploadFence, key: string, account: string, thread: string, dataUrl: string): Promise<string> {
   checkDataUrl(dataUrl);
   const imageId = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
   const path = objectKey(account, thread, imageId);
   const envelope = await encryptAgentPayload(key, `${account}:image:${imageId}`, thread, dataUrl);
+  if (!await fence.begin(account, thread, imageId)) throw new Error('Conversation unavailable');
+  // An exception may have an unknown outcome. Do not clear the intent.
   await bucket.put(path, envelope, { httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' } });
-  return imageId;
+  if (await fence.finish(account, thread, imageId, false)) return imageId;
+  // The completed upload raced a tombstone: remove the exact object first.
+  await bucket.delete(path);
+  if (!await fence.finish(account, thread, imageId, true)) throw new Error('Upload cleanup pending');
+  throw new Error('Conversation unavailable');
 }
 
 /** Caller must first authorize the account and check the conversation is active. */
