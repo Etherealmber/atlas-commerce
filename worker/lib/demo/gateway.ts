@@ -20,6 +20,7 @@ import {
   DEMO_PASSWORD,
   DEMO_SESSION_MINUTES,
   demoDurationLabel,
+  decideDemoSession,
   DEMO_USERNAME,
   DEMO_WINDOW_HOURS,
   demoIntroMessage,
@@ -45,6 +46,10 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
+}
+
+function nextUtcDay(now = new Date()): number {
+  const next = new Date(now); next.setUTCHours(24, 0, 0, 0); return next.getTime();
 }
 
 async function sha256Hex(s: string): Promise<string> {
@@ -328,23 +333,32 @@ async function handleDemoLogin(
     try { result = loginQuota && await callHub(loginQuota, '/ip-quota', { max: MAX_DEMO_LOGINS_PER_IP_PER_DAY }); }
     catch { result = null; }
     if (!result || typeof result.ok !== 'boolean') return json({ success: false, code: 'DEMO_UNAVAILABLE', error: 'Le mode démo est temporairement indisponible.' }, 503);
-    if (!result.ok) return json({ success: false, code: 'DEMO_QUOTA', error: 'Trop de connexions de démo depuis ce réseau aujourd’hui. Réessayez demain.' }, 429);
+    if (!result.ok) return json({ success: false, code: 'DEMO_QUOTA', quota_scope: 'network_login', retry_at: nextUtcDay(), error: 'Trop de connexions de démo depuis ce réseau aujourd’hui. Réessayez après minuit UTC.' }, 429);
   }
   const fp = await fingerprintHash(request, body);
   const stub = hubStub(env, `demo:${fp}`);
   if (!stub) return json({ success: false, code: 'DEMO_UNAVAILABLE', error: 'Le mode démo est indisponible sur ce déploiement.' }, 503);
 
   const status = await callHub(stub, '/status');
-  const hasLive = status?.meta && Date.now() < Number(status.meta.expires_at);
+  if (status?.ok !== true) return json({ success: false, code: 'DEMO_UNAVAILABLE', error: 'Le mode démo est temporairement indisponible.' }, 503);
+  const decision = decideDemoSession(status.meta, Date.now());
+  // A device already in its cooldown must not consume the shared network's
+  // new-sandbox budget on every retry; the Durable Object still rechecks it.
+  if (decision.action === 'denied') {
+    return json({ success: false, code: 'DEMO_QUOTA', quota_scope: 'device', retry_at: decision.retry_at,
+      error: `Vous avez déjà utilisé votre ${demoDurationLabel()} de démo pour aujourd’hui. Nouvel essai possible dans ${formatWait(decision.retry_at - Date.now())}.` }, 429);
+  }
+  const hasLive = decision.action === 'active';
   // Per-network cap protects public deployments. A dev machine (localhost /
   // LAN address) funnels every browser, emulator and phone through the same
   // IP, so the cap would lock local testing after a few devices — skip it
   // there; the per-fingerprint 1 h / 24 h rule still applies.
   if (!hasLive && !isDevMachineHost(new URL(request.url))) {
     const ipStub = hubStub(env, `demo-ip:${(await sha256Hex(`atlas-demo-ip|${ip}`)).slice(0, 32)}`);
-    const quota = ipStub ? await callHub(ipStub, '/ip-quota', { max: MAX_NEW_SANDBOXES_PER_IP_PER_DAY }) : { ok: true };
-    if (quota && quota.ok === false) {
-      return json({ success: false, code: 'DEMO_QUOTA', error: 'Trop de sessions de démo depuis ce réseau aujourd’hui. Réessayez demain.' }, 429);
+    const quota = ipStub ? await callHub(ipStub, '/ip-quota', { max: MAX_NEW_SANDBOXES_PER_IP_PER_DAY }) : null;
+    if (typeof quota?.ok !== 'boolean') return json({ success: false, code: 'DEMO_UNAVAILABLE', error: 'Le mode démo est temporairement indisponible.' }, 503);
+    if (!quota.ok) {
+      return json({ success: false, code: 'DEMO_QUOTA', quota_scope: 'network_new_session', retry_at: nextUtcDay(), error: 'Trop de sessions de démo depuis ce réseau aujourd’hui. Réessayez après minuit UTC.' }, 429);
     }
   }
 
@@ -355,6 +369,7 @@ async function handleDemoLogin(
     return json({
       success: false,
       code: 'DEMO_QUOTA',
+      quota_scope: 'device',
       retry_at: retryAt || undefined,
       error: `Vous avez déjà utilisé votre ${demoDurationLabel()} de démo pour aujourd’hui. Nouvel essai possible dans ${wait}.`,
     }, 429);

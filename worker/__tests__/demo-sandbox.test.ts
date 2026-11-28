@@ -518,3 +518,33 @@ it('derives a separate non-public chat encryption key per sandbox generation', a
   expect((first as any).AGENT_CHAT_SECRET).not.toBe(env.AGENT_CHAT_SECRET);
   expect((await buildDemoEnv({} as any, db as any, 'fp:1') as any).AGENT_CHAT_SECRET).toBeUndefined();
 });
+
+it('does not consume new-session network quota when a device is already in cooldown', async () => {
+  const calls: string[] = []; const now = Date.now();
+  const env = { DEMO_HUB: { idFromName: (name: string) => name, get: (name: string) => ({ fetch: async (url: string) => {
+    const path = new URL(url).pathname; calls.push(`${name}:${path}`);
+    if (name.startsWith('demo-login-ip:')) return Response.json({ ok: true });
+    if (name.startsWith('demo:') && path === '/status') return Response.json({ ok: true, meta: { started_at: now - 7200000, expires_at: now - 3600000, gen: 1, seeded: true } });
+    throw new Error('unexpected request');
+  } }) } } as any;
+  const req = new Request('https://example.com/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.1' }, body: JSON.stringify({ username: 'test', password: 'test', fingerprint: 'abc', client: 'android' }) });
+  const response = await handleDemoRequest(req, env, {} as any, vi.fn() as any, async () => ({ ok: true }));
+  expect(response?.status).toBe(429);
+  expect(await response!.json()).toMatchObject({ code: 'DEMO_QUOTA', quota_scope: 'device', retry_at: expect.any(Number) });
+  expect(calls.some(call => call.startsWith('demo-ip:'))).toBe(false);
+});
+
+it('reports network demo quota separately with its UTC reset time', async () => {
+  const env = { DEMO_HUB: { idFromName: (name: string) => name, get: (name: string) => ({ fetch: async (url: string) => {
+    if (name.startsWith('demo-login-ip:')) return Response.json({ ok: true });
+    if (name.startsWith('demo:') && new URL(url).pathname === '/status') return Response.json({ ok: true, meta: null });
+    if (name.startsWith('demo-ip:')) return Response.json({ ok: false });
+    throw new Error('unexpected request');
+  } }) } } as any;
+  const req = new Request('https://example.com/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'test', password: 'test', fingerprint: 'new-device', client: 'android' }) });
+  const response = await handleDemoRequest(req, env, {} as any, vi.fn() as any, async () => ({ ok: true }));
+  expect(response?.status).toBe(429);
+  const body: any = await response!.json();
+  expect(body).toMatchObject({ code: 'DEMO_QUOTA', quota_scope: 'network_new_session', retry_at: expect.any(Number) });
+  expect(new Date(body.retry_at).getUTCHours()).toBe(0);
+});
