@@ -21,7 +21,7 @@ import { t as translate } from '../i18n/core';
 import { AgentMarkdown } from '../components/agent/AgentMarkdown';
 import { AgentClarification, parseClarification } from '../components/agent/AgentClarification';
 import PhoneAgentActivity from './PhoneAgentActivity';
-import { getUsername, getDisplayInitials, hasAvatarUrl, getRole, isStockRole, canSell } from '../auth';
+import { getUsername, getDisplayInitials, hasAvatarUrl, getRole, getToken, isStockRole, canSell } from '../auth';
 import type { UiScale } from '../lib/density';
 import './phone.css';
 import PageTransition from '../components/PageTransition';
@@ -1418,6 +1418,38 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
     try { const value = historyKey && JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(value) ? value.filter(t => typeof t?.threadId === 'string' && Array.isArray(t.messages)).map(t => ({ threadId: t.threadId, messages: t.messages.filter((m: Msg) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.text === 'string').slice(-40) })) : []; } catch { return []; }
   });
   const [dialog, setDialog] = useState<'history' | 'quota' | 'activity' | 'language' | 'unlock' | 'photo' | null>(null);
+  const [serverHistory, setServerHistory] = useState<{ id: string; title: string }[] | null>(null);
+  const [serverHistoryState, setServerHistoryState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [serverDetail, setServerDetail] = useState<{ title: string; messages: Msg[] } | null>(null);
+  const [serverDetailLoading, setServerDetailLoading] = useState(false);
+  const historyRequest = useRef(0);
+  useEffect(() => {
+    if (dialog !== 'history' || storageMode === 'r2') return;
+    const request = ++historyRequest.current;
+    const token = getToken(), user = getUsername(), base = getBase();
+    const same = () => request === historyRequest.current && token === getToken() && user === getUsername() && base === getBase();
+    setServerHistory(null); setServerDetail(null); setServerDetailLoading(false); setServerHistoryState('loading');
+    void api.listAgentThreads().then(result => {
+      if (!same()) return;
+      if (result?.meta?.storage !== storageMode || !Array.isArray(result.data) || result.data.some(t => !t || typeof t.id !== 'string' || typeof t.title !== 'string')) throw new Error('invalid history');
+      setServerHistory(result.data.map(t => ({ id: t.id, title: t.title }))); setServerHistoryState('ready');
+    }).catch(() => { if (same()) setServerHistoryState('error'); });
+    return () => { historyRequest.current++; };
+  }, [dialog, storageMode]);
+  const viewServerThread = async (thread: { id: string; title: string }) => {
+    const request = ++historyRequest.current;
+    const token = getToken(), user = getUsername(), base = getBase();
+    const same = () => request === historyRequest.current && token === getToken() && user === getUsername() && base === getBase();
+    setServerDetailLoading(true); setServerDetail(null);
+    try {
+      const result = await api.getAgentThread(thread.id);
+      if (!same()) return;
+      if (result.meta?.storage !== storageMode || result.meta?.empty || !Array.isArray(result.data?.messages)) throw new Error('invalid conversation');
+      const messages = result.data.messages.filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string').map((m: any) => ({ role: m.role as Msg['role'], text: m.text }));
+      setServerDetail({ title: thread.title, messages });
+    } catch { if (same()) setQuickNotice('Lecture de la conversation serveur impossible.'); }
+    finally { if (same()) setServerDetailLoading(false); }
+  };
   const [deleteHistoryId, setDeleteHistoryId] = useState<string | null>(null);
   const [deletingHistory, setDeletingHistory] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -1654,7 +1686,17 @@ function PhoneAgentMobileReady({ onNavigate, onBack, onTheme, onProductCreated, 
         <button type="button" className="ph-btn" onClick={() => setDialog(null)}>Fermer</button>
       </PhoneDialog>}
       {dialog === 'history' && <PhoneDialog titleId="ph-agent-history-title" onClose={() => setDialog(null)}>
-        <h2 id="ph-agent-history-title">Historique des discussions</h2><p>Discussions enregistrées sur cet appareil pour ce compte.</p>{quickNotice && <p role="status">{quickNotice}</p>}
+        <h2 id="ph-agent-history-title">Historique des discussions</h2>{quickNotice && <p role="status">{quickNotice}</p>}
+        {storageMode !== 'r2' && <section aria-label="Conversations serveur">
+          <h3>Conversations récentes du serveur</h3><p>Lecture seule pour le moment ; jusqu’à 20 conversations. Les pièces jointes et actions ne sont pas affichées ici.</p>
+          {serverHistoryState === 'loading' && <p role="status">Chargement de l’historique…</p>}
+          {serverHistoryState === 'error' && <p role="status">Historique serveur indisponible. Fermez puis rouvrez pour réessayer.</p>}
+          {serverHistoryState === 'ready' && !serverHistory?.length && <p>Aucune conversation récente sur le serveur.</p>}
+          {serverHistory?.map(t => <button key={t.id} type="button" disabled={serverDetailLoading} onClick={() => void viewServerThread(t)}>{t.title || 'Conversation'}</button>)}
+          {serverDetailLoading && <p role="status">Chargement de la conversation…</p>}
+          {serverDetail && <div><h4>{serverDetail.title}</h4>{serverDetail.messages.map((m, i) => <p key={i}><strong>{m.role === 'user' ? 'Vous' : 'Atlas Agent'} : </strong>{m.text}</p>)}</div>}
+        </section>}
+        <p>Copies enregistrées sur cet appareil pour ce compte.</p>
         {history.filter(t => t.threadId !== threadId).length === 0 && <p>Aucune autre discussion enregistrée.</p>}
         <div className="ph-agent-history-list">{history.filter(t => t.threadId !== threadId).map(t => <div className="ph-agent-history-row" key={t.threadId}><button type="button" disabled={deletingHistory} onClick={() => { if (!archiveCurrent()) return; setThreadId(t.threadId); setMsgs(t.messages); setInput(''); setShowLatest(false); followMessages.current = true; setDialog(null); }}>{t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'Discussion'}</button><button type="button" disabled={deletingHistory || busy} aria-label={`Supprimer ${t.messages.find(m => m.role === 'user')?.text.slice(0, 90) || 'la discussion'}`} onClick={() => { setQuickNotice(''); setDeleteHistoryId(t.threadId); }}><Trash2 size={16} /></button></div>)}</div>
         {deleteHistoryId && <div role="group" aria-label="Confirmer la suppression"><p>Supprimer cette discussion et son contexte du serveur ? Cette action est définitive.</p><button type="button" disabled={deletingHistory} onClick={() => void deleteSavedConversation(deleteHistoryId)}>{deletingHistory ? 'Suppression…' : 'Confirmer la suppression'}</button><button type="button" disabled={deletingHistory} onClick={() => setDeleteHistoryId(null)}>Annuler</button></div>}

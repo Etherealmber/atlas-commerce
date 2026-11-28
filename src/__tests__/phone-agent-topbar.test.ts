@@ -346,3 +346,32 @@ it('warns when the model answered but the versioned reply save fails', async () 
   expect(host.textContent).toContain('Réponse reçue');
   expect(host.textContent).toContain('sauvegarde serveur non confirmée');
 });
+
+it('shows Supabase server history as read-only without replacing the local draft', async () => {
+  localStorage.setItem('stock_auth_user', 'alice');
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  const list = vi.spyOn(api, 'listAgentThreads').mockResolvedValue({ data: [{ id: 'desktop-thread', title: 'Serveur privé' }], meta: { storage: 'supabase' } } as any);
+  const get = vi.spyOn(api, 'getAgentThread').mockResolvedValue({ data: { messages: [{ role: 'user', text: 'Question du serveur' }, { role: 'assistant', text: 'Réponse du serveur' }] }, meta: { storage: 'supabase', version: '2' } } as any);
+  const put = vi.spyOn(api, 'putAgentThread');
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Brouillon local'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Historique des discussions"]')!.click());
+  expect(list).toHaveBeenCalledOnce();
+  const section = document.querySelector<HTMLElement>('[aria-label="Conversations serveur"]')!;
+  expect(section.textContent).toContain('Lecture seule');
+  await act(async () => section.querySelector('button')!.click());
+  expect(get).toHaveBeenCalledWith('desktop-thread');
+  expect(section.textContent).toContain('Réponse du serveur');
+  expect(input.value).toBe('Brouillon local'); expect(put).not.toHaveBeenCalled();
+});
+
+it('does not claim an empty server history when the list fails or mode changes', async () => {
+  vi.mocked(api.assistStatus).mockResolvedValue({ data: { configured: true, agent_history: { storage: 'supabase', version_type: 'string', require_expected_version: true } } } as any);
+  vi.spyOn(api, 'listAgentThreads').mockResolvedValue({ data: [], meta: { storage: 'r2' } } as any);
+  await act(async () => root.render(createElement(PhoneAgentMobile)));
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Historique des discussions"]')!.click());
+  const section = document.querySelector<HTMLElement>('[aria-label="Conversations serveur"]')!;
+  expect(section.textContent).toContain('Historique serveur indisponible');
+  expect(section.textContent).not.toContain('Aucune conversation récente sur le serveur');
+});
