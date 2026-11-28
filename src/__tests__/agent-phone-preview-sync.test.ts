@@ -48,3 +48,37 @@ it('rejects acknowledgements from a different storage mode', async () => {
   const client = { getAgentThread: vi.fn(async () => ({ data: { messages: [] }, meta: { storage: 'supabase', version: null } })), putAgentThread: vi.fn().mockResolvedValue({ data: { storage: 'supabase-preview', version: '1' } }) };
   await expect(preparePhonePreviewTurn(client, 't', [], 'new')).rejects.toThrow('Confirmation');
 });
+
+it('refuses to overwrite rich desktop messages with a text-only mobile snapshot', async () => {
+  const client = { getAgentThread: vi.fn(async () => ({ data: { messages: [{ role: 'user', text: 'Bonjour', images: ['image-data'] }] }, meta: { storage: 'supabase', version: '1' } })), putAgentThread: vi.fn() };
+  await expect(preparePhonePreviewTurn(client, 't', [{ role: 'user', text: 'Bonjour' }], 'next')).rejects.toThrow('incompatibles');
+  expect(client.putAgentThread).not.toHaveBeenCalled();
+});
+
+it('reconciles a lost reply acknowledgement without resending the model turn', async () => {
+  const { reconcilePhoneReply } = await import('../mobile/agentPreviewSync');
+  const prepared = { storage: 'supabase', version: '1', title: 'Question', messages: [{ role: 'user' as const, text: 'Question' }] };
+  const client: any = { getAgentThread: vi.fn(), putAgentThread: vi.fn().mockResolvedValue({ data: { storage: 'supabase', version: '2' } }) };
+  client.getAgentThread.mockResolvedValueOnce({ data: { messages: [...prepared.messages, { role: 'assistant', text: 'Réponse' }] }, meta: { storage: 'supabase', version: '2' } });
+  expect(await reconcilePhoneReply(client, 't', prepared, 'Réponse')).toBe('already-saved');
+  expect(client.putAgentThread).not.toHaveBeenCalled();
+  client.getAgentThread.mockResolvedValueOnce({ data: { messages: prepared.messages }, meta: { storage: 'supabase', version: '1' } });
+  expect(await reconcilePhoneReply(client, 't', prepared, 'Réponse')).toBe('saved');
+  expect(client.putAgentThread).toHaveBeenCalledWith('t', expect.objectContaining({ expected_version: '1', messages: [...prepared.messages, { role: 'assistant', text: 'Réponse' }] }));
+});
+
+it('does not reconcile over a changed, expired, or richer server snapshot', async () => {
+  const { reconcilePhoneReply } = await import('../mobile/agentPreviewSync');
+  const prepared = { storage: 'supabase', version: '1', title: 'Question', messages: [{ role: 'user' as const, text: 'Question' }] };
+  const client: any = { getAgentThread: vi.fn(), putAgentThread: vi.fn() };
+  for (const result of [
+    { data: { messages: prepared.messages }, meta: { storage: 'supabase', version: '2' } },
+    { data: { messages: [] }, meta: { storage: 'supabase', version: null } },
+    { data: { messages: [{ role: 'user', text: 'Question', images: ['x'] }] }, meta: { storage: 'supabase', version: '1' } },
+    { data: { messages: prepared.messages }, meta: { storage: 'supabase-preview', version: '1' } },
+  ]) {
+    client.getAgentThread.mockResolvedValueOnce(result);
+    await expect(reconcilePhoneReply(client, 't', prepared, 'Réponse')).rejects.toThrow();
+  }
+  expect(client.putAgentThread).not.toHaveBeenCalled();
+});
