@@ -8,7 +8,7 @@ const fence = { begin: async () => true, finish: async () => true };
 function fakeBucket() {
   const objects = new Map<string, string>();
   const bucket = {
-    put: vi.fn(async (path: string, value: string) => { objects.set(path, value); }),
+    put: vi.fn(async (path: string, value: string) => { objects.set(path, value); return {}; }),
     get: vi.fn(async (path: string) => { const value = objects.get(path); return value === undefined ? null : { size: value.length, text: async () => value }; }),
     list: vi.fn(async ({ prefix, limit }: any) => { const paths = [...objects.keys()].filter(k => k.startsWith(prefix)); return { objects: paths.slice(0, limit).map(path => ({ key: path })), truncated: paths.length > limit }; }),
     delete: vi.fn(async (paths: string | string[]) => { for (const path of Array.isArray(paths) ? paths : [paths]) objects.delete(path); }),

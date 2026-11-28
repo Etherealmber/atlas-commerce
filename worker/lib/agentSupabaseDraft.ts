@@ -10,7 +10,7 @@ export class AgentStorageConflict extends Error {
   constructor() { super('Agent history conflict'); }
 }
 
-type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list' | 'atlas_agent_tombstone' | 'atlas_agent_transcript_get' | 'atlas_agent_transcript_put' | 'atlas_agent_expire' | 'atlas_agent_cleanup_claim' | 'atlas_agent_cleanup_finish';
+type AgentRpc = 'atlas_agent_get' | 'atlas_agent_put' | 'atlas_agent_list' | 'atlas_agent_tombstone' | 'atlas_agent_transcript_get' | 'atlas_agent_transcript_put' | 'atlas_agent_expire' | 'atlas_agent_cleanup_claim' | 'atlas_agent_cleanup_finish' | 'atlas_agent_upload_begin' | 'atlas_agent_upload_finish';
 type DraftEnv = Env & { AGENT_HISTORY_ENCRYPTION_KEY?: string };
 
 /** Hash exact authenticated username; never use a lossy R2-safe encoding. */
@@ -155,5 +155,19 @@ export function agentCleanupQueueDraft(env: DraftEnv, fetcher: typeof fetch = fe
       if (typeof result !== 'boolean') throw new AgentStorageUnavailable();
       return result;
     },
+  };
+}
+
+/** SQL-backed upload fence for isolated testing; accounts are server-derived. */
+export function agentUploadFenceDraft(env: DraftEnv, fetcher: typeof fetch = fetch) {
+  async function invoke(name: 'atlas_agent_upload_begin' | 'atlas_agent_upload_finish', account: string, thread: string, imageId: string, removed?: boolean): Promise<boolean> {
+    if (!/^[a-f0-9]{64}$/.test(account) || !validThread(thread) || !/^[a-f0-9]{32}$/.test(imageId)) throw new AgentStorageUnavailable();
+    const result = await rpc(env, name, { p_account: account, p_thread: thread, p_image: imageId, ...(removed === undefined ? {} : { p_removed: removed }) }, fetcher);
+    if (typeof result !== 'boolean') throw new AgentStorageUnavailable();
+    return result;
+  }
+  return {
+    begin: (account: string, thread: string, imageId: string) => invoke('atlas_agent_upload_begin', account, thread, imageId),
+    finish: (account: string, thread: string, imageId: string, removed: boolean) => invoke('atlas_agent_upload_finish', account, thread, imageId, removed),
   };
 }

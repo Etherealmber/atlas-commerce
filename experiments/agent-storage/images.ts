@@ -1,4 +1,4 @@
-/** Isolated prototype. Not called by routes or scheduled jobs. */
+/** Isolated prototype, used only by explicitly gated preview routes. */
 import { decryptAgentPayload, encryptAgentPayload } from './crypto';
 
 const MAX_IMAGE_BYTES = 1_000_000;
@@ -44,7 +44,8 @@ export async function putAgentImageDraft(bucket: Bucket, fence: UploadFence, key
   const envelope = await encryptAgentPayload(key, `${account}:image:${imageId}`, thread, dataUrl);
   if (!await fence.begin(account, thread, imageId)) throw new Error('Conversation unavailable');
   // An exception may have an unknown outcome. Do not clear the intent.
-  await bucket.put(path, envelope, { httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' } });
+  const written = await bucket.put(path, envelope, { httpMetadata: { contentType: 'application/octet-stream', cacheControl: 'private, no-store' } });
+  if (!written) throw new Error('Upload outcome unknown');
   if (await fence.finish(account, thread, imageId, false)) return imageId;
   // The completed upload raced a tombstone: remove the exact object first.
   await bucket.delete(path);
