@@ -1,9 +1,18 @@
--- DRAFT ONLY: not applied by Atlas; review and validate in isolated staging.
--- Requires agent-preparation.sql. Does not schedule cleanup, store images,
--- migrate R2 or enable a production cutover. Run only with explicit approval.
+-- Agent schema and server-only RPC installation; review and validate before use.
+-- Requires agent-preparation.sql. Does not invoke expiry, schedule cleanup,
+-- migrate R2 or enable a production cutover. Image recovery and live verification
+-- remain incomplete; installing this SQL alone does not make cutover safe.
 -- Every account_id is supplied by the trusted Worker, NEVER by a browser.
 
 begin;
+
+-- Do not replace or drop a pre-existing legacy overload automatically. It may
+-- belong to another deployment. Investigate it before installing this schema.
+do $$ begin
+  if to_regprocedure('public.atlas_agent_put(text,text,text,text)') is not null then
+    raise exception 'Legacy atlas_agent_put overload exists; inspect it before installation';
+  end if;
+end $$;
 
 alter table public.atlas_agent_conversations add column if not exists deleted_at timestamptz;
 alter table public.atlas_agent_conversations add column if not exists encrypted_summary text;
@@ -148,7 +157,6 @@ $$;
 
 -- A null base version means create-only. Existing, expired, or deleted IDs
 -- cannot be silently recreated. All updates are compare-and-swap.
-drop function if exists public.atlas_agent_put(text,text,text,text);
 create or replace function public.atlas_agent_put(p_account text, p_thread text, p_payload text, p_expected_version text, p_summary text)
 returns jsonb language plpgsql security definer set search_path = pg_catalog as $$
 declare new_revision bigint;

@@ -22,3 +22,16 @@ it('reports missing and installed objects without changing the schema or reveali
     expect(unsafe.rows.find(r => r.kind === 'table' && r.name === 'conversations').anon_allowed).toBe(true);
   } finally { await db.close(); }
 });
+
+it('refuses to remove an existing legacy overload during installation', async () => {
+  const db = new PGlite();
+  try {
+    await db.exec('create role anon; create role authenticated; create role service_role;');
+    await db.exec(readFileSync('supabase/agent-preparation.sql', 'utf8'));
+    await db.exec("create function public.atlas_agent_put(text,text,text,text) returns text language sql as $$ select 'existing'::text $$;");
+    await expect(db.exec(readFileSync('supabase/agent-rpc-draft.sql', 'utf8'))).rejects.toThrow('Legacy atlas_agent_put overload exists');
+    await db.exec('rollback');
+    expect((await db.query<any>("select public.atlas_agent_put('a','b','c','d') as result")).rows[0].result).toBe('existing');
+    expect((await db.query<any>("select to_regclass('public.atlas_agent_transcripts') is null as absent")).rows[0].absent).toBe(true);
+  } finally { await db.close(); }
+});
